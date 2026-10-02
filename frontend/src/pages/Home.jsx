@@ -15,10 +15,10 @@ register({
     "home.f3_t": "مجتمع ولقاءات", "home.f3_d": "مجموعات يقودها دعاة ومعها المساعد عند استدعائه، ولقاءات حضورية في أماكن عامة.",
     "home.how": "كيف يعمل سَبِيلي؟",
     "home.s1": "تسأل بلغتك", "home.s1d": "نصاً أو صورة، دون حساب ولا تسجيل.",
-    "home.s2": "نبحث في المصادر المعتمدة فقط", "home.s2d": "المصحف والتفسير الميسر وموسوعة الأحاديث وقاموس المصطلحات.",
+    "home.s2": "نبحث في المصادر المعتمدة فقط", "home.s2d": "المصحف والتفسير الميسر وموسوعة الأحاديث وموسوعات الأسئلة والأجوبة وقاموس المصطلحات.",
     "home.s3": "تأتيك الإجابة مع مصدرها", "home.s3d": "أو نقول بوضوح إننا لم نجد، ولا نصدر فتوى في حالتك الشخصية.",
     "home.s4": "تنتقل إلى داعية", "home.s4d": "بملخص تراجعه وتعدّله، فلا تعيد شرح سؤالك من البداية.",
-    "home.corpus": "في الحزمة المعتمدة الآن", "home.verses": "آية", "home.hadiths": "حديث بدرجته وشرحه", "home.terms": "مصطلح معتمد",
+    "home.corpus": "في الحزمة المعتمدة الآن", "home.verses": "آية", "home.hadiths": "حديث بدرجته وشرحه", "home.terms": "مصطلح معتمد", "home.qa": "سؤال وجواب معتمد",
     "home.levels": "نعرف حدودنا",
     "home.lvA": "معلومات أصلية مستقرة: إجابة مباشرة موثقة بالمصدر.",
     "home.lvB": "شرح وتعريف: من المادة المعتمدة مع إظهار المرجع.",
@@ -34,10 +34,10 @@ register({
     "home.f3_t": "Community and meetups", "home.f3_d": "Groups led by da'is, with the assistant on call, and in-person meetups at public venues.",
     "home.how": "How Sabeeli works",
     "home.s1": "You ask in your language", "home.s1d": "Text or a photo, no account needed.",
-    "home.s2": "We search approved sources only", "home.s2d": "The Mushaf, At-Tafsir Al-Muyassar, the hadith encyclopedia and the glossary.",
+    "home.s2": "We search approved sources only", "home.s2d": "The Mushaf, At-Tafsir Al-Muyassar, the hadith encyclopedia, the Q&A encyclopedias and the glossary.",
     "home.s3": "The answer comes with its source", "home.s3d": "Or we say plainly we didn't find it. No fatwa on personal situations.",
     "home.s4": "You move to a da'i", "home.s4d": "With a summary you review and edit, so you don't start over.",
-    "home.corpus": "In the approved package now", "home.verses": "verses", "home.hadiths": "hadiths with grade and explanation", "home.terms": "approved terms",
+    "home.corpus": "In the approved package now", "home.verses": "verses", "home.hadiths": "hadiths with grade and explanation", "home.terms": "approved terms", "home.qa": "approved questions and answers",
     "home.levels": "We know our limits",
     "home.lvA": "Settled core information: a direct answer with its source.",
     "home.lvB": "Explanation: from approved material, reference shown.",
@@ -101,7 +101,7 @@ export default function Home() {
         <div className="card stack">
           <h3>{t("home.corpus")}</h3>
           <div className="stats">
-            {stats && [[stats.quran_verses, "home.verses"], [stats.hadiths, "home.hadiths"], [stats.terms, "home.terms"]].map(([n, k]) => (
+            {stats && [[stats.quran_verses, "home.verses"], [stats.hadiths, "home.hadiths"], [(stats.qa || 0) + (stats.bayyinat || 0), "home.qa"]].map(([n, k]) => (
               <div className="stat" key={k}><span className="stat-num">{fmtNum(n)}</span><span className="stat-label">{t(k)}</span></div>
             ))}
           </div>

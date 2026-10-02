@@ -105,6 +105,14 @@
 .hadith-en { color: var(--text-muted); margin: 6px 0; }
 .term-card::before { content: ""; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 4px; background: var(--amber-500); }
 .term-line { font-size: 1.05rem; margin: 2px 0 6px; }
+.qa-card::before { content: ""; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 4px; background: var(--navy-800); }
+.qa-question { font-weight: 700; font-size: 1.02rem; line-height: 1.8; margin: 4px 0; }
+.qa-answer { line-height: 1.95; color: var(--text); }
+.qa-answer p { margin: 0 0 8px; }
+.qa-answer .qa-verse { font-size: 1.35rem; line-height: 2.1; margin: 6px 0 10px; }
+.qa-short { margin: 6px 0; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--mint-400) 10%, transparent); }
+.qa-short .qa-answer p:last-child { margin-bottom: 0; }
+.qa-verse-ref { font-family: var(--font-ui); font-size: .78rem; color: var(--text-faint); margin-inline-start: 6px; }
 
 /* composer */
 .composer {

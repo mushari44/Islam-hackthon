@@ -6,8 +6,30 @@ import "./rag.css";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, Notice, openSheet } from "../../core/ui.jsx";
 
-const MARKER = /\[\[(q:\d{1,3}:\d{1,3}|h:\d+|t:[a-z_]+)\]\]/g;
+const MARKER = /\[\[(q:\d{1,3}:\d{1,3}|h:\d+|t:[a-z_]+|qa:\d+|b:\d+)\]\]/g;
+const VERSE_MARKER = /\[\[(q:\d{1,3}:\d{1,3})\]\]/g;
 const arDigits = (n) => new Intl.NumberFormat("ar-SA-u-nu-arab").format(n);
+
+/** An encyclopedia answer: its own Arabic text, with every verse it quotes shown from the Mushaf. */
+function QaAnswer({ text, verses }) {
+  const out = [];
+  text.split(VERSE_MARKER).forEach((part, i) => {
+    if (i % 2 === 1) {
+      const v = verses[part];
+      if (v) {
+        out.push(
+          <p key={i} className="verse-text qa-verse" lang="ar" dir="rtl" title={`${v.sura_name_ar} ${v.sura}:${v.aya}`}>
+            <span className="orn">﴿</span>{v.text_ar} <span className="aya-num">{arDigits(v.aya)}</span><span className="orn">﴾</span>
+            <span className="qa-verse-ref">{`[${v.sura_name_ar}: ${arDigits(v.aya)}]`}</span>
+          </p>,
+        );
+      }
+      return;
+    }
+    part.split(/\n+/).forEach((line, j) => { if (line.trim()) out.push(<p key={`${i}-${j}`}>{line}</p>); });
+  });
+  return <div className="qa-answer" lang="ar" dir="rtl">{out}</div>;
+}
 
 function SourceLink({ url }) {
   const { t } = useI18n();
@@ -23,7 +45,7 @@ function Details({ summary, children }) {
   return <details className="src-details"><summary>{summary}</summary><div className="src-details-body">{children}</div></details>;
 }
 
-/** A verse, hadith or glossary card rendered from reference data (never from model text). */
+/** A verse, hadith, glossary or Q&A card rendered from reference data (never from model text). */
 export function SourceCard({ card, num = null, compact = false }) {
   const { t, lang, fmtNum } = useI18n();
   const head = (kind, extra = null) => (
@@ -56,6 +78,21 @@ export function SourceCard({ card, num = null, compact = false }) {
         {lang !== "ar" && (card.text_en ? <p className="hadith-en" lang="en" dir="ltr">{card.text_en}</p> : <p className="faint">{t("src.no_en")}</p>)}
         {card.attribution && <div className="faint">{card.attribution}</div>}
         {!compact && card.explanation && <Details summary={t("src.explanation")}><p>{card.explanation}</p></Details>}
+        <div className="src-foot">{card.source}</div>
+      </article>
+    );
+  }
+  if (card.kind === "qa" || card.kind === "bayyinat") {
+    const verses = card.verses || {};
+    return (
+      <article className={`src-card qa-card ${compact ? "compact" : ""}`} data-id={card.id}>
+        {head(card.kind)}
+        {!card.title.includes(card.question) && <p className="qa-question" lang="ar" dir="rtl">{card.question}</p>}
+        {lang !== "ar" && <p className="faint">{t("src.ar_only")}</p>}
+        {card.short_answer && (
+          <div className="qa-short"><div className="faint small">{t("src.short_answer")}</div><QaAnswer text={card.short_answer} verses={verses} /></div>
+        )}
+        <Details summary={t(card.kind === "qa" ? "src.qa_answer" : "src.full_answer")}><QaAnswer text={card.answer} verses={verses} /></Details>
         <div className="src-foot">{card.source}</div>
       </article>
     );

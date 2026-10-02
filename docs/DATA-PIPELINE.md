@@ -9,14 +9,23 @@
 | Surah names | same script | `www.mp3quran.net/api/v3/suwar?language=ar\|eng` | merged |
 | Hadith | `scripts/ingest_hadith.py` | `hadeethenc.com/api/v1/categories/list`, `hadeeths/list` (every category, paged), `hadeeths/one` (ar and en) | `data/corpus/hadith.jsonl`, `hadith_categories.json`; raw responses cached in `data/raw/hadith/` (git-ignored) |
 | Glossary | written by hand | page 7 of the scholarly package | `data/corpus/glossary.json` |
+| Q&A encyclopedias (icadb) | `scripts/ingest_icadb.py` | `icadb.com/api/encyclopedias/{110,102}/cards/latest/` (public export, approved versions only) | `data/corpus/qa.jsonl` (543 items); raw responses in `data/raw/icadb/` |
+| «بينات» | `scripts/ingest_bayyinat.py` (needs `pip install pymupdf`) | the PDF linked from `dawa.center/file/7937` | `data/corpus/bayyinat.jsonl` (263 questions), **git-ignored**: the book's rights are reserved, so each copy builds it |
 
-Not fetched yet: icadb.com and islamenc.com (no data was pulled from them) and «بينات» (a PDF on dawa.center). Add each with its own script once its usage terms are confirmed, and record it in `THIRD_PARTY.md`.
+**Verses inside the Q&A sources** never reach the user as copied text:
+- icadb answers quote verses as text between ﴿ ﴾. Each one is matched against the Mushaf, piece by piece, using the aya numbers the source writes, and replaced by `[[q:S:A]]` markers (1,002 of them). A phrase that occurs in several verses and has no number (18 cases) is left as the source wrote it. Every replacement was checked against the sura name the source gives after the verse: 669 agree, and the 3 that don't are errors in the source's own reference.
+- Bayyinat sets verses in the King Fahd Complex page fonts, which carry no text. Each verse is followed by its reference (`[يس: 40]`), which becomes the markers (847). A verse with no reference next to it (63) becomes ﴿…﴾ rather than a guess.
+- Bayyinat's text layer is rebuilt line by line from glyph positions, which repairs the reversed lam-alef and «الله» ligatures, spaces drawn on top of letters, and punctuation the layout moved. Questions are split on the book's own labels (السؤال، عبارات مشابهة، مضمون السؤال، مختصر الإجابة، الجواب التفصيلي) and titled from its table of contents.
+
+Not fetched: islamenc.com's other encyclopedias and books (icadb also serves books with translations, a candidate for English content), Jamhara, Dorar, Shamela.
 
 To re-run (takes a few minutes; the hadith script reuses its cache):
 
 ```bash
 python scripts/ingest_quran.py
 python scripts/ingest_hadith.py --workers 6
+python scripts/ingest_icadb.py          # --refresh to download again
+python scripts/ingest_bayyinat.py       # downloads the PDF once into data/raw/bayyinat/
 ```
 
 The BM25 index (`data/cache/bm25.pkl`) rebuilds by itself when a corpus file changes.
@@ -40,6 +49,10 @@ Each record becomes one `Passage` with a stable id and keeps all its metadata:
 - **Verse `q:S:A`:** surah and ayah, surah names, the original Uthmani text, the tafsir, the translation and the source URLs.
 - **Hadith `h:ID`:** Arabic and English text, grade, attribution, explanation, lessons, reference, categories and URLs.
 - **Term `t:key`:** the Arabic and English term, aliases and the usage rule.
+- **Q&A `qa:ID`:** one icadb card: question, answer (with verse markers), categories, encyclopedia, islamenc.com link.
+- **Bayyinat `b:N`:** one question of the book: title, section, question, similar wordings, gist, short answer, detailed answer (with verse markers) and page.
+
+A Q&A or Bayyinat item is never cut into chunks; the model sees the question and the first 4,000 characters of the answer, line by line so each line is citable, and the card shows all of it. The verses inside a retrieved answer may be shown as markers too.
 
 For each passage:
 

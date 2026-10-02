@@ -3,7 +3,9 @@ import { register } from "../../core/i18n.jsx";
 
 register({
   ar: {
-    "src.verse": "آية", "src.hadith": "حديث", "src.term": "مصطلح", "src.open": "افتح المصدر",
+    "src.verse": "آية", "src.hadith": "حديث", "src.term": "مصطلح", "src.qa": "سؤال وجواب", "src.open": "افتح المصدر",
+    "src.qa_answer": "الجواب كما في الموسوعة", "src.ar_only": "هذا الجواب منشور بالعربية فقط في المصدر.",
+    "src.bayyinat": "بيّنات", "src.short_answer": "مختصر الإجابة", "src.full_answer": "الجواب التفصيلي",
     "src.tafsir": "التفسير الميسر", "src.explanation": "الشرح",
     "src.no_en": "لا تتوفر ترجمة إنجليزية معتمدة لهذا الحديث في المصدر.", "src.rule": "ضابط الاستخدام",
     "ans.sources": "المصادر ({n})", "ans.cite": "المصدر {n}",
@@ -24,7 +26,7 @@ register({
     "ask.talk": "تحدّث مع داعية عن هذا", "ask.how": "كيف وصلتُ للإجابة؟",
     "ask.clear": "محادثة جديدة", "ask.photo_attached": "صورة مرفقة",
     "ask.side_title": "كيف يجيب سَبِيلي؟",
-    "ask.side_1": "يبحث في الحزمة العلمية المعتمدة فقط: نص المصحف والتفسير الميسر وترجمة رواد وموسوعة الأحاديث.",
+    "ask.side_1": "يبحث في الحزمة العلمية المعتمدة فقط: نص المصحف والتفسير الميسر وترجمة رواد وموسوعة الأحاديث وموسوعتي الأسئلة والأجوبة وكتاب «بيّنات».",
     "ask.side_2": "يعرض نص الآية والحديث من المرجع كما هو، ولا يكتبه النموذج.",
     "ask.side_3": "إن لم يجد ما يكفي قال ذلك صراحة، ولا يصدر فتوى في حالتك الشخصية.",
     "ask.side_cta": "تفضّل الحديث مع إنسان؟",
@@ -41,7 +43,9 @@ register({
     "ask.s6": "قل هو الله واحد الله الصمد",
   },
   en: {
-    "src.verse": "Verse", "src.hadith": "Hadith", "src.term": "Term", "src.open": "Open source",
+    "src.verse": "Verse", "src.hadith": "Hadith", "src.term": "Term", "src.qa": "Q&A", "src.open": "Open source",
+    "src.qa_answer": "The encyclopedia's answer", "src.ar_only": "The source publishes this answer in Arabic only.",
+    "src.bayyinat": "Bayyinat", "src.short_answer": "Short answer", "src.full_answer": "Detailed answer",
     "src.tafsir": "At-Tafsir Al-Muyassar (Arabic)", "src.explanation": "Explanation",
     "src.no_en": "No approved English translation of this hadith is available in the source.", "src.rule": "Usage rule",
     "ans.sources": "Sources ({n})", "ans.cite": "Source {n}",
@@ -62,7 +66,7 @@ register({
     "ask.talk": "Talk to a da'i about this", "ask.how": "How I found this",
     "ask.clear": "New conversation", "ask.photo_attached": "Photo attached",
     "ask.side_title": "How Sabeeli answers",
-    "ask.side_1": "It searches only the approved scholarly package: the Mushaf, At-Tafsir Al-Muyassar, the Rowwad translation and the hadith encyclopedia.",
+    "ask.side_1": "It searches only the approved scholarly package: the Mushaf, At-Tafsir Al-Muyassar, the Rowwad translation, the hadith encyclopedia, two Q&A encyclopedias and the book Bayyinat.",
     "ask.side_2": "Verse and hadith text is shown from the reference as published, never written by the model.",
     "ask.side_3": "If it can't find enough, it says so plainly, and it never gives a fatwa on your personal situation.",
     "ask.side_cta": "Prefer talking to a person?",

@@ -32,12 +32,12 @@ Open http://localhost:8000. For frontend development, run `npm run dev` in `fron
 
 To try a call locally, open the app in two browsers: in one, sign in as a da'i and switch on "Available"; in the other, go to **تحدّث**.
 
-The corpus is already in `data/corpus/`. To refresh it from the official APIs, run `python scripts/ingest_quran.py` and `python scripts/ingest_hadith.py`.
+The corpus is already in `data/corpus/`, except «بينات»: its publisher reserves the rights, so each copy builds it from the package's link with `pip install pymupdf` and `python scripts/ingest_bayyinat.py` (the app works without it). To refresh the rest from the official APIs, run `python scripts/ingest_quran.py`, `python scripts/ingest_hadith.py` and `python scripts/ingest_icadb.py`.
 
 ## Tests
 
 ```bash
-python -m pytest tests             # 37 tests; no API key needed (sources-only mode + a mocked Claude API)
+python -m pytest tests             # 44 tests; no API key needed (sources-only mode + a mocked Claude API)
 ```
 
 ## How the code is organised

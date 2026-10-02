@@ -72,7 +72,7 @@ Then open a pull request into `main` on GitHub (`https://github.com/mushari44/Is
 
 ## 3. Content rules (these are the challenge's binding rules)
 
-- Religious content comes **only** from the approved corpus in `data/corpus/` (Mushaf text, At-Tafsir Al-Muyassar and the Rowwad translation from QuranEnc, HadeethEnc, the package glossary). Never add religious text from model memory.
+- Religious content comes **only** from the approved corpus in `data/corpus/` (Mushaf text, At-Tafsir Al-Muyassar and the Rowwad translation from QuranEnc, HadeethEnc, the package glossary, the two Q&A encyclopedias from icadb, and «بينات», which each copy builds locally with `scripts/ingest_bayyinat.py`). Never add religious text from model memory.
 - **Only cited text reaches the user.** With `SABEELI_STRICT_GROUNDING=1` (the default), `pipeline.py` drops every model sentence that cites no approved passage (connectors of at most `SABEELI_MAX_UNCITED_WORDS` words are kept). An answer with no citations becomes the fixed "not found in the sources" message. Don't weaken this.
 - **Quran and hadith text is never generated.** The model refers to passages with `[[q:SURA:AYA]]` / `[[h:ID]]` markers, and the app renders the reference text. Keep `_guard_scripture` and `_clean_markers` in `pipeline.py` working.
 - **No personal fatwa.** Level D questions get general information and a referral. The `fatwa` notice must stay.

@@ -1,4 +1,4 @@
-"""The approved corpus (Quran, hadith, glossary) and a BM25 index over it.
+"""The approved corpus (Quran, hadith, glossary, Q&A encyclopedias, Bayyinat) and a BM25 index over it.
 
 Everything the assistant may say about religion has to come from a Passage in
 this module. Passages render their own display cards, so scripture shown to
@@ -19,13 +19,17 @@ from pathlib import Path
 from ...core.config import settings
 from ...core.textnorm import normalize_ar, tokens
 
-INDEX_VERSION = 4
+INDEX_VERSION = 5
+PREFIX = {"quran": "q", "hadith": "h", "term": "t", "qa": "qa", "bayyinat": "b"}
+ANSWER_KINDS = ("qa", "bayyinat")  # whole approved answers to a question, with verses inside as markers
+QA_CONTEXT_CHARS = 4000  # long answers are cut here for the model (the card shows all of it)
+MARKER_IN_TEXT = re.compile(r"\[\[(q:\d{1,3}:\d{1,3})\]\]")
 
 
 @dataclass
 class Passage:
     id: str
-    kind: str  # "quran" | "hadith" | "term"
+    kind: str  # "quran" | "hadith" | "term" | "qa" | "bayyinat"
     data: dict = field(repr=False)
 
     # ---- labels ---------------------------------------------------------
@@ -38,12 +42,18 @@ class Passage:
         if self.kind == "hadith":
             t = d["title_ar"] if lang == "ar" or not d.get("title_en") else d["title_en"]
             return (f"حديث: {t}" if lang == "ar" else f"Hadith: {t}")[:160]
+        if self.kind == "qa":
+            return (f"سؤال وجواب: {d['title']}" if lang == "ar" else f"Q&A: {d['title']}")[:160]
+        if self.kind == "bayyinat":
+            return (f"بيّنات: {d['title']}" if lang == "ar" else f"Bayyinat: {d['title']}")[:160]
         return f"مصطلح: {d['ar']}" if lang == "ar" else f"Term: {d['en']}"
 
     def url(self, lang: str) -> str:
         d = self.data
         if self.kind == "term":
             return ""
+        if self.kind in ANSWER_KINDS:
+            return d["url_ar"]  # published in Arabic only
         return d["url_ar"] if lang == "ar" else d["url_en"]
 
     def source_label(self, lang: str) -> str:
@@ -54,6 +64,13 @@ class Passage:
         if self.kind == "hadith":
             return ("موسوعة الأحاديث النبوية (HadeethEnc)" if lang == "ar"
                     else "Encyclopedia of Translated Prophetic Hadiths (HadeethEnc)")
+        if self.kind == "qa":
+            return (f"{self.data['enc_ar']}، جمعية خدمة المحتوى الإسلامي باللغات (icadb)" if lang == "ar"
+                    else f"{self.data['enc_en']}, Islamic Content Service Association (icadb), in Arabic")
+        if self.kind == "bayyinat":
+            d = self.data
+            return (f"«بينات: أسئلة وأجوبة عن الإسلام»، مركز أصول، المسألة {d['n']} (ص {d['page']})" if lang == "ar"
+                    else f"“Bayyinat: Questions and Answers about Islam”, Osoul Center, in Arabic, question {d['n']} (p. {d['page']})")
         return glossary_source(lang)
 
     # ---- model context --------------------------------------------------
@@ -74,7 +91,37 @@ class Passage:
             return [f"[Hadith {d['hid']}] {d['text_en'] or d['text_ar']} (Attribution: {d['attribution_en'] or d['attribution_ar']}; grade: {d['grade_en'] or d['grade_ar']})",
                     f"Explanation: {d['explanation_en'] or d['explanation_ar']}",
                     "Lessons: " + " ".join(d.get("hints_en") or d.get("hints_ar") or [])]
+        if self.kind == "qa":
+            return self._answer_blocks([f"[Q&A {self.id}, {d['enc_en']}] السؤال: {d['question']}"], d["answer"])
+        if self.kind == "bayyinat":
+            head = [f"[Bayyinat {self.id}] المسألة: {d['title']}", f"السؤال: {d['question']}"]
+            if d.get("similar"):
+                head.append("عبارات مشابهة للسؤال: " + " / ".join(d["similar"]))
+            return self._answer_blocks(head, "مختصر الإجابة:\n" + d["short_answer"] + "\nالجواب التفصيلي:\n" + d["answer"])
         return [f"Approved term: {d['ar']} = {d['en']}. Usage rule: {d['rule_ar']}"]
+
+    @staticmethod
+    def _answer_blocks(head: list[str], answer: str) -> list[str]:
+        """The question, then the answer line by line (each line citable), cut at QA_CONTEXT_CHARS.
+
+        Verses inside the answer are already [[q:..]] markers pointing at the Mushaf, so the model
+        can show them the same way it shows any verse.
+        """
+        blocks = list(head)
+        used = 0
+        for para in (x.strip() for x in answer.split("\n")):
+            if not para:
+                continue
+            if used + len(para) > QA_CONTEXT_CHARS:
+                blocks.append("(…)")
+                break
+            blocks.append(para)
+            used += len(para)
+        return blocks
+
+    def verse_refs(self) -> list[str]:
+        """Mushaf verse ids this passage points to (the verses inside a Q&A answer)."""
+        return list(self.data.get("refs") or []) if self.kind in ANSWER_KINDS else []
 
     # ---- display card ---------------------------------------------------
     def card(self, lang: str) -> dict:
@@ -90,6 +137,19 @@ class Passage:
                          "grade": d["grade_ar"] if lang == "ar" else (d.get("grade_en") or d["grade_ar"]),
                          "attribution": d["attribution_ar"] if lang == "ar" else (d.get("attribution_en") or d["attribution_ar"]),
                          "explanation": d["explanation_ar"] if lang == "ar" else (d.get("explanation_en") or d["explanation_ar"])})
+        elif self.kind in ANSWER_KINDS:
+            corpus = get_corpus()
+            verses = {}
+            for vid in self.verse_refs():
+                v = corpus.get(vid)
+                if v:
+                    verses[vid] = {k: v.data[k] for k in ("sura", "aya", "text_ar", "translation_en", "sura_name_ar", "sura_name_en")}
+            base.update({"question": d["question"], "answer": d["answer"], "verses": verses})
+            if self.kind == "qa":
+                base.update({"categories": d.get("categories") or [],
+                             "encyclopedia": d["enc_ar"] if lang == "ar" else d["enc_en"]})
+            else:
+                base.update({"heading": d["title"], "short_answer": d["short_answer"], "section": d.get("section", "")})
         else:
             base.update({"term_ar": d["ar"], "term_en": d["en"], "rule_ar": d["rule_ar"]})
         return base
@@ -103,6 +163,13 @@ class Passage:
             return " ".join([d["title_ar"], d["title_ar"], d["text_ar"], d["explanation_ar"], " ".join(d.get("hints_ar") or []),
                              d.get("title_en", ""), d.get("title_en", ""), d.get("text_en", ""), d.get("explanation_en", ""),
                              " ".join(d.get("hints_en") or [])])
+        if self.kind == "qa":
+            answer = MARKER_IN_TEXT.sub(" ", d["answer"])
+            return " ".join([d["title"], d["title"], d["question"], answer, " ".join(d.get("categories") or [])])
+        if self.kind == "bayyinat":
+            similar = " ".join(d.get("similar") or [])
+            text = " ".join([d["gist"], d["short_answer"], d["answer"]])
+            return " ".join([d["title"], d["title"], d["question"], similar, similar, MARKER_IN_TEXT.sub(" ", text)])
         return " ".join([d["ar"], d["en"], " ".join(d.get("aliases") or []), d["rule_ar"]] * 2)
 
 
@@ -135,6 +202,11 @@ class Corpus:
             self._add(Passage(row["id"], "hadith", row))
         for term in _glossary().get("terms", []):
             self._add(Passage(f"t:{term['key']}", "term", term))
+        for row in _read_jsonl(settings.corpus_dir / "qa.jsonl"):
+            self._add(Passage(row["id"], "qa", row))
+        # built locally by scripts/ingest_bayyinat.py (the book's rights are reserved, so it isn't in git)
+        for row in _read_jsonl(settings.corpus_dir / "bayyinat.jsonl"):
+            self._add(Passage(row["id"], "bayyinat", row))
         self.index = BM25Index.load_or_build(self)
 
     def _add(self, p: Passage) -> None:
@@ -149,7 +221,8 @@ class Corpus:
 
     def stats(self) -> dict:
         c = Counter(p.kind for p in self.passages.values())
-        return {"quran_verses": c.get("quran", 0), "hadiths": c.get("hadith", 0), "terms": c.get("term", 0)}
+        return {"quran_verses": c.get("quran", 0), "hadiths": c.get("hadith", 0), "terms": c.get("term", 0),
+                "qa": c.get("qa", 0), "bayyinat": c.get("bayyinat", 0)}
 
     def find_terms(self, text: str) -> list[Passage]:
         """Glossary entries mentioned in a text (by Arabic form, English form or alias)."""
@@ -191,7 +264,7 @@ class BM25Index:
     @classmethod
     def load_or_build(cls, corpus: Corpus) -> "BM25Index":
         cache = settings.data_dir / "cache" / "bm25.pkl"
-        sources = [settings.corpus_dir / n for n in ("quran.jsonl", "hadith.jsonl", "glossary.json")]
+        sources = [settings.corpus_dir / n for n in ("quran.jsonl", "hadith.jsonl", "glossary.json", "qa.jsonl", "bayyinat.jsonl")]
         stamp = [INDEX_VERSION] + [(p.name, p.stat().st_mtime_ns, p.stat().st_size) for p in sources if p.exists()]
         if cache.exists():
             try:
@@ -235,10 +308,11 @@ class BM25Index:
                 scores[doc] += idf * (tf * (self.K1 + 1) / denom) * (1 + 0.25 * (qtf - 1))
                 matched[doc] += idf
         ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+        prefixes = {PREFIX[k_] for k_ in kinds} if kinds else None
         out = []
         for doc, score in ranked:
             pid = self.ids[doc]
-            if kinds and pid.split(":", 1)[0] not in {k_[0] for k_ in kinds}:
+            if prefixes and pid.split(":", 1)[0] not in prefixes:
                 continue
             out.append((pid, score, min(1.0, matched[doc] / total_idf)))
             if len(out) >= k:

@@ -27,7 +27,7 @@ Other backend features use auth only through `backend/app/features/auth/public.p
 | POST | `/api/daai/login` | none | `{username, password}` | `{token, me: Profile}`. 401 on wrong credentials |
 | GET | `/api/daai/me` | daai | – | Profile |
 | POST | `/api/daai/availability` | daai | `{available: bool}` | Profile |
-| GET | `/api/health` | none | – | `{ok, ai: bool, model: string\|null, corpus: {quran_verses, hadiths, terms}}` |
+| GET | `/api/health` | none | – | `{ok, ai: bool, model: string\|null, corpus: {quran_verses, hadiths, terms, qa, bayyinat}}` |
 
 Every authenticated da'i request updates `last_seen`. That is what makes a da'i count as "online" for `/api/availability` (see Calls).
 
@@ -39,8 +39,8 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 |---|---|---|---|---|
 | POST | `/api/ask` | seeker | multipart: `question` (text; may be empty if `image` is sent), `lang` (`ar`, anything else means `en`; default `ar`), `image?` (JPEG/PNG/WebP/GIF, max 5 MB) | Answer. 400 `empty question`, 413 image too large, 415 unsupported image type |
 | POST | `/api/ask/{turn_id}/feedback` | seeker (owner of the turn) | `{helpful: bool, reason?: string ≤ 64}` | `{ok: true}`. 404 if the turn isn't yours |
-| GET | `/api/sources/{id}` | none | `id` = `q:2:256`, `h:2962`, `t:tawhid`; `?lang=ar\|en` (default `ar`) | Source card. 404 for an unknown id |
-| GET | `/api/corpus` | none | – | `{quran_verses, hadiths, terms}` |
+| GET | `/api/sources/{id}` | none | `id` = `q:2:256`, `h:2962`, `t:tawhid`, `qa:36065`, `b:12`; `?lang=ar\|en` (default `ar`) | Source card. 404 for an unknown id |
+| GET | `/api/corpus` | none | – | `{quran_verses, hadiths, terms, qa, bayyinat}` (`bayyinat` is 0 until the copy has run `scripts/ingest_bayyinat.py`) |
 
 **Python interface (not HTTP).** Calls and Community import only from `features/rag/public.py`:
 `conversation_transcript(db, session_id)`, `last_question(db, session_id) -> (question, source_ids)`, `source_exists(id)`,
@@ -161,7 +161,7 @@ Call status values: `waiting` → `accepted` → `ended`, or `cancelled` / `expi
 - `ocr`: `null`, or `{text, quran_segments: [string], description, legible: bool}` when a photo was read.
 - `trace`: for debugging and the "how was this answered" sheet only. Its fields change freely; other features must not rely on them.
 
-**Rendering rule:** segment `text` may contain `[[q:SURA:AYA]]`, `[[h:ID]]` and `[[t:key]]` markers. Render each marker as the card `cards[id]` (skip it if the card is missing), **never as text**. Scripture shown to the user only ever comes from cards. Each id in `cites` that isn't already shown as a card in that segment becomes a numbered citation button. Group bot messages carry the same structure in `payload`.
+**Rendering rule:** segment `text` may contain `[[q:SURA:AYA]]`, `[[h:ID]]`, `[[t:key]]`, `[[qa:ID]]` and `[[b:N]]` markers. Render each marker as the card `cards[id]` (skip it if the card is missing), **never as text**. Scripture shown to the user only ever comes from cards. Each id in `cites` that isn't already shown as a card in that segment becomes a numbered citation button. Group bot messages carry the same structure in `payload`.
 
 ### Source cards (`cards[id]`, `GET /api/sources/{id}`, `card_sources`)
 
@@ -176,7 +176,16 @@ Every card has `id, kind, title, url, source`. Text in the requested language fa
 
 {"id": "t:tawhid", "kind": "term", "title": "Term: …", "url": "", "source": "<glossary source>",
  "term_ar": "…", "term_en": "…", "rule_ar": "…"}
+
+{"id": "qa:36065", "kind": "qa", "title": "سؤال وجواب: …", "url": "https://islamenc.com/…", "source": "<encyclopedia>, icadb",
+ "question": "…", "answer": "Arabic text with [[q:S:A]] markers", "verses": {"q:7:54": {"sura", "aya", "text_ar", "translation_en", "sura_name_ar", "sura_name_en"}},
+ "categories": ["…"], "encyclopedia": "…"}
+
+{"id": "b:12", "kind": "bayyinat", "title": "بيّنات: …", "url": "https://dawa.center/file/7937", "source": "«بينات…»، المسألة 12 (ص …)",
+ "question": "…", "heading": "…", "short_answer": "… with markers", "answer": "… with markers", "verses": {}, "section": "…"}
 ```
+
+`qa` and `bayyinat` answers are Arabic only. Inside `question`, `short_answer` and `answer`, a `[[q:S:A]]` marker is drawn from `verses[id]`, never as text. `SourceCard` from `features/rag/public.js` already renders both kinds.
 
 ### ReferralCard (`/api/referral/*`, `DaaiCall.card`)
 
