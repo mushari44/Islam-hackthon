@@ -25,7 +25,7 @@
    - Model: `intfloat/multilingual-e5-large`, run locally, with E5's `query:` / `passage:` prefixes. Arabic and English with the same meaning land close together.
    - Units: one vector per verse (Uthmani text without marks, tafsir, translation), per hadith language, per term; long Q&A and Bayyinat answers are split into ~900-character chunks, each carrying its question. A hit always maps back to the whole passage id; chunks never reach the model or the user.
    - Index: LangChain's FAISS store, inner product on normalised vectors (cosine), built by `scripts/build_embeddings.py` into `data/cache/vectors/` (not in git).
-   - Retrieval: our BM25 as a LangChain retriever, a dense retriever (every query line, best chunk per passage), fused by LangChain's `EnsembleRetriever` (weighted reciprocal rank fusion, 0.5/0.5, deduplicated by passage id).
+   - Retrieval: our BM25 as a LangChain retriever, a dense retriever (every query line, best chunk per passage), fused by LangChain's `EnsembleRetriever` (weighted reciprocal rank fusion, deduplicated by passage id): **70% dense, 30% BM25** (`SABEELI_DENSE_WEIGHT`, decided by the team on 3 October). Each passage scores 0.7/(60 + its dense rank) + 0.3/(60 + its BM25 rank).
    - Abstaining: a question is "covered" when BM25's word coverage is high enough **or** a passage's E5 similarity reaches `DENSE_STRONG` (0.86, set by hand: unrelated text scores ~0.80-0.83, a passage on the same question ~0.86-0.90). In sources-only mode an approved Q&A or Bayyinat answer then leads. Tune this threshold on the evaluation set. The trace sheet shows both scores.
    - Without the packages or the index, or with `SABEELI_EMBEDDINGS=0`, search is BM25 alone.
 

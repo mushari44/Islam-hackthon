@@ -64,6 +64,25 @@ def test_dense_hits_merge_chunks_and_fuse_with_bm25():
     assert top.metadata["dense"] > 0.99 and top.metadata["rrf"] > 0
 
 
+def test_dense_weighs_70_percent(monkeypatch):
+    """With the default weights, a passage ranked first by meaning beats one ranked first by words."""
+    corpus = get_corpus()
+    Lexical, Dense, Hybrid = embeddings._retriever_classes()
+    dense = Dense(store=_store([Document(page_content="zzqx", metadata={"pid": "qa:36065"})]), corpus=corpus)
+    hybrid = Hybrid(lexical=Lexical(corpus=corpus), dense=dense)
+    assert hybrid.weights == [pytest.approx(0.3), pytest.approx(0.7)]
+    fused = hybrid.invoke("zzqx\nلا إكراه في الدين")
+    top_bm25 = corpus.index.search(["zzqx", "لا إكراه في الدين"], k=1)[0][0]
+    ids = [d.metadata["pid"] for d in fused]
+    assert ids[0] == "qa:36065" and ids.index("qa:36065") < ids.index(top_bm25)
+    assert fused[0].metadata["rrf"] == pytest.approx(0.7 / 61)
+
+    monkeypatch.setenv("SABEELI_DENSE_WEIGHT", "0.25")
+    assert embeddings.dense_weight() == 0.25
+    monkeypatch.setenv("SABEELI_DENSE_WEIGHT", "nonsense")
+    assert embeddings.dense_weight() == 0.7
+
+
 def test_search_falls_back_to_bm25(monkeypatch):
     monkeypatch.setattr(embeddings._State, "loaded", True)
     monkeypatch.setattr(embeddings._State, "retriever", None)

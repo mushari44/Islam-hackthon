@@ -14,7 +14,8 @@ The pieces are standard LangChain parts:
   * LexicalRetriever - our Arabic-aware BM25 index as a LangChain retriever;
   * DenseRetriever   - FAISS search for every query, chunk hits merged per passage;
   * HybridRetriever  - both, fused with LangChain's EnsembleRetriever (weighted
-                       reciprocal rank fusion, deduplicated by passage id).
+                       reciprocal rank fusion, deduplicated by passage id):
+                       70% dense, 30% BM25 by default (SABEELI_DENSE_WEIGHT).
 
 Retrieval units stay the same as everywhere else: a hit is a whole passage id
 (q:2:256, h:2962, qa:36065, b:12). Long passages are embedded in several chunks
@@ -52,6 +53,7 @@ MAX_QUERIES = 12           # the question, its standalone form, and the analysis
 # when it shares no word with the question. Tune on the evaluation set.
 DENSE_STRONG = 0.86
 RRF_C = 60                 # the usual reciprocal-rank-fusion constant
+DENSE_WEIGHT = 0.7         # share of the fused score from meaning (E5); the rest is BM25
 MARKERS = re.compile(r"\[\[[a-z]{1,2}:[\w:]+\]\]")
 
 
@@ -61,6 +63,14 @@ def model_name() -> str:
 
 def mode() -> str:
     return os.getenv("SABEELI_EMBEDDINGS", "auto").strip().lower()
+
+
+def dense_weight() -> float:
+    """The dense share of the hybrid score, from SABEELI_DENSE_WEIGHT (0-1, default 0.7)."""
+    try:
+        return min(1.0, max(0.0, float(os.getenv("SABEELI_DENSE_WEIGHT", DENSE_WEIGHT))))
+    except ValueError:
+        return DENSE_WEIGHT
 
 
 def index_dir() -> Path:
@@ -197,7 +207,7 @@ def _retriever_classes():
         """BM25 and dense results fused by LangChain's weighted reciprocal rank (dedup by passage id)."""
         lexical: BaseRetriever
         dense: BaseRetriever
-        weights: list[float] = [0.5, 0.5]
+        weights: list[float] = [1 - DENSE_WEIGHT, DENSE_WEIGHT]  # [BM25, dense]
 
         def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> list[Document]:
             lex = self.lexical.invoke(query)
@@ -296,8 +306,9 @@ def _open():
         store = FAISS.load_local(str(path), emb, allow_dangerous_deserialization=True,
                                  distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT)
         Lexical, Dense, Hybrid = _retriever_classes()
-        retriever = Hybrid(lexical=Lexical(corpus=corpus), dense=Dense(store=store, corpus=corpus))
-        _State.reason = f"on ({model_name()}, {emb.device})"
+        w = dense_weight()
+        retriever = Hybrid(lexical=Lexical(corpus=corpus), dense=Dense(store=store, corpus=corpus), weights=[1 - w, w])
+        _State.reason = f"on ({model_name()}, {emb.device}, dense {w:.0%} + BM25 {1 - w:.0%})"
         log.info("semantic search %s", _State.reason)
         return retriever
     except Exception as exc:  # noqa: BLE001 - missing packages or a broken index: BM25 still works
