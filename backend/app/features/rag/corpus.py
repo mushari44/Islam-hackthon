@@ -335,4 +335,7 @@ def get_corpus() -> Corpus:
         with _lock:
             if _corpus is None:
                 _corpus = Corpus()
+                from .embeddings import mode, warm_up
+                if mode() not in ("0", "off", "false", "no"):
+                    threading.Thread(target=warm_up, daemon=True).start()  # load E5 off the request path
     return _corpus

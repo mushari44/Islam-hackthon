@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from ...core.claude import LLMUnavailable, get_claude
 from ...core.config import settings
 from ...core.textnorm import has_arabic, normalize_ar, tokens
-from . import assistant
+from . import assistant, embeddings
 from .assistant import AnswerResult
 from .corpus import ANSWER_KINDS, Passage, get_corpus
 from .quran_match import get_matcher, looks_like_quote
@@ -186,7 +186,7 @@ def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[
     corpus = get_corpus()
     queries = [analysis.get("standalone_question") or question, question]
     queries += analysis.get("queries_ar", [])[:4] + analysis.get("queries_en", [])[:4] + analysis.get("terms", [])[:4]
-    raw = corpus.index.search(queries, k=30)
+    raw, dense, retriever = embeddings.search(queries, k=30)  # BM25 + E5 (fused), or BM25 alone
     q_tokens = set(tokens(question + " " + (analysis.get("standalone_question") or "")))
     max_idf = math.log(1 + len(corpus.index.ids))
     chosen: list[Passage] = []
@@ -217,7 +217,8 @@ def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[
         chosen.append(p)
         seen.add(pid)
         per_kind[p.kind] += 1
-        trace.append({"id": pid, "score": round(score, 2), "coverage": round(cov, 2), "via": "search"})
+        trace.append({"id": pid, "score": round(score, 4 if retriever == "hybrid" else 2), "coverage": round(cov, 2),
+                      "dense": dense.get(pid), "via": retriever})
         if len(chosen) >= settings.top_k + len(quote_ids):
             break
     return chosen, trace
@@ -392,7 +393,7 @@ def ask(ctx: AskContext) -> dict:
     timings["retrieve"] = round(time.perf_counter() - t2, 3)
     trace["retrieval"] = rtrace
     allowed = {p.id for p in passages} | {vid for p in passages for vid in p.verse_refs()}
-    best_cov = max([r["coverage"] or 0 for r in rtrace if r["via"] == "search"] or [0])
+    best_cov = max([r["coverage"] or 0 for r in rtrace if r["via"] in ("bm25", "hybrid")] or [0])
     trace["best_coverage"] = round(best_cov, 2)
 
     # 6. Answer

@@ -21,6 +21,7 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 | Anthropic Claude API (`claude-opus-5-5`) | Question analysis, photo transcription, cited answers, referral card drafts | Needs `ANTHROPIC_API_KEY`. Without a key the app runs in sources-only mode. Only synthetic data is sent in tests and evaluation |
 | Google public STUN server (`stun.l.google.com:19302`) | WebRTC connectivity for calls | Configurable with `STUN_URLS`. Add the TURN provider here when it is chosen |
 | Google Fonts: Readex Pro, Amiri Quran | Interface and verse typography | SIL Open Font License |
+| `intfloat/multilingual-e5-large` (Microsoft, via Hugging Face) | Optional semantic search: embeds every corpus passage and each search query, locally | MIT. Runs on the machine (no data leaves it); downloaded once, about 2.2 GB. Off unless `scripts/build_embeddings.py` has been run |
 
 ## Software
 
@@ -31,6 +32,10 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 | anthropic (Python SDK) | MIT |
 | python-dotenv, python-multipart, websockets | BSD / Apache-2.0 |
 | pytest | MIT |
+| LangChain (`langchain`, `langchain-core`, `langchain-community`, `langchain-text-splitters`): retrievers, rank fusion, FAISS wrapper, text splitter. Optional (`requirements-embeddings.txt`) | MIT |
+| sentence-transformers, transformers | Apache-2.0 |
+| PyTorch | BSD-3-Clause |
+| FAISS (`faiss-cpu`) | MIT |
 | PyMuPDF (`pip install pymupdf`), used only by `scripts/ingest_bayyinat.py` to read the Bayyinat PDF; not needed to run the app | AGPL-3.0 (or commercial). Not part of the app or its requirements |
 | React, React DOM | MIT |
 | Vite, @vitejs/plugin-react | MIT |
