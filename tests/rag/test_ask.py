@@ -53,3 +53,11 @@ def test_feedback_and_ownership(client, seeker):
 def test_source_lookup(client):
     card = client.get("/api/sources/q:12:108?lang=ar").json()
     assert card["kind"] == "quran" and card["aya"] == 108
+
+
+def test_english_link_only_for_translated_hadiths():
+    """HadeethEnc has no English page for untranslated hadiths, so the link must fall back to Arabic."""
+    from backend.app.features.rag.corpus import get_corpus
+    for p in get_corpus().passages.values():
+        if p.kind == "hadith" and not p.data["text_en"]:
+            assert p.url("en") == p.data["url_ar"]

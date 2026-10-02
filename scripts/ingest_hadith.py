@@ -141,7 +141,9 @@ def main() -> int:
                 "reference_ar": (ar.get("reference") or "").strip(),
                 "categories": [str(c) for c in (ar.get("categories") or [])],
                 "url_ar": f"https://hadeethenc.com/ar/browse/hadith/{hid}",
-                "url_en": f"https://hadeethenc.com/en/browse/hadith/{hid}",
+                # the English page only exists when the hadith has an English translation
+                "url_en": f"https://hadeethenc.com/en/browse/hadith/{hid}" if (en or {}).get("hadeeth")
+                else f"https://hadeethenc.com/ar/browse/hadith/{hid}",
             }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
             count += 1
