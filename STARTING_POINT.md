@@ -17,7 +17,7 @@ The challenge evaluates **only the work done from 4 to 6 October 2026**. Prior w
 | Calls (`features/calls/`) | Call queue, WebRTC audio with signalling and in-call chat, da'i calls tab, referral card (model / template / none arms) and experiment counters. Tested between two local browsers | Eman |
 | Auth and da'i console (`backend/app/features/auth/`, `frontend/src/features/daai/`) | Anonymous seeker sessions, da'i login and demo accounts, the da'i console with calls / groups / meetups tabs | Eman |
 | Shared core and React shell (`backend/app/core/`, `frontend/src/core/`, `styles/`, `pages/`) | Config, database, Claude transport, Arabic normalisation, Arabic/English RTL interface, design system | shared |
-| Tests (`tests/`) | 35 backend tests; no evaluation set yet | per owner |
+| Tests (`tests/`) | 36 backend tests; no evaluation set yet | per owner |
 
 ## What the challenge days add
 

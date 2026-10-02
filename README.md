@@ -37,7 +37,7 @@ The corpus is already in `data/corpus/`. To refresh it from the official APIs, r
 ## Tests
 
 ```bash
-python -m pytest tests             # 35 tests; no API key needed (sources-only mode + a mocked Claude API)
+python -m pytest tests             # 36 tests; no API key needed (sources-only mode + a mocked Claude API)
 ```
 
 ## How the code is organised
