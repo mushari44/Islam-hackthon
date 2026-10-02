@@ -39,6 +39,37 @@ Rules:
 - Each feature keeps its own strings (`strings.js`, registered with `register()`), its own CSS file and its own tests. Don't put feature strings or styles in `core/`.
 - Work on your owner's branch (`mushari/<topic>` or `eman/<topic>`). Never push to `main` directly, never force-push, and never rewrite shared history.
 
+## 2a. Git: pull before you start, push when you finish
+
+Do this **every time**, so the two agents never work on stale code. Replace `<owner>` with `mushari` or `eman`, and `<topic>` with a short name for the task.
+
+**Before changing anything:**
+
+```bash
+git status                      # must be clean; if not, commit or ask your developer first
+git checkout main
+git pull origin main            # get the other person's merged work
+git checkout -B <owner>/<topic> # your branch for this task (existing branch: git checkout <owner>/<topic> && git merge main)
+```
+
+**When the task is done:**
+
+```bash
+python -m pytest tests          # all tests must pass
+cd frontend && npm run build && cd ..
+git add -A
+git commit -m "<what changed and why>"
+git pull origin main            # merge anything new before pushing
+git push -u origin <owner>/<topic>
+```
+
+Then open a pull request into `main` on GitHub (`https://github.com/mushari44/Islam-hackthon`). After the other person or your developer merges it, start the next task again from "Before changing anything".
+
+**Rules:**
+- Never force-push, never push to `main` directly, never rewrite history.
+- If a pull brings a conflict in the other person's folders, stop and tell your developer. Don't resolve it by editing their files.
+- Commit only your own folders. Shared files (`core/`, `docs/API.md`, ...) go in a pull request that both people approve.
+
 ## 3. Content rules (these are the challenge's binding rules)
 
 - Religious content comes **only** from the approved corpus in `data/corpus/` (Mushaf text, At-Tafsir Al-Muyassar and the Rowwad translation from QuranEnc, HadeethEnc, the package glossary). Never add religious text from model memory.

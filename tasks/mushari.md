@@ -13,6 +13,8 @@ Shared (`backend/app/core/`, `frontend/src/core/`, `frontend/src/styles/`, `fron
 
 Work on a branch named `mushari/<topic>` and open a pull request into `main`.
 
+**Every task:** pull before you start and push when you finish. The exact commands are in `CLAUDE.md`, section 2a.
+
 Tick a box when the task is merged. Keep the order unless the team agrees otherwise.
 
 ## Before 4 October (setup, not judged)
