@@ -1,12 +1,11 @@
-// Da'i console, community tabs: lead and moderate groups; host meetups. Owner: Mushari (community).
+// Da'i console, community tabs: lead and moderate groups; host meetups. Owner: Eman.
+// The community API behind these screens is Mushari's (see docs/API.md, "Community").
 import "./strings.js";
-import "./community.css";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
-import { GroupMessage } from "./GroupPage.jsx";
-import { audienceKey } from "./shared.jsx";
+import { GroupMessage, audienceKey } from "../community/public.js";
 
 function Select({ id, name, value, onChange, options }) {
   return (
@@ -89,7 +88,7 @@ function ManageGroup({ group, back }) {
   );
 }
 
-export function DaaiGroupsPanel() {
+function GroupsTab() {
   const { t, fmtNum, langName } = useI18n();
   const [groups, setGroups] = useState(null);
   const [open, setOpen] = useState(null);
@@ -153,7 +152,7 @@ function MeetupForm({ groups, close, onDone }) {
   );
 }
 
-export function DaaiMeetupsPanel() {
+function MeetupsTab() {
   const { t, fmtNum, fmtDate, fmtTime, langName } = useI18n();
   const [data, setData] = useState({ meetups: [], groups: [] });
   const load = () => Promise.all([api.dGet("/api/daai/meetups"), api.dGet("/api/daai/groups")])
@@ -194,3 +193,6 @@ export function DaaiMeetupsPanel() {
     </div>
   );
 }
+
+export const groupsTab = { key: "groups", labelKey: "dg.tab", component: GroupsTab };
+export const meetupsTab = { key: "meetups", labelKey: "dm.tab", component: MeetupsTab };

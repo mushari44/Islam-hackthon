@@ -9,6 +9,7 @@ Contract used by frontend/src/features/community (see docs/API.md).
 from __future__ import annotations
 
 import logging
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
@@ -16,9 +17,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ...core.db import Daai, SeekerSession, SessionLocal, get_db, iso, utcnow
-from ...core.deps import daai, optional_daai, optional_seeker, seeker
-from ...core.security import booking_code
+from ...core.db import SessionLocal, get_db, iso, utcnow
+from ..auth.public import Daai, SeekerSession, daai, optional_daai, optional_seeker, seeker
 from ..rag.public import answer_in_group
 from . import moderation
 from .models import RSVP, Group, GroupMember, GroupMessage, Meetup
@@ -27,6 +27,11 @@ router = APIRouter(prefix="/api")
 log = logging.getLogger("sabeeli.community")
 
 BOT_NAME = {"ar": "سَبِيلي (مساعد آلي)", "en": "Sabeeli (AI assistant)"}
+
+
+def booking_code() -> str:
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return "".join(secrets.choice(alphabet) for _ in range(8))
 
 
 # ---------------------------------------------------------------------------

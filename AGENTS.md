@@ -9,7 +9,7 @@ Two people build this project, and each has their own agent:
 | Person | Owns | Task list |
 |---|---|---|
 | **Mushari** | RAG (cited answers, photo reading, verse matching, evaluation) and Community (groups, meetups) | `tasks/mushari.md` |
-| **Eman** | Calls (call requests, WebRTC room, da'i calls tab) and the referral card and its experiment | `tasks/eman.md` |
+| **Eman** | Auth (seeker sessions, da'i login and accounts), the whole da'i-facing interface (console, calls, groups and meetups tabs), Calls (call requests, WebRTC room) and the referral card and its experiment | `tasks/eman.md` |
 
 At the start of a session, find out which person you are working for: from the branch name (`mushari/...` or `eman/...`), or from what the developer said. If you can't tell, **ask before editing anything**. Then read that person's task list and work on the first unticked task, unless the developer asks for something else.
 
@@ -18,17 +18,21 @@ At the start of a session, find out which person you are working for: from the b
 | Area | Folders | Who edits |
 |---|---|---|
 | RAG | `backend/app/features/rag/`, `frontend/src/features/rag/`, `tests/rag/`, `eval/`, `scripts/`, `data/corpus/` | Mushari's agent |
-| Community | `backend/app/features/community/`, `frontend/src/features/community/`, `tests/community/` | Mushari's agent |
+| Community | `backend/app/features/community/`, `frontend/src/features/community/` (seeker screens), `tests/community/` | Mushari's agent |
 | Calls | `backend/app/features/calls/`, `frontend/src/features/calls/`, `tests/calls/` | Eman's agent |
+| Auth | `backend/app/features/auth/` (sessions, login, accounts, demo accounts), `tests/auth/` | Eman's agent |
+| Da'i interface | `frontend/src/features/daai/` (login screen, console, calls / groups / meetups tabs) | Eman's agent |
 | Shared core | `backend/app/core/`, `backend/app/main.py`, `frontend/src/core/`, `frontend/src/styles/`, `frontend/src/pages/`, `frontend/src/App.jsx`, `docs/API.md`, `requirements.txt`, `frontend/package.json` | Only after both people agree |
 
 Rules:
 
 - **Never edit the other person's folders.** If you need something from them, write it down under "Requests" in your own task list, and tell your developer.
 - Features talk to each other only through their public modules:
-  - backend: `features/rag/public.py`;
-  - frontend: `features/rag/public.js` and `features/calls/public.jsx`;
+  - backend: `features/rag/public.py` and `features/auth/public.py`;
+  - frontend: `features/rag/public.js`, `features/community/public.js` and `features/calls/public.jsx`;
   - the shell entry points: `frontend/src/features/*/index.js`.
+
+  The da'i screens (Eman) call the community API (Mushari) as documented in `docs/API.md`.
 
   Don't import a feature's internal files from another feature.
 - A change to a shared API shape (a request or response used by the other person's code) needs both people's agreement, and `docs/API.md` must change in the same commit.
@@ -56,7 +60,7 @@ Tests (no API key needed; they run in sources-only mode and mock Claude):
 
 ```bash
 python -m pytest tests/rag tests/community     # Mushari
-python -m pytest tests/calls                   # Eman
+python -m pytest tests/calls tests/auth        # Eman
 python -m pytest tests                         # everything, before any pull request
 ```
 

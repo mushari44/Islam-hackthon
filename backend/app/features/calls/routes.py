@@ -17,8 +17,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from ...core.config import settings
-from ...core.db import Daai, SeekerSession, Setting, get_db, iso, utcnow
-from ...core.deps import admin, daai, seeker
+from ...core.db import Setting, get_db, iso, utcnow
+from ..auth.public import Daai, SeekerSession, admin, daai, seeker
 from ..rag.public import source_card
 from .models import CallMessage, CallRequest, Referral
 

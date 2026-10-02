@@ -1,4 +1,4 @@
-"""Password hashing, signed da'i tokens and anonymous seeker sessions (standard library only)."""
+"""Password hashing, signed da'i tokens and anonymous seeker sessions (standard library only). Owner: Eman."""
 from __future__ import annotations
 
 import base64
@@ -8,7 +8,7 @@ import json
 import secrets
 import time
 
-from .config import settings
+from ...core.config import settings
 
 PBKDF2_ROUNDS = 240_000
 DAAI_TOKEN_TTL = 12 * 3600
@@ -66,7 +66,3 @@ def seeker_id(token: str) -> str:
     """Sessions are stored by hash, so a database leak does not expose live tokens."""
     return hashlib.sha256(token.encode()).hexdigest()
 
-
-def booking_code() -> str:
-    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    return "".join(secrets.choice(alphabet) for _ in range(8))

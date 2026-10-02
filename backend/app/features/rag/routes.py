@@ -12,8 +12,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ...core.db import SeekerSession, get_db
-from ...core.deps import seeker
+from ...core.db import get_db
+from ..auth.public import SeekerSession, seeker
 from .corpus import get_corpus
 from .models import ChatTurn, purge_expired, recent_turns
 from .pipeline import AskContext, ask, plain_text

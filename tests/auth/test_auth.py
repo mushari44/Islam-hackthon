@@ -1,5 +1,5 @@
-"""Shared core: sessions, login, tokens, normalisation."""
-from backend.app.core.security import hash_password, sign, unsign, verify_password
+"""Accounts, sessions, login and tokens (owner: Eman), plus shared normalisation and health."""
+from backend.app.features.auth.security import hash_password, sign, unsign, verify_password
 from backend.app.core.textnorm import normalize_ar, skeleton
 
 

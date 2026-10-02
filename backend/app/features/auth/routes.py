@@ -1,12 +1,13 @@
-"""Shared routes: anonymous seeker sessions, "delete my data", da'i login and profile."""
+"""Auth API: anonymous seeker sessions, "delete my data", da'i login, profile and availability. Owner: Eman."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from .db import SESSION_PURGERS, Daai, SeekerSession, get_db
+from ...core.db import SESSION_PURGERS, get_db
 from .deps import daai, seeker
+from .models import Daai, SeekerSession
 from .security import hash_password, new_seeker_token, seeker_id, sign, verify_password
 
 router = APIRouter(prefix="/api")

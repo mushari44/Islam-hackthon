@@ -12,8 +12,7 @@ import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ...core.db import SessionLocal, iso, utcnow
-from ...core.deps import daai_from_token
-from ...core.security import seeker_id
+from ..auth.public import daai_from_token, seeker_id
 from .models import CallMessage, CallRequest
 
 ws_router = APIRouter()

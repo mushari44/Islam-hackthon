@@ -1,4 +1,4 @@
-"""Sabeeli web app: wires the shared core, the three features and the static frontend.
+"""Sabeeli web app: wires the shared core, the four features and the static frontend.
 
 Run:  uvicorn backend.app.main:app --port 8000      (from the repository root)
 """
@@ -12,10 +12,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .core import accounts
 from .core.config import settings
 from .core.db import SessionLocal, init_db
-from .core.seed import seed_accounts
+from .features.auth import routes as auth_routes
+from .features.auth.seed import seed_accounts
 from .features.calls import referral as calls_referral
 from .features.calls import routes as calls_routes
 from .features.calls import signalling as calls_signalling
@@ -53,7 +53,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Sabeeli", version="0.1.0", docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=lifespan)
 
-app.include_router(accounts.router)
+app.include_router(auth_routes.router)
 app.include_router(rag_routes.router)
 app.include_router(community_routes.router)
 app.include_router(calls_routes.router)

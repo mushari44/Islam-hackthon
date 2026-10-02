@@ -1,6 +1,6 @@
 # Mushari: task list
 
-You own **RAG** (cited answers, photo reading, verse matching, evaluation) and **Community** (groups, the @سبيلي assistant in groups, meetups).
+You own **RAG** (cited answers, photo reading, verse matching, evaluation) and **Community** (groups, the @سبيلي assistant in groups, meetups). For community you own the backend and the seeker-facing screens. Since 2 October, the da'i-facing screens (group moderation, meetup hosting) and all login are Eman's: keep the community API in `docs/API.md` stable for her, and agree on any change.
 
 Your folders, and the only ones you edit without asking Eman:
 
@@ -54,7 +54,7 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
   - show the leader the questions flagged «بانتظار توضيح الداعية» first.
 - [ ] Moderation:
   - review the abuse list with the reviewer;
-  - add a "report message" button for members, so the leader sees reported messages.
+  - add a "report message" button for members (API plus the seeker screen). The leader's view of reports is in Eman's da'i console: agree on the API with her.
 - [ ] Meetups:
   - a city filter;
   - show "the group this meetup belongs to" on the card;

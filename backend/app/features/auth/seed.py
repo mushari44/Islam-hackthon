@@ -1,4 +1,4 @@
-"""Synthetic demo accounts so judges can try the da'i side. Nothing here is a real person.
+"""Synthetic demo accounts so judges can try the da'i side. Nothing here is a real person. Owner: Eman.
 
 Password: DEMO_PASSWORD (see .env.example). Set your own before deploying.
 """
@@ -8,8 +8,8 @@ import os
 
 from sqlalchemy.orm import Session
 
-from .accounts import create_daai
-from .db import Daai
+from .models import Daai
+from .routes import create_daai
 
 DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "sabeeli-demo")
 

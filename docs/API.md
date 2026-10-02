@@ -15,9 +15,10 @@ Interactive docs from the running server: `/api/docs` (OpenAPI JSON at `/api/ope
 
 ---
 
-## Shared (core)
+## Auth — owner: Eman
 
-`backend/app/core/accounts.py`, `backend/app/main.py`
+`backend/app/features/auth/routes.py` (sessions, login, profile). `GET /api/health` lives in `backend/app/main.py`, which is shared.
+Other backend features use auth only through `backend/app/features/auth/public.py` (`seeker`, `optional_seeker`, `daai`, `optional_daai`, `admin`, `daai_from_token`, `seeker_id`, `Daai`, `SeekerSession`).
 
 | Method | Path | Auth | Body / params | Returns |
 |---|---|---|---|---|

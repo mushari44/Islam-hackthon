@@ -13,8 +13,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ...core.claude import LLMUnavailable, get_claude
-from ...core.db import SeekerSession, Setting, get_db
-from ...core.deps import seeker
+from ...core.db import Setting, get_db
+from ..auth.public import SeekerSession, seeker
 from ..rag.public import conversation_transcript, last_question, source_exists
 from .models import Referral
 

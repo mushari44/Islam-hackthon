@@ -1,10 +1,11 @@
-"""Request dependencies: anonymous seeker sessions and signed da'i tokens."""
+"""Request dependencies: anonymous seeker sessions and signed da'i tokens. Owner: Eman."""
 from __future__ import annotations
 
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
-from .db import Daai, SeekerSession, get_db, utcnow
+from ...core.db import get_db, utcnow
+from .models import Daai, SeekerSession
 from .security import seeker_id, unsign
 
 

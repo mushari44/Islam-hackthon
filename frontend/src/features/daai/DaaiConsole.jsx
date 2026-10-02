@@ -1,28 +1,14 @@
-// Da'i console shell: login, availability, and tabs contributed by features. Shared.
-// Calls tab: features/calls (Eman). Groups and Meetups tabs: features/community (Mushari).
+// Da'i console: login, availability and the tabs (calls, groups, meetups). Owner: Eman.
+import "./strings.js";
 import { useEffect, useState } from "react";
-import { api, daaiAuth } from "../core/api.js";
-import { register, useI18n } from "../core/i18n.jsx";
-import { Icon, errorText, toast, usePolling } from "../core/ui.jsx";
-import { callsTab } from "../features/calls/index.js";
-import { communityTabs } from "../features/community/index.js";
+import { api, daaiAuth } from "../../core/api.js";
+import { useI18n } from "../../core/i18n.jsx";
+import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { callsTab } from "./CallsTab.jsx";
+import { groupsTab, meetupsTab } from "./CommunityTabs.jsx";
 
-const TABS = [callsTab, ...communityTabs];
+const TABS = [callsTab, groupsTab, meetupsTab];
 
-register({
-  ar: {
-    "dai.title": "لوحة الداعية", "dai.lead": "للدعاة والمراجعين فقط. استقبل طلبات الاتصال بلغاتك، وقُد مجموعاتك، وانشر لقاءاتك.",
-    "dai.user": "اسم المستخدم", "dai.pass": "كلمة المرور", "dai.login": "دخول", "dai.bad": "اسم المستخدم أو كلمة المرور غير صحيحة.",
-    "dai.demo": "حسابات تجريبية للتحكيم: khalid و maryam و yusuf و reviewer. كلمة المرور في ملف README.",
-    "dai.available": "متاح لاستقبال المكالمات", "dai.logout": "خروج", "dai.langs": "لغاتك: {l}",
-  },
-  en: {
-    "dai.title": "Da'i console", "dai.lead": "For da'is and reviewers only. Take call requests in your languages, lead your groups and publish meetups.",
-    "dai.user": "Username", "dai.pass": "Password", "dai.login": "Sign in", "dai.bad": "Wrong username or password.",
-    "dai.demo": "Demo accounts for judging: khalid, maryam, yusuf and reviewer. The password is in the README.",
-    "dai.available": "Available for calls", "dai.logout": "Sign out", "dai.langs": "Your languages: {l}",
-  },
-});
 
 function Login({ onLogin }) {
   const { t } = useI18n();

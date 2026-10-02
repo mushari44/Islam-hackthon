@@ -5,8 +5,8 @@ import { match, useHashPath } from "./core/router.jsx";
 import { Icon, Logo, SheetHost, ToastHost } from "./core/ui.jsx";
 import { TalkPage } from "./features/calls/index.js";                  // Eman
 import { CommunityPage, GroupPage } from "./features/community/index.js"; // Mushari
+import { DaaiConsole } from "./features/daai/index.js";               // Eman
 import { AskPage } from "./features/rag/index.js";                      // Mushari
-import DaaiConsole from "./pages/DaaiConsole.jsx";
 import Home from "./pages/Home.jsx";
 import { About, More, NotFound, Privacy, Sources } from "./pages/Info.jsx";
 

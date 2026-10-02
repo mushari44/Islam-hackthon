@@ -13,6 +13,7 @@
 | اسأل | Cited answers from the approved package only. Quran and hadith text is shown from the reference, never generated. Content levels A-D; no personal fatwa. A photo or quoted verse is checked against the Mushaf, word by word | Mushari |
 | المجتمع | Da'i-led groups with the @سبيلي assistant, moderation, nicknames only; meetups at public venues with RSVP codes and calendar files | Mushari |
 | تحدّث | Direct voice call (WebRTC) with an available da'i in the seeker's language, in-call text chat, and a referral card the seeker edits and approves before it is shared | Eman |
+| لوحة الداعية | Da'i sign-in, the calls queue, the call room with the shared card, and the screens to lead groups and host meetups | Eman |
 
 ## Run it
 
@@ -43,14 +44,16 @@ python -m pytest tests             # 35 tests; no API key needed (sources-only m
 
 ```
 backend/app/
-  core/               shared: config, database, accounts, Claude transport, Arabic normalisation
+  core/               shared: config, database, Claude transport, Arabic normalisation
+  features/auth/      Eman: seeker sessions, da'i login and accounts, demo accounts
   features/rag/       Mushari: corpus, retrieval, verse matching, answer pipeline, prompts
   features/community/ Mushari: groups, moderation, meetups
   features/calls/     Eman: call queue, WebRTC signalling, referral card and experiment
 frontend/src/
   core/ styles/ pages/ App.jsx   shared shell, design system, i18n (Arabic/English, RTL)
-  features/rag/ features/community/ features/calls/   same split as the backend
-tests/{core,rag,community,calls}/   tests per owner
+  features/rag/ features/community/      Mushari: Ask page, groups and meetups (seeker side)
+  features/calls/ features/daai/          Eman: Talk page; the whole da'i console and its login
+tests/{auth,rag,community,calls}/   tests per owner
 data/corpus/          the approved corpus (JSONL)
 scripts/              corpus ingestion
 ```

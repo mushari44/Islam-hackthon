@@ -1,13 +1,12 @@
 // Da'i console, calls tab: incoming requests, the referral card, the call, feedback, experiment results.
-// Owner: Eman (calls). Mounted by pages/DaaiConsole.jsx.
+// Owner: Eman. Mounted by DaaiConsole.jsx.
 import "./strings.js";
-import "./calls.css";
 import { useEffect, useState } from "react";
 import { api, daaiAuth } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { CallPanel } from "../calls/public.jsx";
 import { SourceCard } from "../rag/public.js";
-import CallPanel from "./CallPanel.jsx";
 
 function secs(n, fmtNum, t) {
   return n < 60 ? t("unit.s", { n: fmtNum(n) }) : t("unit.m", { n: fmtNum(Math.floor(n / 60)) });
@@ -150,7 +149,7 @@ function EndWatcher({ id, onEnded }) {
   return null;
 }
 
-export default function DaaiCallsPanel({ me }) {
+export default function CallsTab({ me }) {
   const { t } = useI18n();
   const [view, setView] = useState({ name: "queue" });
 
@@ -180,4 +179,4 @@ export default function DaaiCallsPanel({ me }) {
   );
 }
 
-export const callsTab = { key: "calls", labelKey: "dc.tab", component: DaaiCallsPanel };
+export const callsTab = { key: "calls", labelKey: "dc.tab", component: CallsTab };

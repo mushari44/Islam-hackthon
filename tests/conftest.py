@@ -1,6 +1,6 @@
 """Shared test setup: a throwaway SQLite database, demo data, and no calls to Claude.
 
-Tests are split by owner: tests/rag and tests/community (Mushari), tests/calls (Eman), tests/core (shared).
+Tests are split by owner: tests/rag and tests/community (Mushari), tests/calls and tests/auth (Eman).
 """
 import os
 import tempfile

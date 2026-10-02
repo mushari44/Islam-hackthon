@@ -6,7 +6,8 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ...core.db import Daai, utcnow
+from ...core.db import utcnow
+from ..auth.public import Daai
 from .models import Group, GroupMessage, Meetup
 
 GROUPS = [

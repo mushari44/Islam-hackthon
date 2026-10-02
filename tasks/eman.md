@@ -1,14 +1,20 @@
 # Eman: task list
 
-You own **Calls**: the seeker's call request, matching with an available da'i, the WebRTC audio room, the in-call text chat, the da'i's calls tab, and the **referral card** (the summary the seeker reviews before it is shared) with its experiment.
+You own:
+
+- **Auth**: anonymous seeker sessions, "delete my data", da'i login, accounts and the demo accounts.
+- **The da'i interface**: the login screen and the whole da'i console (calls tab, groups tab, meetups tab).
+- **Calls**: the seeker's call request, matching with an available da'i, the WebRTC audio room, the in-call text chat, and the **referral card** (the summary the seeker reviews before it is shared) with its experiment.
 
 Your folders, and the only ones you edit without asking Mushari:
 
-- `backend/app/features/calls/`
-- `frontend/src/features/calls/`
-- `tests/calls/`
+- `backend/app/features/auth/`, `backend/app/features/calls/`
+- `frontend/src/features/daai/`, `frontend/src/features/calls/`
+- `tests/auth/`, `tests/calls/`
 
-Shared (`backend/app/core/`, `frontend/src/core/`, `frontend/src/styles/`, `frontend/src/pages/`, `frontend/src/App.jsx`, `docs/API.md`) changes only after agreeing with Mushari. From RAG you may use only `backend/app/features/rag/public.py` and `frontend/src/features/rag/public.js`.
+The groups and meetups tabs call Mushari's community API. Use only the routes in `docs/API.md` and `frontend/src/features/community/public.js`; ask him for any API change.
+
+Shared (`backend/app/core/`, `frontend/src/core/`, `frontend/src/styles/`, `frontend/src/pages/`, `frontend/src/App.jsx`, `docs/API.md`) changes only after agreeing with Mushari. From RAG you may use only `backend/app/features/rag/public.py` and `frontend/src/features/rag/public.js`. Other features use your auth only through `backend/app/features/auth/public.py`: keep its functions working.
 
 Work on a branch named `eman/<topic>` and open a pull request into `main`.
 
@@ -18,6 +24,22 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 
 - [ ] Run the app, sign in to the da'i console as `maryam`, and make a call to yourself from a second browser (one normal window and one private window). Check the audio and the text chat.
 - [ ] Choose a TURN service for strict networks, and put its details in `.env` (`TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`). Record the service in `THIRD_PARTY.md`.
+
+## Auth and the da'i interface (moved to you on 2 October)
+
+- [ ] **Da'i accounts:**
+  - a way for the reviewer (admin) to add, disable and reset da'i accounts; today they come only from `features/auth/seed.py`;
+  - a profile edit screen for a da'i's languages, bio and gender.
+- [ ] **Login hardening:**
+  - limit login attempts per username and IP;
+  - set `SECRET_KEY` in deployment so tokens survive restarts;
+  - log out everywhere on a password change.
+- [ ] **Seeker sign-in (decide with Mushari first):** seekers are anonymous by design, which is a privacy promise on the Privacy page. If you add optional sign-in, keep anonymous use working, and update the Privacy page and `THIRD_PARTY.md`.
+- [ ] **Da'i console UX:**
+  - a dashboard summary (requests waiting, groups needing a reply, upcoming meetups);
+  - a mobile layout check at 390px;
+  - a clear "you're offline" state when the availability switch is on but the tab is closed.
+- [ ] Tests in `tests/auth/` for every change.
 
 ## Day 1: 4 October (calls work everywhere)
 
