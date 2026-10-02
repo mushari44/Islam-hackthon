@@ -65,6 +65,7 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] The da'i has no chat-history endpoint: add `GET /api/daai/calls/{id}/messages`, so a da'i who reloads the page keeps the earlier chat. Pass it to `CallPanel` as `historyPath` for the da'i role.
 - [ ] `POST /api/calls/{id}/cancel` during an accepted call ends the call, but nothing is sent to the da'i's socket. Notify the room, so the da'i sees "ended".
 - [ ] `GET /api/rtc-config` is public and would return the TURN password. Use time-limited TURN credentials issued per call, for example from the TURN provider's REST API.
+- [ ] A waiting request stays in the da'i queue for 10 minutes even after the seeker closes the tab (found while testing). Add a heartbeat: the waiting screen already polls every 2 seconds, so expire requests not polled for about 20 seconds.
 - [ ] WebSocket tokens travel in the URL. Consider a short-lived one-time ticket from `POST /api/calls/{id}/ticket` instead.
 
 ## Day 3: 6 October (polish and publish)

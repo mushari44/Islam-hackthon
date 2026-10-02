@@ -64,4 +64,5 @@ Each person works only in their own folders. Shared code changes only by agreeme
 
 - **`STARTING_POINT.md`:** what existed before 4 October (the challenge judges only work done from 4 to 6 October).
 - **`THIRD_PARTY.md`:** sources, models, services and licences.
+- **`docs/RAG-PLAN.md`:** how the RAG system uses the approved sources, and how it is evaluated.
 - **Privacy:** seekers have no accounts, questions are deleted after 24 hours, the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**.
