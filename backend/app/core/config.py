@@ -44,6 +44,10 @@ class Settings:
 
     # Retrieval
     top_k: int = int(os.getenv("SABEELI_TOP_K", "8"))
+    # Grounding: model text without a citation to an approved passage is never shown,
+    # except short connecting phrases of at most this many words.
+    strict_grounding: bool = _bool("SABEELI_STRICT_GROUNDING", True)
+    max_uncited_words: int = int(os.getenv("SABEELI_MAX_UNCITED_WORDS", "6"))
 
     # Calls (WebRTC). STUN is enough on most networks; set TURN for strict NATs,
     # and CALL_RELAY_ONLY=1 to keep the seeker's and the da'i's IPs private.

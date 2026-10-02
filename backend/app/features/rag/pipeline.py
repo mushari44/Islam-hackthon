@@ -426,9 +426,22 @@ def ask(ctx: AskContext) -> dict:
             segments.append({"text": text, "cites": cites})
         trace["model"] = answer.model
         trace["usage"] = answer.usage
+        if settings.strict_grounding:
+            # Only the approved package may speak: drop any model sentence that cites no passage
+            # (short connecting phrases such as "and" or "in short" are kept).
+            kept, removed = [], []
+            for s in segments:
+                words = len(MARKER_RE.sub("", s["text"]).split())
+                if not s["cites"] and not MARKER_RE.search(s["text"]) and words > settings.max_uncited_words:
+                    removed.append(s["text"].strip()[:200])
+                else:
+                    kept.append(s)
+            segments = kept
+            trace["removed_uncited"] = removed
         cited_any = any(s["cites"] for s in segments) or any(MARKER_RE.search(s["text"]) for s in segments)
         if not cited_any:
             kind = "abstain"
+            segments = [{"text": t("abstain", lang), "cites": []}]  # fixed text, nothing generated
         uncited = [s["text"].strip()[:140] for s in segments
                    if not s["cites"] and len(MARKER_RE.sub("", s["text"]).split()) >= 10]
         words_total = sum(len(MARKER_RE.sub("", s["text"]).split()) for s in segments) or 1

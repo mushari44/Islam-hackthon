@@ -42,6 +42,8 @@ def mocked(monkeypatch):
                             "title": results[idx]["title"], "cited_text": "There is no compulsion in religion",
                             "start_block_index": 0, "end_block_index": 0}]},
             {"type": "text", "text": "\n[[q:2:256]]\n"},
+            {"type": "text", "text": "Most historians also agree that this verse was revealed in the second year of the Hijra in Madinah."},
+            {"type": "text", "text": " In short, "},
             {"type": "text", "text": "﴿وَمَا كَانَ لِنَفۡسٍ أَن تُؤۡمِنَ إِلَّا بِإِذۡنِ ٱللَّهِ﴾"},
         ]))
 
@@ -76,6 +78,28 @@ def test_answer_is_grounded_and_cited(mocked):
     typed = "وَمَا كَانَ لِنَفۡسٍ"
     assert all(typed not in s["text"] for s in out["segments"])
     assert out["trace"]["scripture_guard"]
+    # a sentence with no citation to an approved passage is removed; short connectors stay
+    assert all("historians" not in s["text"] for s in out["segments"])
+    assert any("historians" in r for r in out["trace"]["removed_uncited"])
+    assert any(s["text"] == " In short, " for s in out["segments"])
+
+
+def test_answer_without_citations_becomes_fixed_abstention(monkeypatch):
+    def handler(request: httpx.Request):
+        body = json.loads(request.content)
+        if "format" in body.get("output_config", {}):
+            return httpx.Response(200, json=_message([{"type": "text", "text": json.dumps(ANALYSIS)}]))
+        return httpx.Response(200, json=_message([{"type": "text", "text":
+            "Islam was revealed to Muhammad in Mecca in the seventh century, as everyone knows."}]))
+
+    llm = claude_mod.Claude.__new__(claude_mod.Claude)
+    llm.client = anthropic.Anthropic(api_key="test", max_retries=0,
+                                     http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+    llm.model, llm._fallbacks = "claude-opus-5-5", True
+    monkeypatch.setattr(pipeline, "get_claude", lambda: llm)
+    out = pipeline.ask(pipeline.AskContext(question="Is there compulsion in religion?", ui_lang="en"))
+    assert out["kind"] == "abstain"
+    assert out["segments"] == [{"text": pipeline.t("abstain", "en"), "cites": []}]
 
 
 def test_model_outage_falls_back_to_sources(monkeypatch):

@@ -22,7 +22,7 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] Put `ANTHROPIC_API_KEY` in `.env` (never commit it). Run the six sample questions on the Ask page, and check that the answers carry citations and that `/api/health` shows `"ai": true`.
 - [ ] If the API rejects the `fallbacks` parameter, set `SABEELI_FALLBACKS=0` in `.env` and note it in `docs/STARTING_POINT.md`.
 - [ ] Confirm the source usage terms with the reviewer: QuranEnc, HadeethEnc, and the glossary from the scholarly package. Record the answer in `THIRD_PARTY.md`.
-- [ ] Ask the reviewer to approve At-Tafsir Al-Muyassar. The package's tafsir rule (page 3) names only early sources or dorar.net/tafseer. If it isn't approved, switch the tafsir to Dorar.
+- [ ] Ask the reviewer to confirm At-Tafsir Al-Muyassar. Page 9 lists QuranEnc with its tafsirs, while the tafsir rule on page 3 names early sources or dorar.net/tafseer. If the reviewer says no, switch the tafsir to Dorar.
 - [ ] Ask the organisers for the scholarly appendix and the exact content-level wording, and update `LEVELS` in `features/rag/assistant.py` if it differs.
 
 ## Day 1: 4 October (content and answers)

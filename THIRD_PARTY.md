@@ -6,7 +6,7 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 
 | Source | Used for | Access | Terms |
 |---|---|---|---|
-| QuranEnc (Islamic Content Service Association): `arabic_moyassar` | Mushaf text (King Fahd Complex edition) and At-Tafsir Al-Muyassar | Public API, fetched by `scripts/ingest_quran.py` | Free for individuals and organisations, per the association's statement in the challenge's scholarly package. **Open question:** the package's tafsir rule (page 3) names only early sources or dorar.net/tafseer, so the reviewer must approve Al-Muyassar or we switch to Dorar |
+| QuranEnc (Islamic Content Service Association): `arabic_moyassar` | Mushaf text (King Fahd Complex edition) and At-Tafsir Al-Muyassar | Public API, fetched by `scripts/ingest_quran.py` | Free for individuals and organisations, per the association's statement in the challenge's scholarly package. Al-Muyassar is covered by the package: page 9 lists QuranEnc as "the Quran, its tafsirs and translations of its meanings". The tafsir rule on page 3 names early sources or dorar.net/tafseer, so ask the reviewer to confirm |
 | QuranEnc: `english_rwwad` | English translation of the meanings (Rowwad Translation Center) | Public API | Same as above |
 | HadeethEnc (Islamic Content Service Association) | Hadith text, grade, attribution, explanation, lessons (Arabic and English) | Public API, `scripts/ingest_hadith.py` | Same as above |
 | Challenge scholarly package, sample glossary | 10 core terms and their usage rules (`data/corpus/glossary.json`) | Transcribed from the package (page 7) | Provided by the organisers for participants |

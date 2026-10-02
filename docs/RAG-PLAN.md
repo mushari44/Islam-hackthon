@@ -41,6 +41,7 @@
   - B: explain from the approved material, with the reference;
   - C: note that scholars differ, or refer to a specialist;
   - D: general information only, plus the fatwa notice and a da'i referral.
+- **Strict grounding (built):** every model sentence must cite an approved passage, or it is removed before the user sees it; short connectors of 6 words or fewer are kept. An answer with no citation at all is replaced by the fixed "not found in the sources" message. Removed text is listed in `trace.removed_uncited`, so the evaluation can count it.
 - **Refusal paths:**
   - retrieval coverage low → the model is told to abstain unless the passages clearly answer;
   - no citation in the answer → shown as "not found in the sources";
