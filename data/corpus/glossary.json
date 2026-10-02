@@ -1,0 +1,18 @@
+{
+  "source": {
+    "ar": "المرجعية والحزمة العلمية والبيانات، نماذج لقاموس المصطلحات الأساسية (تحدي الذكاء الاصطناعي في خدمة المحتوى الإسلامي، نسخة 20/3/1448هـ)",
+    "en": "Challenge scholarly package, sample glossary of core terms (version 20/3/1448 AH)"
+  },
+  "terms": [
+    {"key": "islam", "ar": "الإسلام", "en": "Islam", "aliases": ["الاسلام", "islam", "muslim religion"], "rule_ar": "دين الاستسلام لله بالتوحيد والانقياد له بالطاعة، ويشرح بحسب السياق ولا يختزل في معنى ثقافي عام."},
+    {"key": "tawhid", "ar": "التوحيد", "en": "Tawhid / Oneness of God", "aliases": ["توحيد", "tawhid", "tawheed", "monotheism", "oneness of god"], "rule_ar": "يفضل إبقاء المصطلح مع شرح معناه: إفراد الله بالربوبية والألوهية ووصفه بما جاء الوحي به من أسمائه الحسنى، ولا يختزل في ترجمة قد توحي بمجرد الوحدانية العددية."},
+    {"key": "ibadah", "ar": "العبادة", "en": "Worship", "aliases": ["عبادة", "worship", "ibadah", "ibada"], "rule_ar": "تشمل أعمال القلب والقول والعمل التي يتقرب بها العبد إلى الله، ولا تحصر في الشعائر فقط."},
+    {"key": "nubuwwah", "ar": "النبوة", "en": "Prophethood", "aliases": ["نبوة", "النبوه", "prophethood", "prophecy", "prophets"], "rule_ar": "تستخدم للدلالة على اصطفاء الأنبياء بالوحي، مع التمييز بينها وبين القيادة الدينية البشرية."},
+    {"key": "wahy", "ar": "الوحي", "en": "Revelation", "aliases": ["وحي", "revelation", "wahy"], "rule_ar": "يشرح بوصفه ما أوحاه الله إلى أنبيائه، مع تجنب استعمالات فضفاضة قد توهم الإلهام الشخصي."},
+    {"key": "sharia", "ar": "الشريعة", "en": "Sharia / Islamic law and guidance", "aliases": ["شريعة", "الشريعه", "sharia", "shariah", "islamic law"], "rule_ar": "يشرح بحسب السياق، ولا يختزل في العقوبات أو القانون الجنائي."},
+    {"key": "hadith", "ar": "الحديث", "en": "Hadith", "aliases": ["حديث", "hadith", "hadeeth", "ahadith"], "rule_ar": "ما نُقل عن النبي ﷺ من قول أو فعل أو تقرير ونحو ذلك، مع بيان درجة الثبوت عند الاستدلال."},
+    {"key": "sunnah", "ar": "السنة", "en": "Sunnah", "aliases": ["سنة", "السنه", "sunnah", "sunna"], "rule_ar": "هدي النبي ﷺ وطريقته، ويحدد المقصود بحسب السياق العلمي."},
+    {"key": "fatwa", "ar": "الفتوى", "en": "Fatwa", "aliases": ["فتوى", "فتوي", "fatwa", "fatwas", "fatawa"], "rule_ar": "جواب شرعي يصدره مؤهل في واقعة أو سؤال، ولا يساوى بالمعلومة العامة."},
+    {"key": "dawah", "ar": "الدعوة", "en": "Da‘wah / Invitation to Islam", "aliases": ["دعوة", "الدعوه", "dawah", "da'wah", "dawa"], "rule_ar": "التعريف بالإسلام والدعوة إليه بالحكمة، ويختار المقابل بحسب السياق والجمهور."}
+  ]
+}

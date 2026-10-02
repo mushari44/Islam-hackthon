@@ -1,0 +1,183 @@
+// Da'i console, calls tab: incoming requests, the referral card, the call, feedback, experiment results.
+// Owner: Eman (calls). Mounted by pages/DaaiConsole.jsx.
+import "./strings.js";
+import "./calls.css";
+import { useEffect, useState } from "react";
+import { api, daaiAuth } from "../../core/api.js";
+import { useI18n } from "../../core/i18n.jsx";
+import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { SourceCard } from "../rag/public.js";
+import CallPanel from "./CallPanel.jsx";
+
+function secs(n, fmtNum, t) {
+  return n < 60 ? t("unit.s", { n: fmtNum(n) }) : t("unit.m", { n: fmtNum(Math.floor(n / 60)) });
+}
+
+function Queue({ onActive }) {
+  const { t, fmtNum, langName } = useI18n();
+  const [waiting, setWaiting] = useState([]);
+  usePolling(async () => {
+    const data = await api.dGet("/api/daai/requests");
+    if (data.active.length) onActive(data.active[0].id);
+    else setWaiting(data.waiting);
+  }, 3000, [], true, { background: true });
+  useEffect(() => {
+    // a da'i often waits in another tab: show waiting requests in the tab title
+    const base = document.title.replace(/^\(\d+\) /, "");
+    document.title = waiting.length ? `(${waiting.length}) ${base}` : base;
+    return () => { document.title = document.title.replace(/^\(\d+\) /, ""); };
+  }, [waiting.length]);
+  const accept = async (id) => {
+    try { await api.dPost(`/api/daai/requests/${id}/accept`, {}); onActive(id); } catch (err) {
+      toast(err.status === 409 ? t("dc.taken") : errorText(err, t), "error");
+    }
+  };
+  return (
+    <section className="card stack">
+      <h3>{t("dc.queue")}</h3>
+      {waiting.length === 0 ? <p className="muted">{t("dc.queue_empty")}</p> : waiting.map((r) => (
+        <div className="queue-item" key={r.id}>
+          <div><strong>{langName(r.lang)}</strong> <span className="faint">{t("dc.waiting", { s: secs(r.waiting_seconds, fmtNum, t) })}</span></div>
+          <span className={`badge ${r.has_card ? "badge-mint" : ""}`}>{r.has_card ? t("dc.card") : t("dc.no_card")}</span>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => accept(r.id)}><Icon name="talk" />{t("dc.accept")}</button>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function CardView({ call }) {
+  const { t, langName } = useI18n();
+  const [understood, setUnderstood] = useState(call.understood);
+  const card = call.card;
+  const mark = async () => {
+    try { await api.dPost(`/api/daai/calls/${call.id}/understood`, {}); setUnderstood(true); } catch (err) { toast(errorText(err, t), "error"); }
+  };
+  return (
+    <section className="card stack">
+      <h3>{t("dc.card_title")}</h3>
+      <div className="row"><span className="badge">{langName(call.lang)}</span><span className="badge badge-purple">{t(`dc.arm.${call.referral_mode}`)}</span></div>
+      {!card ? <p className="muted">{t("dc.no_card_long")}</p> : (
+        <div className="stack">
+          {card.question && <div><div className="faint">{t("dc.question")}</div><p dir="auto">{card.question}</p></div>}
+          {card.context && <div><div className="faint">{t("dc.context")}</div><p dir="auto">{card.context}</p></div>}
+          {(card.explained || []).length > 0 && (
+            <div>
+              <div className="faint">{t("dc.explained")}</div>
+              <ul>{card.explained.map((e, i) => <li key={i} dir="auto">{e.point}</li>)}</ul>
+              <div className="stack">{Object.values(call.card_sources || {}).map((c) => <SourceCard key={c.id} card={c} compact />)}</div>
+            </div>
+          )}
+          {card.unclear && <div><div className="faint">{t("dc.unclear")}</div><p dir="auto">{card.unclear}</p></div>}
+        </div>
+      )}
+      <div className="row">
+        <button type="button" className="btn btn-accent" disabled={understood} onClick={mark}>
+          <Icon name="check" />{understood ? t("dc.understood_done") : t("dc.understood")}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function Feedback({ id, hadCard, onDone }) {
+  const { t } = useI18n();
+  const [re, setRe] = useState(null);
+  const [acc, setAcc] = useState(null);
+  const [note, setNote] = useState("");
+  const pick = (name, value, set, withNa, label) => (
+    <div className="row" role="radiogroup" aria-label={label}>
+      {[["yes", "common.yes"], ["no", "common.no"], ...(withNa ? [["na", "dc.na"]] : [])].map(([v, k]) => (
+        <label className="check" key={v}><input type="radio" name={name} checked={value === v} onChange={() => set(v)} /><span>{t(k)}</span></label>
+      ))}
+    </div>
+  );
+  const val = (v) => (v === "yes" ? true : v === "no" ? false : null);
+  const submit = async (e) => {
+    e.preventDefault();
+    await api.dPost(`/api/daai/calls/${id}/end`, { reexplain_needed: val(re), card_accurate: val(acc), note }).catch(() => {});
+    onDone();
+  };
+  return (
+    <form className="card stack" onSubmit={submit}>
+      <h3>{t("dc.feedback")}</h3>
+      <div className="field"><label>{t("dc.reexplain")}</label>{pick("re", re, setRe, false, t("dc.reexplain"))}</div>
+      {hadCard && <div className="field"><label>{t("dc.accurate")}</label>{pick("acc", acc, setAcc, true, t("dc.accurate"))}</div>}
+      <div className="field"><label htmlFor="dc-note">{t("dc.note")}</label>
+        <textarea id="dc-note" className="textarea" rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} /></div>
+      <div className="row"><button type="submit" className="btn btn-primary">{t("dc.submit")}</button></div>
+    </form>
+  );
+}
+
+function Experiment({ me }) {
+  const { t, fmtNum } = useI18n();
+  const [data, setData] = useState(null);
+  usePolling(async () => setData(await api.dGet("/api/daai/experiment")), 15000);
+  if (!data) return null;
+  const toggle = async (e) => {
+    await api.dPost("/api/daai/experiment", { enabled: e.target.checked }).catch(() => {});
+    setData(await api.dGet("/api/daai/experiment"));
+  };
+  return (
+    <section className="card stack">
+      <h3>{t("dc.exp")}</h3>
+      <p className="small muted">{data.enabled ? t("dc.exp_on") : t("dc.exp_off")}</p>
+      {me.role === "admin" && (
+        <label className="row"><span className="switch"><input type="checkbox" checked={data.enabled} onChange={toggle} /><span /></span><span>{t("dc.exp_toggle")}</span></label>
+      )}
+      <div className="exp-grid">
+        {Object.entries(data.arms || {}).map(([arm, s]) => (
+          <div className="exp-arm" key={arm}>
+            <strong>{t(`dc.arm.${arm}`)}</strong>
+            <div className="faint">{fmtNum(s.calls)} {t("dc.calls")}</div>
+            {s.no_reexplain_rate != null && <div>{fmtNum(Math.round(s.no_reexplain_rate * 100))}% {t("dc.no_reexplain")}</div>}
+            {s.card_accurate_rate != null && <div>{fmtNum(Math.round(s.card_accurate_rate * 100))}% {t("dc.accuracy")}</div>}
+            {s.median_seconds_to_understand != null && <div>{secs(Math.round(s.median_seconds_to_understand), fmtNum, t)} {t("dc.median")}</div>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Notices a call the seeker ended even if the signalling socket missed it. */
+function EndWatcher({ id, onEnded }) {
+  usePolling(async () => {
+    const call = await api.dGet(`/api/daai/calls/${id}`);
+    if (call.status === "ended") onEnded();
+  }, 4000, [id]);
+  return null;
+}
+
+export default function DaaiCallsPanel({ me }) {
+  const { t } = useI18n();
+  const [view, setView] = useState({ name: "queue" });
+
+  const openCall = async (id) => {
+    try { setView({ name: "call", call: await api.dGet(`/api/daai/calls/${id}`) }); } catch (err) { toast(errorText(err, t), "error"); }
+  };
+
+  if (view.name === "call") {
+    const { call } = view;
+    return (
+      <div className="stack">
+        <EndWatcher id={call.id} onEnded={() => setView({ name: "feedback", id: call.id, hadCard: Boolean(call.card) })} />
+        <CardView call={call} />
+        <CallPanel callId={call.id} role="daai" token={daaiAuth.token} title={t("dc.active")}
+          onEnded={() => setView({ name: "feedback", id: call.id, hadCard: Boolean(call.card) })} />
+      </div>
+    );
+  }
+  if (view.name === "feedback") {
+    return <Feedback id={view.id} hadCard={view.hadCard} onDone={() => setView({ name: "queue" })} />;
+  }
+  return (
+    <div className="stack">
+      <Queue onActive={openCall} />
+      <Experiment me={me} />
+    </div>
+  );
+}
+
+export const callsTab = { key: "calls", labelKey: "dc.tab", component: DaaiCallsPanel };

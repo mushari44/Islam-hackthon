@@ -1,0 +1,10 @@
+{
+  "verses": 6236,
+  "sources": {
+    "text_ar": "Uthmani text via QuranEnc (King Fahd Complex edition)",
+    "tafsir_ar": "QuranEnc arabic_moyassar (At-Tafsir Al-Muyassar)",
+    "translation_en": "QuranEnc english_rwwad (Rowwad Translation Center)",
+    "sura_names": "mp3quran.net API v3"
+  },
+  "fetched_at": "2026-10-02T16:07:04Z"
+}

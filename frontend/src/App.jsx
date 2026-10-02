@@ -1,0 +1,111 @@
+// App shell and routes. Shared core: features plug in through the route table below.
+import { useEffect, useState } from "react";
+import { LangProvider, useI18n } from "./core/i18n.jsx";
+import { match, useHashPath } from "./core/router.jsx";
+import { Icon, Logo, SheetHost, ToastHost } from "./core/ui.jsx";
+import { TalkPage } from "./features/calls/index.js";                  // Eman
+import { CommunityPage, GroupPage } from "./features/community/index.js"; // Mushari
+import { AskPage } from "./features/rag/index.js";                      // Mushari
+import DaaiConsole from "./pages/DaaiConsole.jsx";
+import Home from "./pages/Home.jsx";
+import { About, More, NotFound, Privacy, Sources } from "./pages/Info.jsx";
+
+const ROUTES = [
+  { path: "/", nav: "home", page: Home },
+  { path: "/ask", nav: "ask", page: AskPage },
+  { path: "/talk", nav: "talk", page: TalkPage },
+  { path: "/community", nav: "community", page: CommunityPage },
+  { path: "/groups/:id", nav: "community", page: GroupPage },
+  { path: "/daai", nav: "more", page: DaaiConsole },
+  { path: "/about", nav: "more", page: About },
+  { path: "/sources", nav: "more", page: Sources },
+  { path: "/privacy", nav: "more", page: Privacy },
+  { path: "/more", nav: "more", page: More },
+];
+
+const NAV = [
+  { key: "home", href: "#/", icon: "home" },
+  { key: "ask", href: "#/ask", icon: "ask" },
+  { key: "talk", href: "#/talk", icon: "talk" },
+  { key: "community", href: "#/community", icon: "community" },
+];
+
+function useTheme() {
+  const [theme, setThemeState] = useState(() => { try { return localStorage.getItem("sabeeli.theme") || "auto"; } catch { return "auto"; } });
+  useEffect(() => {
+    if (theme === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("sabeeli.theme", theme); } catch { /* ignore */ }
+  }, [theme]);
+  const isDark = theme === "dark" || (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  return { theme, setTheme: setThemeState, isDark };
+}
+
+function Shell() {
+  const { t, lang, setLang } = useI18n();
+  const { path, query } = useHashPath();
+  const { theme, setTheme, isDark } = useTheme();
+  let route = null;
+  let params = {};
+  for (const r of ROUTES) {
+    const m = match(r.path, path);
+    if (m) { route = r; params = m; break; }
+  }
+  const Page = route ? route.page : NotFound;
+  const current = route ? route.nav : "more";
+
+  useEffect(() => {
+    const h1 = document.querySelector("main h1");
+    const name = t("app.name");
+    document.title = h1 && h1.textContent !== name ? `${h1.textContent} · ${name}` : `${name} · ${t("app.tag")}`;
+  });
+
+  return (
+    <>
+      <a className="sr-only" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>{t("common.skip")}</a>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <a className="brand" href="#/" aria-label={t("app.name")}>
+            <Logo />
+            <span><span className="brand-name">{t("app.name")}</span><span className="brand-tag">{t("app.tag")}</span></span>
+          </a>
+          <nav className="nav" aria-label="main">
+            {NAV.map((n) => (
+              <a key={n.key} href={n.href} aria-current={current === n.key ? "page" : undefined}><Icon name={n.icon} />{t(`nav.${n.key}`)}</a>
+            ))}
+          </nav>
+          <div className="top-actions">
+            <a className="btn btn-ghost btn-sm hide-mobile" href="#/daai"><Icon name="users" />{t("nav.daai")}</a>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLang(lang === "ar" ? "en" : "ar")}><Icon name="globe" />{t("common.lang_toggle")}</button>
+            <button type="button" className="icon-btn" aria-label={t("common.theme")} title={t("common.theme")} onClick={() => setTheme(isDark ? "light" : "dark")}>
+              <Icon name={isDark ? "sun" : "moon"} size={20} />
+            </button>
+          </div>
+        </div>
+      </header>
+      <main className="main" id="main" tabIndex={-1}>
+        <Page key={path} params={params} query={query} theme={theme} setTheme={setTheme} />
+      </main>
+      <footer className="footer">
+        <div className="footer-inner">
+          <span>{t("footer.ai")}</span>
+          <a href="#/about">{t("nav.about")}</a>
+          <a href="#/sources">{t("nav.sources")}</a>
+          <a href="#/privacy">{t("nav.privacy")}</a>
+          <span>{t("footer.challenge")}</span>
+        </div>
+      </footer>
+      <nav className="tabbar" aria-label="tabs">
+        {[...NAV, { key: "more", href: "#/more", icon: "more" }].map((n) => (
+          <a key={n.key} href={n.href} aria-current={current === n.key ? "page" : undefined}><Icon name={n.icon} size={22} /><span>{t(`nav.${n.key}`)}</span></a>
+        ))}
+      </nav>
+      <SheetHost />
+      <ToastHost />
+    </>
+  );
+}
+
+export default function App() {
+  return <LangProvider><Shell /></LangProvider>;
+}

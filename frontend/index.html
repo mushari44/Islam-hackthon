@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>سَبِيلي · Sabeeli</title>
+  <meta name="description" content="سَبِيلي: اسأل عن الإسلام بلغتك واحصل على إجابة من مصادر معتمدة، وتحدّث مع داعية، وانضم إلى مجتمع داعم.">
+  <meta name="theme-color" content="#161D48">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Readex+Pro:wght@300;400;500;600;700&display=swap">
+  <script>
+    // apply the saved theme and language before first paint
+    try {
+      var th = localStorage.getItem("sabeeli.theme");
+      if (th && th !== "auto") document.documentElement.setAttribute("data-theme", th);
+      var lg = localStorage.getItem("sabeeli.lang");
+      if (lg === "en") { document.documentElement.lang = "en"; document.documentElement.dir = "ltr"; }
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <div id="app" class="app"></div>
+  <noscript>سَبِيلي يحتاج JavaScript. Sabeeli needs JavaScript.</noscript>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+/* Calls: talk page, call room, referral sheet, da'i calls panel. Owner: Eman. */
+
+.talk { max-width: 900px; }
+.talk-card h3 { margin-top: 6px; }
+.lang-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.lang-option {
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-start; text-align: start; cursor: pointer;
+  border: 1.5px solid var(--border); background: var(--surface-2); border-radius: var(--radius); padding: 14px 16px;
+  transition: border-color .2s, transform .15s var(--ease);
+}
+.lang-option:hover { transform: translateY(-2px); border-color: var(--border-strong); }
+.lang-option[aria-pressed="true"] { border-color: var(--accent-ink); background: color-mix(in srgb, var(--mint-400) 10%, var(--surface)); }
+.lang-name { font-weight: 700; font-size: 1.05rem; }
+
+.waiting { padding: 36px 20px; align-items: center; }
+.pulse {
+  width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 8px;
+  background: var(--navy-800); color: var(--mint-400); animation: pulse 1.8s var(--ease) infinite;
+  box-shadow: 0 0 0 12px color-mix(in srgb, var(--mint-400) 14%, transparent), 0 0 0 26px color-mix(in srgb, var(--mint-400) 7%, transparent);
+}
+.pulse svg { width: 40px; height: 40px; }
+.timer { font-variant-numeric: tabular-nums; }
+
+.call-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .call-layout { grid-template-columns: 1fr; } }
+.call-stage { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 32px 20px; }
+.call-avatar {
+  width: 88px; height: 88px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--navy-800), var(--navy-600)); color: var(--mint-400);
+}
+.call-avatar svg { width: 38px; height: 38px; }
+.call-state { font-weight: 600; color: var(--accent-ink); }
+.call-controls { justify-content: center; gap: 12px; margin-top: 8px; }
+.call-btn { min-width: 120px; }
+.call-chat { display: flex; flex-direction: column; gap: 10px; }
+.call-chat-log {
+  min-height: 160px; max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+  background: var(--bg-soft); border-radius: 12px; padding: 10px;
+}
+.chat-line { max-width: 85%; padding: 6px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+.chat-line p { margin: 0; }
+.chat-line.mine { align-self: flex-end; background: var(--primary); color: var(--primary-text); border-color: transparent; }
+.chat-line.mine .faint { color: inherit; opacity: .75; }
+.stars .icon-btn:hover svg { color: var(--red-600); fill: color-mix(in srgb, var(--red-600) 30%, transparent); }
+
+.ref-point { border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+.queue-item {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between;
+  border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; background: var(--surface-2);
+}
+.exp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.exp-arm { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font-size: .9rem; background: var(--surface-2); }

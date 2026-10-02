@@ -1,0 +1,31 @@
+# secrets and local data
+.env
+data/sabeeli.db*
+data/cache/
+data/raw/
+*.db
+
+# the organisers' documents and the team's working files stay out of the public repo
+HACKTHON/
+~$*
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+
+# editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.trash-vanilla/
+
+# local tooling
+.claude/

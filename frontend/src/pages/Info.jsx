@@ -1,0 +1,172 @@
+// About, Sources, Privacy, More and Not-found pages. Shared.
+import { api, forgetSeeker } from "../core/api.js";
+import { register, useI18n } from "../core/i18n.jsx";
+import { Icon, Notice, toast } from "../core/ui.jsx";
+
+register({
+  ar: {
+    "about.title": "عن سَبِيلي",
+    "about.p1": "سَبِيلي تطبيق ويب يتيح لمن يثير الإسلام فضوله، وللمسلم الجديد، أن يسأل بلغته ويحصل على شرح واضح يستند إلى مصادر معتمدة مع إظهارها، وأن يتصل مباشرة بداعية متاح بلغته، ويتابع تعلّمه في مجموعات ولقاءات.",
+    "about.ai_t": "مساعد بالذكاء الاصطناعي", "about.ai": "الإجابات يكتبها نموذج ذكاء اصطناعي (Claude من Anthropic) مقيداً بالنصوص المسترجعة من الحزمة المعتمدة. ليس عالماً ولا مفتياً، ويقول «لم أجد» حين لا تكفي المصادر.",
+    "about.how_t": "كيف تُبنى الإجابة", "about.how1": "تحليل السؤال: لغته ومستوى المحتوى (أ–د) وهل هو حالة شخصية.",
+    "about.how2": "البحث في المصادر المعتمدة بالعربية والإنجليزية، ومطابقة أي آية منقولة أو مصوّرة بنص المصحف.",
+    "about.how3": "كتابة الإجابة مع الإسناد لكل عبارة، وعرض الآيات والأحاديث من المرجع حرفياً لا من النموذج.",
+    "about.how4": "التحقق بعد الكتابة: حذف أي نص قرآني يكتبه النموذج من ذاكرته، وإضافة تنبيه الفتوى عند الحالات الشخصية.",
+    "about.calls_t": "الاتصال مستقل عن النموذج", "about.calls": "يمكن طلب داعية مباشرة دون سؤال المساعد، ويبقى الاتصال متاحاً إن تعطل النموذج.",
+    "about.team_t": "الفريق", "about.m": "مهندس ذكاء اصطناعي: قراءة النص والمطابقة والاسترجاع والتقييم، والمجتمع.",
+    "about.e": "مهندسة ذكاء اصطناعي: الاتصال بالداعية وملخص الإحالة.",
+    "about.start": "هذه نسخة البداية الموثقة قبل أيام التحدي (4–6 أكتوبر 2026).",
+    "src.title": "المصادر", "src.lead": "يجيب سَبِيلي من نصوص الحزمة العلمية المعتمدة في التحدي فقط، ويعرض المصدر مع كل إجابة.",
+    "src.q": "نص المصحف (مجمع الملك فهد) والتفسير الميسر، عبر موسوعة القرآن الكريم QuranEnc (arabic_moyassar).",
+    "src.qen": "ترجمة معاني القرآن إلى الإنجليزية، مركز رواد للترجمة، عبر QuranEnc (english_rwwad).",
+    "src.h": "موسوعة الأحاديث النبوية HadeethEnc: أحاديث صحيحة مع درجتها وتخريجها وشرحها.",
+    "src.t": "نماذج قاموس المصطلحات الأساسية من وثيقة «المرجعية والحزمة العلمية والبيانات» للتحدي.",
+    "src.names": "أسماء السور من واجهة mp3quran.net العامة.",
+    "src.later": "مقترح للإضافة بعد تأكيد ضوابط الاستخدام: «بينات: أسئلة وأجوبة عن الإسلام»، وقاموس الجمهرة، والدرر السنية.",
+    "src.license": "تتيح الجمعية محتوى منصاتها مجاناً للأفراد والجهات عبر واجهات برمجية عامة، بحسب بيانها في الحزمة العلمية.",
+    "priv.title": "الخصوصية", "priv.lead": "صممنا سَبِيلي ليعمل دون أن نعرف من أنت.",
+    "priv.1": "لا حسابات للسائلين: رمز جلسة عشوائي في متصفحك فقط.",
+    "priv.2": "أسئلتك وإجاباتها تُحذف تلقائياً بعد 24 ساعة.",
+    "priv.3": "ملخص الإحالة لا يصل إلى الداعية إلا بموافقتك الصريحة.",
+    "priv.4": "المكالمات لا تُسجّل، ولا نطلب رقم هاتف. في المجموعات واللقاءات اسم مستعار فقط.",
+    "priv.5": "لا نستنتج معتقدك أو أي صفة حساسة عنك، ولا نستخدم بياناتك لغير تقديم الخدمة.",
+    "priv.6": "تُرسل الأسئلة إلى خدمة Claude لتوليد الإجابة، وفق سياسة Anthropic لبيانات الواجهات البرمجية.",
+    "priv.delete": "احذف بياناتي الآن", "priv.deleted": "حُذفت بياناتك من الخادم وبدأت جلسة جديدة.",
+    "more.title": "المزيد", "more.lang": "اللغة", "more.theme": "المظهر", "more.light": "فاتح", "more.dark": "داكن", "more.auto": "تلقائي",
+  },
+  en: {
+    "about.title": "About Sabeeli",
+    "about.p1": "Sabeeli is a web app where anyone curious about Islam, and new Muslims, can ask in their own language and get a clear explanation grounded in approved sources that are shown alongside, call an available da'i who speaks their language, and keep learning in groups and meetups.",
+    "about.ai_t": "An AI assistant", "about.ai": "Answers are written by an AI model (Claude by Anthropic), limited to passages retrieved from the approved package. It is not a scholar or a mufti, and it says \"I couldn't find this\" when the sources aren't enough.",
+    "about.how_t": "How an answer is built", "about.how1": "Analyse the question: its language, content level (A-D) and whether it's a personal case.",
+    "about.how2": "Search the approved sources in Arabic and English, and match any quoted or photographed verse against the Mushaf.",
+    "about.how3": "Write the answer with a source for each statement; verses and hadiths are shown from the reference, never from the model.",
+    "about.how4": "Check after writing: remove any Quran text the model typed from memory, and add the fatwa notice for personal cases.",
+    "about.calls_t": "Calls don't depend on the model", "about.calls": "You can ask for a da'i directly without asking the assistant, and calls keep working if the model is down.",
+    "about.team_t": "Team", "about.m": "AI engineer: text reading, matching, retrieval and evaluation, and the community.",
+    "about.e": "AI engineer: calls with a da'i and the referral summary.",
+    "about.start": "This is the documented starting version, before the challenge days (4–6 October 2026).",
+    "src.title": "Sources", "src.lead": "Sabeeli answers only from the challenge's approved scholarly package and shows the source with every answer.",
+    "src.q": "The Mushaf text (King Fahd Complex) and At-Tafsir Al-Muyassar, via the Quran encyclopedia QuranEnc (arabic_moyassar).",
+    "src.qen": "English translation of the meanings by the Rowwad Translation Center, via QuranEnc (english_rwwad).",
+    "src.h": "The Encyclopedia of Translated Prophetic Hadiths (HadeethEnc): authentic hadiths with grade, attribution and explanation.",
+    "src.t": "The sample glossary of core terms from the challenge's scholarly package.",
+    "src.names": "Surah names from the public mp3quran.net API.",
+    "src.later": "Proposed once usage terms are confirmed: “Bayyinat: Questions and Answers about Islam”, the Jamhara dictionary and Dorar.",
+    "src.license": "The association makes its platforms' content free for individuals and organisations through public APIs, per its statement in the package.",
+    "priv.title": "Privacy", "priv.lead": "Sabeeli is designed to work without knowing who you are.",
+    "priv.1": "No accounts for people asking: just a random session token in your browser.",
+    "priv.2": "Your questions and answers are deleted automatically after 24 hours.",
+    "priv.3": "The referral summary only reaches a da'i with your explicit consent.",
+    "priv.4": "Calls aren't recorded and we never ask for a phone number. Groups and meetups use nicknames only.",
+    "priv.5": "We don't infer your beliefs or any sensitive trait, and we use your data only to provide the service.",
+    "priv.6": "Questions are sent to the Claude API to write answers, under Anthropic's API data policy.",
+    "priv.delete": "Delete my data now", "priv.deleted": "Your data was deleted from the server and a new session started.",
+    "more.title": "More", "more.lang": "Language", "more.theme": "Theme", "more.light": "Light", "more.dark": "Dark", "more.auto": "Auto",
+  },
+});
+
+export function About() {
+  const { t, fmtNum } = useI18n();
+  return (
+    <>
+      <div className="page-head"><h1>{t("about.title")}</h1><p>{t("about.p1")}</p></div>
+      <div className="grid grid-2">
+        <div className="card stack"><h3><Icon name="sparkle" /> {t("about.ai_t")}</h3><p className="muted">{t("about.ai")}</p></div>
+        <div className="card stack"><h3>{t("about.calls_t")}</h3><p className="muted">{t("about.calls")}</p></div>
+      </div>
+      <section className="section card stack">
+        <h3>{t("about.how_t")}</h3>
+        <ol className="steps">
+          {["how1", "how2", "how3", "how4"].map((k, i) => <li className="step" key={k}><span className="step-num">{fmtNum(i + 1)}</span><p>{t(`about.${k}`)}</p></li>)}
+        </ol>
+      </section>
+      <section className="section card stack">
+        <h3>{t("about.team_t")}</h3>
+        <div className="grid grid-2">
+          <div><strong>Mushari Alothman</strong><p className="muted small">{t("about.m")}</p></div>
+          <div><strong>Eman Saheli</strong><p className="muted small">{t("about.e")}</p></div>
+        </div>
+      </section>
+      <p className="faint">{t("about.start")}</p>
+    </>
+  );
+}
+
+const SOURCES = [
+  ["src.q", "https://quranenc.com/ar/browse/arabic_moyassar"], ["src.qen", "https://quranenc.com/en/browse/english_rwwad"],
+  ["src.h", "https://hadeethenc.com"], ["src.t", ""], ["src.names", "https://www.mp3quran.net/api"],
+];
+
+export function Sources() {
+  const { t } = useI18n();
+  return (
+    <>
+      <div className="page-head"><h1>{t("src.title")}</h1><p>{t("src.lead")}</p></div>
+      <div className="stack">
+        {SOURCES.map(([k, url]) => (
+          <div className="card row spread" key={k}>
+            <p style={{ margin: 0, flex: 1 }}>{t(k)}</p>
+            {url && <a className="btn btn-sm" href={url} target="_blank" rel="noopener noreferrer" aria-label={t("src.open")}><Icon name="external" /></a>}
+          </div>
+        ))}
+      </div>
+      <div className="section"><Notice icon="info">{t("src.license")}</Notice></div>
+      <p className="faint">{t("src.later")}</p>
+    </>
+  );
+}
+
+export function Privacy() {
+  const { t } = useI18n();
+  const wipe = async () => {
+    try { await api.del("/api/me"); } catch { /* already gone */ }
+    forgetSeeker();
+    try { sessionStorage.clear(); } catch { /* ignore */ }
+    toast(t("priv.deleted"));
+  };
+  return (
+    <>
+      <div className="page-head"><h1>{t("priv.title")}</h1><p>{t("priv.lead")}</p></div>
+      <ul className="priv-list">
+        {["priv.1", "priv.2", "priv.3", "priv.4", "priv.5", "priv.6"].map((k) => <li key={k}><Icon name="shield" size={22} /><span>{t(k)}</span></li>)}
+      </ul>
+      <div className="section"><button type="button" className="btn btn-danger" onClick={wipe}><Icon name="trash" />{t("priv.delete")}</button></div>
+    </>
+  );
+}
+
+export function More({ theme, setTheme }) {
+  const { t, lang, setLang } = useI18n();
+  const link = (href, icon, key) => <a className="card card-link row" href={href}><Icon name={icon} size={22} /><span>{t(key)}</span></a>;
+  return (
+    <>
+      <div className="page-head"><h1>{t("more.title")}</h1></div>
+      <div className="stack">
+        {link("#/about", "info", "nav.about")}
+        {link("#/sources", "book", "nav.sources")}
+        {link("#/privacy", "shield", "nav.privacy")}
+        {link("#/daai", "users", "nav.daai")}
+        <div className="card stack">
+          <strong>{t("more.lang")}</strong>
+          <div className="tabs">
+            {[["ar", "العربية"], ["en", "English"]].map(([l, label]) => (
+              <button key={l} type="button" aria-selected={lang === l} onClick={() => setLang(l)}>{label}</button>
+            ))}
+          </div>
+          <strong>{t("more.theme")}</strong>
+          <div className="tabs">
+            {[["auto", "more.auto"], ["light", "more.light"], ["dark", "more.dark"]].map(([v, k]) => (
+              <button key={v} type="button" aria-selected={theme === v} onClick={() => setTheme(v)}>{t(k)}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function NotFound() {
+  const { t } = useI18n();
+  return <div className="empty"><Icon name="search" size={46} /><h1>404</h1><a className="btn btn-primary" href="#/">{t("nav.home")}</a></div>;
+}

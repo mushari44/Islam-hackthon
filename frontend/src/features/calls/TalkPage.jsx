@@ -1,0 +1,177 @@
+// Talk page (seeker): choose a language, request a call, wait, talk, rate. Owner: Eman (calls).
+import "./strings.js";
+import "./calls.css";
+import { useCallback, useEffect, useState } from "react";
+import { api, seekerToken } from "../../core/api.js";
+import { useI18n } from "../../core/i18n.jsx";
+import { navigate } from "../../core/router.jsx";
+import { Icon, Notice, errorText, toast, usePolling } from "../../core/ui.jsx";
+import CallPanel, { Clock, useClock } from "./CallPanel.jsx";
+
+const ACTIVE = "sabeeli.call";
+const LANGS = ["ar", "en", "fr", "ur"];
+const remember = (id) => { try { id ? sessionStorage.setItem(ACTIVE, String(id)) : sessionStorage.removeItem(ACTIVE); } catch { /* ignore */ } };
+const recall = () => { try { return Number(sessionStorage.getItem(ACTIVE)) || null; } catch { return null; } };
+
+function Choose({ query, onRequested }) {
+  const { t, lang: uiLang, fmtNum, langName } = useI18n();
+  const [lang, setLang] = useState(query.lang || uiLang);
+  const [gender, setGender] = useState("");
+  const [availability, setAvailability] = useState({});
+  const [busy, setBusy] = useState(false);
+  usePolling(async () => setAvailability((await api.pGet("/api/availability")).languages || {}), 8000);
+
+  const request = async () => {
+    setBusy(true);
+    try {
+      const res = await api.post("/api/calls", { lang, gender_pref: gender, referral_id: query.ref ? Number(query.ref) : null });
+      remember(res.id);
+      onRequested(res.id);
+      navigate("/talk"); // a referral is used once; a later "new call" starts without it
+    } catch (err) {
+      toast(errorText(err, t), "error");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card stack talk-card">
+      <h3>{t("talk.lang")}</h3>
+      <div className="lang-grid">
+        {LANGS.map((code) => {
+          const n = availability[code]?.total || 0;
+          return (
+            <button key={code} type="button" className="lang-option" aria-pressed={lang === code} onClick={() => setLang(code)}>
+              <span className="lang-name">{langName(code)}</span>
+              <span className="small"><span className={`dot ${n ? "on" : ""}`} /> {n ? t("talk.available", { n: fmtNum(n) }) : t("talk.none")}</span>
+            </button>
+          );
+        })}
+      </div>
+      <h3>{t("talk.gender")}</h3>
+      <div className="tabs" role="radiogroup">
+        {[["", "talk.any"], ["m", "talk.male"], ["f", "talk.female"]].map(([v, k]) => (
+          <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} aria-selected={gender === v} onClick={() => setGender(v)}>{t(k)}</button>
+        ))}
+      </div>
+      {query.card && <Notice kind="mint" icon="check">{t("talk.with_card")}</Notice>}
+      <div className="row">
+        <button type="button" className="btn btn-primary btn-lg" disabled={busy} onClick={request}><Icon name="talk" />{t("talk.call")}</button>
+      </div>
+      <p className="faint">{t("talk.safety")}</p>
+    </div>
+  );
+}
+
+function Waiting({ id, onAccepted, onExpired, onCancelled }) {
+  const { t, fmtNum } = useI18n();
+  const [queue, setQueue] = useState(0);
+  const sec = useClock(true);
+  usePolling(async () => {
+    const st = await api.get(`/api/calls/${id}`);
+    setQueue(st.queue_position || 0);
+    if (st.status === "accepted") onAccepted(st);
+    else if (st.status === "expired") onExpired();
+    else if (st.status === "cancelled" || st.status === "ended") onCancelled();
+  }, 2000, [id], true, { background: true });
+  const cancel = async () => { await api.post(`/api/calls/${id}/cancel`, {}).catch(() => {}); onCancelled(); };
+  return (
+    <div className="card stack center waiting">
+      <div className="pulse"><Icon name="talk" size={40} /></div>
+      <h3>{t("talk.waiting")}</h3>
+      {queue > 0 && <p className="muted">{t("talk.queue", { n: fmtNum(queue) })}</p>}
+      <p className="faint"><Clock sec={sec} /></p>
+      <div className="row" style={{ justifyContent: "center" }}><button type="button" className="btn" onClick={cancel}>{t("talk.cancel")}</button></div>
+    </div>
+  );
+}
+
+function Ended({ id, onAgain }) {
+  const { t } = useI18n();
+  const [rated, setRated] = useState(false);
+  const rate = async (n) => { await api.post(`/api/calls/${id}/rate`, { rating: n }).catch(() => {}); setRated(true); };
+  return (
+    <div className="card stack center">
+      <h3>{t("talk.ended")}</h3>
+      <p className="muted">{t("talk.rate")}</p>
+      {rated ? <p className="muted">{t("talk.rated")}</p> : (
+        <div className="row stars" style={{ justifyContent: "center" }}>
+          {[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" className="icon-btn" aria-label={t("talk.rate_n", { n })} title={t("talk.rate_n", { n })} onClick={() => rate(n)}><Icon name="heart" size={22} /></button>)}
+        </div>
+      )}
+      <div className="row" style={{ justifyContent: "center" }}>
+        <a className="btn btn-primary" href="#/ask">{t("talk.back_ask")}</a>
+        <button type="button" className="btn" onClick={onAgain}>{t("talk.again")}</button>
+      </div>
+    </div>
+  );
+}
+
+export default function TalkPage({ query }) {
+  const { t, lang } = useI18n();
+  const [view, setView] = useState({ name: "loading" });
+  const [token, setToken] = useState(null);
+
+  useEffect(() => { seekerToken().then(setToken); }, []);
+  useEffect(() => {
+    const active = recall();
+    if (!active) { setView({ name: "choose" }); return; }
+    api.get(`/api/calls/${active}`).then((st) => {
+      if (st.status === "waiting") setView({ name: "waiting", id: active });
+      else if (st.status === "accepted") setView({ name: "call", id: active, st });
+      else { remember(null); setView({ name: "choose" }); }
+    }).catch(() => { remember(null); setView({ name: "choose" }); });
+  }, []);
+
+  const ended = useCallback((id) => { remember(null); setView({ name: "ended", id }); }, []);
+
+  let body = null;
+  if (view.name === "choose") body = <Choose query={query} onRequested={(id) => setView({ name: "waiting", id })} />;
+  if (view.name === "waiting") {
+    body = (
+      <Waiting id={view.id}
+        onAccepted={(st) => setView({ name: "call", id: view.id, st })}
+        onExpired={() => { remember(null); setView({ name: "expired" }); }}
+        onCancelled={() => { remember(null); setView({ name: "choose" }); }} />
+    );
+  }
+  if (view.name === "expired") {
+    body = (
+      <div className="card stack">
+        <p>{t("talk.expired")}</p>
+        <div className="row">
+          <button type="button" className="btn btn-primary" onClick={() => setView({ name: "choose" })}>{t("talk.again")}</button>
+          <a className="btn" href="#/community">{t("nav.community")}</a>
+        </div>
+      </div>
+    );
+  }
+  if (view.name === "call" && token) {
+    const d = view.st.daai;
+    const name = d ? (lang === "ar" ? d.name : d.name_en || d.name) : "";
+    body = (
+      <>
+        <EndWatcher id={view.id} onEnded={() => ended(view.id)} />
+        <CallPanel callId={view.id} role="seeker" token={token} title={t("talk.connected_with", { name })}
+          historyPath={`/api/calls/${view.id}/messages`} onEnded={() => ended(view.id)} />
+      </>
+    );
+  }
+  if (view.name === "ended") body = <Ended id={view.id} onAgain={() => setView({ name: "choose" })} />;
+
+  return (
+    <div className="talk">
+      <div className="page-head"><h1>{t("talk.title")}</h1><p>{t("talk.lead")}</p></div>
+      {body}
+    </div>
+  );
+}
+
+/** Polls the call status so the seeker's screen ends even if the signalling socket missed it. */
+function EndWatcher({ id, onEnded }) {
+  usePolling(async () => {
+    const st = await api.get(`/api/calls/${id}`);
+    if (st.status === "ended") onEnded();
+  }, 4000, [id]);
+  return null;
+}

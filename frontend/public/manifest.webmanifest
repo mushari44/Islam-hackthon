@@ -1,0 +1,12 @@
+{
+  "name": "سَبِيلي · Sabeeli",
+  "short_name": "سَبِيلي",
+  "description": "اسأل عن الإسلام بلغتك من مصادر معتمدة، وتحدّث مع داعية، وانضم إلى مجتمع داعم.",
+  "start_url": "/#/",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#F6F7FE",
+  "theme_color": "#161D48",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

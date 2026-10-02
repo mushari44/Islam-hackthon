@@ -1,0 +1,64 @@
+# سَبِيلي · Sabeeli
+
+**معرفة تُنير، وصحبة تُعين.** سَبِيلي تطبيق ويب يتيح لمن يثير الإسلام فضوله، وللمسلم الجديد، أن يسأل بلغته (نصاً أو بصورة) ويحصل على شرح من مصادر معتمدة يظهر مصدره مع كل عبارة، وأن يتصل مباشرة بداعية متاح بلغته، ويتابع تعلّمه في مجموعات يقودها دعاة ولقاءات حضورية.
+
+> مشروع في تحدي الذكاء الاصطناعي في خدمة المحتوى الإسلامي 2026 (المسار المفتوح). الفريق: Mushari Alothman و Eman Saheli.
+
+*Sabeeli is a web app for people curious about Islam and for new Muslims. They ask in their own language, by text or with a photo, and get an explanation grounded in approved sources that are shown with every statement. They can call an available da'i who speaks their language, and keep learning in da'i-led groups and in-person meetups.*
+
+## What's inside
+
+| | Feature | Owner |
+|---|---|---|
+| اسأل | Cited answers from the approved package only. Quran and hadith text is shown from the reference, never generated. Content levels A-D; no personal fatwa. A photo or quoted verse is checked against the Mushaf, word by word | Mushari |
+| المجتمع | Da'i-led groups with the @سبيلي assistant, moderation, nicknames only; meetups at public venues with RSVP codes and calendar files | Mushari |
+| تحدّث | Direct voice call (WebRTC) with an available da'i in the seeker's language, in-call text chat, and a referral card the seeker edits and approves before it is shared | Eman |
+
+## Run it
+
+Requirements: Python 3.11 and Node 18 or newer.
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env            # add ANTHROPIC_API_KEY for AI answers; without it the app runs in sources-only mode
+cd frontend && npm install && npm run build && cd ..
+python -m uvicorn backend.app.main:app --port 8000
+```
+
+Open http://localhost:8000. For frontend development, run `npm run dev` in `frontend/` and open http://localhost:5173; API calls are proxied to port 8000.
+
+**Demo accounts** (synthetic, created on first start): da'i console at `#/daai`, users `khalid`, `maryam`, `yusuf` and `reviewer` (reviewer can run the referral experiment). The password is the value of `DEMO_PASSWORD` in `.env` (`sabeeli-demo` by default). Change it before deploying.
+
+To try a call locally, open the app in two browsers: in one, sign in as a da'i and switch on "Available"; in the other, go to **تحدّث**.
+
+The corpus is already in `data/corpus/`. To refresh it from the official APIs, run `python scripts/ingest_quran.py` and `python scripts/ingest_hadith.py`.
+
+## Tests
+
+```bash
+python -m pytest tests             # 35 tests; no API key needed (sources-only mode + a mocked Claude API)
+```
+
+## How the code is organised
+
+```
+backend/app/
+  core/               shared: config, database, accounts, Claude transport, Arabic normalisation
+  features/rag/       Mushari: corpus, retrieval, verse matching, answer pipeline, prompts
+  features/community/ Mushari: groups, moderation, meetups
+  features/calls/     Eman: call queue, WebRTC signalling, referral card and experiment
+frontend/src/
+  core/ styles/ pages/ App.jsx   shared shell, design system, i18n (Arabic/English, RTL)
+  features/rag/ features/community/ features/calls/   same split as the backend
+tests/{core,rag,community,calls}/   tests per owner
+data/corpus/          the approved corpus (JSONL)
+scripts/              corpus ingestion
+```
+
+Each person works only in their own folders. Shared code changes only by agreement. The rules for people and AI agents are in **`CLAUDE.md`** (same as `AGENTS.md`), the task lists are in **`tasks/mushari.md`** and **`tasks/eman.md`**, and the API contract between frontend and backend is in **`docs/API.md`**.
+
+## Challenge documents
+
+- **`STARTING_POINT.md`:** what existed before 4 October (the challenge judges only work done from 4 to 6 October).
+- **`THIRD_PARTY.md`:** sources, models, services and licences.
+- **Privacy:** seekers have no accounts, questions are deleted after 24 hours, the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**.

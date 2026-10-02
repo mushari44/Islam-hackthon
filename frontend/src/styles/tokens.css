@@ -1,0 +1,108 @@
+/* Design tokens. Shared: change only with both owners' agreement.
+   Palette taken from the Sabeeli deck (navy #161D48 / #323D68, lavender #F2F4FF, mint #2EF2C2),
+   font Readex Pro (deck font) and Amiri Quran for verses. */
+
+:root {
+  --navy-950: #0B1030;
+  --navy-900: #12183F;
+  --navy-800: #161D48;
+  --navy-700: #222B5C;
+  --navy-600: #323D68;
+  --navy-500: #4A5590;
+  --peri-400: #8E99CC;
+  --peri-300: #A8AED9;
+  --peri-200: #CBCFE6;
+  --lav-100: #E6E9FA;
+  --lav-50: #F2F4FF;
+  --mint-400: #2EF2C2;
+  --mint-500: #14D3A6;
+  --mint-700: #0A7A62;   /* mint text on light backgrounds (AA contrast) */
+  --purple-500: #6150EA;
+  --amber-500: #E7A93B;
+  --amber-700: #8A5A00;
+  --red-600: #C2394B;
+  --white: #FFFFFF;
+
+  --font-ui: "Readex Pro", "Segoe UI", Tahoma, system-ui, sans-serif;
+  --font-quran: "Amiri Quran", "Amiri", "Traditional Arabic", "Scheherazade New", serif;
+
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --gap: 16px;
+  --shadow-sm: 0 1px 2px rgba(18, 24, 63, .06), 0 1px 1px rgba(18, 24, 63, .04);
+  --shadow: 0 8px 24px rgba(18, 24, 63, .08), 0 2px 6px rgba(18, 24, 63, .05);
+  --shadow-lg: 0 18px 48px rgba(18, 24, 63, .16);
+  --ease: cubic-bezier(.2, .7, .2, 1);
+
+  /* light theme */
+  --bg: #F6F7FE;
+  --bg-soft: var(--lav-50);
+  --surface: var(--white);
+  --surface-2: #FAFBFF;
+  --text: var(--navy-800);
+  --text-muted: var(--navy-500);
+  --text-faint: #6B74A6;
+  --border: #DADDF2;
+  --border-strong: var(--peri-200);
+  --primary: var(--navy-800);
+  --primary-text: var(--white);
+  --accent: var(--mint-400);
+  --accent-text: var(--navy-900);
+  --accent-ink: var(--mint-700);
+  --focus: var(--purple-500);
+  --verse-bg: linear-gradient(180deg, #FBFCFF 0%, #F2F4FF 100%);
+  --hadith-bg: #FFFDF7;
+  --warn-bg: #FFF6E5;
+  --warn-text: var(--amber-700);
+  --danger: var(--red-600);
+  --pattern-stroke: rgba(50, 61, 104, .07);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .btn-accent { --btn-bg: transparent; --btn-fg: var(--mint-400); --btn-bd: var(--mint-400); }
+  :root:not([data-theme="light"]) {
+    --bg: var(--navy-950);
+    --bg-soft: var(--navy-900);
+    --surface: var(--navy-800);
+    --surface-2: #1A2152;
+    --text: var(--lav-50);
+    --text-muted: var(--peri-300);
+    --text-faint: var(--peri-400);
+    --border: #2A3368;
+    --border-strong: #3A4580;
+    --primary: var(--mint-400);
+    --primary-text: var(--navy-900);
+    --accent-ink: var(--mint-400);
+    --verse-bg: linear-gradient(180deg, #1A2152 0%, #161D48 100%);
+    --hadith-bg: #1C2150;
+    --warn-bg: #3A2F12;
+    --warn-text: #F5C978;
+    --pattern-stroke: rgba(203, 207, 230, .06);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: var(--navy-950);
+  --bg-soft: var(--navy-900);
+  --surface: var(--navy-800);
+  --surface-2: #1A2152;
+  --text: var(--lav-50);
+  --text-muted: var(--peri-300);
+  --text-faint: var(--peri-400);
+  --border: #2A3368;
+  --border-strong: #3A4580;
+  --primary: var(--mint-400);
+  --primary-text: var(--navy-900);
+  --accent-ink: var(--mint-400);
+  --verse-bg: linear-gradient(180deg, #1A2152 0%, #161D48 100%);
+  --hadith-bg: #1C2150;
+  --warn-bg: #3A2F12;
+  --warn-text: #F5C978;
+  --pattern-stroke: rgba(203, 207, 230, .06);
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] .btn-accent { --btn-bg: transparent; --btn-fg: var(--mint-400); --btn-bd: var(--mint-400); }

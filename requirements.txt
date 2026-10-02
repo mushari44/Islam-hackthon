@@ -1,0 +1,13 @@
+# Backend (Python 3.11). Pinned to the versions the starting version was built and tested with.
+fastapi==0.115.4
+uvicorn[standard]==0.30.6
+anthropic==0.97.0
+sqlalchemy==2.0.44
+pydantic==2.12.5
+httpx==0.28.1
+python-dotenv==1.0.1
+python-multipart==0.0.9
+websockets==15.0.1
+
+# tests
+pytest==8.4.2
