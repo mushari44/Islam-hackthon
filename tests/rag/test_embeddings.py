@@ -83,3 +83,5 @@ def test_pipeline_uses_the_hybrid_retriever(monkeypatch):
     out = pipeline.ask(pipeline.AskContext(question="why kaaba", ui_lang="en"))
     rows = {r["id"]: r for r in out["trace"]["retrieval"]}
     assert rows["qa:36130"]["via"] == "hybrid" and rows["qa:36130"]["dense"] is not None
+    # a strong meaning match lets the approved answer lead, even though it shares no word with the question
+    assert out["kind"] == "sources" and out["sources"][0] == "qa:36130"

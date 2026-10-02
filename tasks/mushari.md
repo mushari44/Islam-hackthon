@@ -84,3 +84,4 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] Add Jamhara dictionary terms to `data/corpus/glossary.json`.
 - [x] Dense embeddings next to BM25: multilingual E5-large + LangChain (`features/rag/embeddings.py`), documented in `THIRD_PARTY.md`.
 - [ ] Use the evaluation set to compare BM25 alone (`SABEELI_EMBEDDINGS=0`) with the hybrid, and tune the fusion weights and the abstain threshold on the result.
+- [ ] Glossary matching takes «سنة» (year) for the term «السنة» (e.g. «عمري ١٤ سنة» shows the Sunnah term card): match terms only with the article or in a religious context.

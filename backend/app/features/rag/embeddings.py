@@ -47,6 +47,10 @@ CHUNK_CHARS = 900          # E5 reads at most 512 tokens; ~900 Arabic characters
 CHUNK_OVERLAP = 120
 DENSE_K = 60               # chunk hits per query before merging them into passages
 MAX_QUERIES = 12           # the question, its standalone form, and the analysis' Arabic/English phrases
+# E5 similarities sit in a narrow band: unrelated text ~0.80-0.83, a passage about the same question
+# ~0.86-0.90 (checked by hand on a few questions). Above this, a passage counts as on-topic even
+# when it shares no word with the question. Tune on the evaluation set.
+DENSE_STRONG = 0.86
 RRF_C = 60                 # the usual reciprocal-rank-fusion constant
 MARKERS = re.compile(r"\[\[[a-z]{1,2}:[\w:]+\]\]")
 
@@ -250,50 +254,62 @@ class _State:
     reason = ""
 
 
-def _load():
-    """The hybrid retriever, or None (with the reason kept for /api/corpus and the trace)."""
+def _load(wait: bool = False):
+    """The hybrid retriever, or None (with the reason kept for status()).
+
+    A request that arrives while the model is still loading (about 15 s after start-up) doesn't
+    wait for it: it gets BM25 alone. wait=True blocks instead (start-up thread, scripts).
+    """
     if _State.loaded:
         return _State.retriever
-    with _State.lock:
-        if _State.loaded:
-            return _State.retriever
-        _State.loaded = True
-        m = mode()
-        if m in ("0", "off", "false", "no"):
-            _State.reason = "off"
-            return None
-        path = index_dir()
-        if not (path / "index.faiss").exists():
-            _State.reason = "no index (run scripts/build_embeddings.py)"
-            (log.warning if m == "1" else log.info)("semantic search off: %s", _State.reason)
-            return None
-        try:
-            from langchain_community.vectorstores import FAISS
-            from langchain_community.vectorstores.utils import DistanceStrategy
-
-            corpus = get_corpus()
-            stamp = json.loads((path / "stamp.json").read_text(encoding="utf-8")) if (path / "stamp.json").exists() else {}
-            if {k: stamp.get(k) for k in ("model", "files")} != {k: v for k, v in _stamp(corpus).items() if k != "passages"}:
-                log.warning("the vector index was built from a different corpus; rebuild it with scripts/build_embeddings.py")
-            emb = _embeddings_class()(model_name(), batch_size=16)
-            # the index is our own file (built by scripts/build_embeddings.py), so loading its docstore is safe
-            store = FAISS.load_local(str(path), emb, allow_dangerous_deserialization=True,
-                                     distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT)
-            Lexical, Dense, Hybrid = _retriever_classes()
-            _State.retriever = Hybrid(lexical=Lexical(corpus=corpus), dense=Dense(store=store, corpus=corpus))
-            _State.reason = f"on ({model_name()}, {emb.device})"
-            log.info("semantic search %s", _State.reason)
-        except Exception as exc:  # noqa: BLE001 - missing packages or a broken index: BM25 still works
-            _State.reason = f"unavailable: {exc.__class__.__name__}: {exc}"[:200]
-            (log.warning if m == "1" else log.info)("semantic search off: %s", _State.reason)
-            _State.retriever = None
+    if not _State.lock.acquire(blocking=wait):
+        return None
+    try:
+        if not _State.loaded:
+            _State.retriever = _open()
+            _State.loaded = True
         return _State.retriever
+    finally:
+        _State.lock.release()
+
+
+def _open():
+    m = mode()
+    if m in ("0", "off", "false", "no"):
+        _State.reason = "off"
+        return None
+    path = index_dir()
+    if not (path / "index.faiss").exists():
+        _State.reason = "no index (run scripts/build_embeddings.py)"
+        (log.warning if m == "1" else log.info)("semantic search off: %s", _State.reason)
+        return None
+    try:
+        from langchain_community.vectorstores import FAISS
+        from langchain_community.vectorstores.utils import DistanceStrategy
+
+        corpus = get_corpus()
+        stamp = json.loads((path / "stamp.json").read_text(encoding="utf-8")) if (path / "stamp.json").exists() else {}
+        if {k: stamp.get(k) for k in ("model", "files")} != {k: v for k, v in _stamp(corpus).items() if k != "passages"}:
+            log.warning("the vector index was built from a different corpus; rebuild it with scripts/build_embeddings.py")
+        emb = _embeddings_class()(model_name(), batch_size=16)
+        # the index is our own file (built by scripts/build_embeddings.py), so loading its docstore is safe
+        store = FAISS.load_local(str(path), emb, allow_dangerous_deserialization=True,
+                                 distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT)
+        Lexical, Dense, Hybrid = _retriever_classes()
+        retriever = Hybrid(lexical=Lexical(corpus=corpus), dense=Dense(store=store, corpus=corpus))
+        _State.reason = f"on ({model_name()}, {emb.device})"
+        log.info("semantic search %s", _State.reason)
+        return retriever
+    except Exception as exc:  # noqa: BLE001 - missing packages or a broken index: BM25 still works
+        _State.reason = f"unavailable: {exc.__class__.__name__}: {exc}"[:200]
+        (log.warning if m == "1" else log.info)("semantic search off: %s", _State.reason)
+        return None
 
 
 def warm_up() -> None:
     """Load the model off the request path (called from a background thread at start-up)."""
     try:
-        _load()
+        _load(wait=True)
     except Exception:  # noqa: BLE001
         log.exception("semantic search warm-up failed")
 
