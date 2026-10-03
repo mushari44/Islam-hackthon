@@ -1,0 +1,37 @@
+// Videos strings. Owner: Mushari.
+import { register } from "../../core/i18n.jsx";
+
+register({
+  ar: {
+    "nav.videos": "مرئيات",
+    "vid.title": "مرئيات",
+    "vid.lead": "مقاطع مرئية من موقع دار الإسلام (IslamHouse)، أحد مصادر الحزمة العلمية المعتمدة. تُعرض من موقعهم مباشرة كما نُشرت.",
+    "vid.all": "الكل", "vid.count": "{n} مقطع", "vid.parts": "{n} أجزاء", "vid.part": "الجزء {n}",
+    "vid.source": "المصدر: دار الإسلام (IslamHouse)", "vid.open_source": "افتح في دار الإسلام",
+    "vid.loading": "نجهّز قائمة المرئيات من دار الإسلام… (أول مرة فقط)",
+    "vid.unavailable": "تعذّر الوصول إلى دار الإسلام الآن. حاول بعد قليل.",
+    "vid.empty": "لا توجد مقاطع في هذا الموضوع.",
+    "vid.prev": "السابق", "vid.next": "التالي", "vid.page": "صفحة {page} من {pages}",
+    "vid.watch": "شاهد", "vid.youtube": "يوتيوب", "vid.by": "إعداد: {names}", "vid.topic": "الموضوع",
+    "vid.no_desc": "لا يوجد وصف لهذا المقطع في المصدر.",
+    "vid.search": "ابحث في المرئيات", "vid.search_ph": "ابحث بالعنوان أو الوصف أو اسم المُعِد…", "vid.clear": "امسح البحث",
+    "vid.results": "{n} نتيجة لـ«{q}»", "vid.no_results": "لا توجد مقاطع تطابق «{q}» في هذه اللغة.",
+    "vid.lang": "لغة المقاطع", "vid.lang_hint": "متاحة بـ{n} لغة، مستقلة عن لغة الواجهة",
+  },
+  en: {
+    "nav.videos": "Videos",
+    "vid.title": "Videos",
+    "vid.lead": "Videos from IslamHouse, one of the sources in the approved scholarly package. They play straight from IslamHouse, exactly as published.",
+    "vid.all": "All", "vid.count": "{n} videos", "vid.parts": "{n} parts", "vid.part": "Part {n}",
+    "vid.source": "Source: IslamHouse", "vid.open_source": "Open on IslamHouse",
+    "vid.loading": "Preparing the video list from IslamHouse… (first time only)",
+    "vid.unavailable": "IslamHouse can't be reached right now. Try again shortly.",
+    "vid.empty": "No videos in this topic.",
+    "vid.prev": "Previous", "vid.next": "Next", "vid.page": "Page {page} of {pages}",
+    "vid.watch": "Watch", "vid.youtube": "YouTube", "vid.by": "By {names}", "vid.topic": "Topic",
+    "vid.no_desc": "The source gives no description for this video.",
+    "vid.search": "Search videos", "vid.search_ph": "Search by title, description or presenter…", "vid.clear": "Clear search",
+    "vid.results": "{n} results for “{q}”", "vid.no_results": "No videos match “{q}” in this language.",
+    "vid.lang": "Video language", "vid.lang_hint": "Available in {n} languages, separate from the interface language",
+  },
+});

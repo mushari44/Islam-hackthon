@@ -23,6 +23,7 @@ from .features.community import routes as community_routes
 from .features.community import seed as community_seed
 from .features.rag import routes as rag_routes
 from .features.rag.corpus import get_corpus
+from .features.videos import routes as videos_routes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("sabeeli")
@@ -34,6 +35,7 @@ def _warm_up() -> None:
     stats = get_corpus().stats()
     get_matcher()
     log.info("corpus ready: %s", stats)
+    videos_routes.warm()      # IslamHouse video lists for ar/en, in the background (skipped when offline)
 
 
 @asynccontextmanager
@@ -59,6 +61,7 @@ app.include_router(community_routes.router)
 app.include_router(calls_routes.router)
 app.include_router(calls_referral.router)
 app.include_router(calls_signalling.ws_router)
+app.include_router(videos_routes.router)
 
 
 @app.get("/api/health")

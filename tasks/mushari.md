@@ -75,6 +75,14 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] Add a short `docs/SOURCES.md` section: how each source is used and how a reviewer can verify an answer (`كيف وصلتُ للإجابة؟`).
 - [ ] With Eman: deploy, record the demo video (2 minutes or less), make the repo public, submit before **23:59 on 6 October (Riyadh time)**.
 
+## Videos (IslamHouse), added 3 October
+
+- [x] «مرئيات» section: live IslamHouse API v3, 107 video languages chosen separately from the interface language, topics, Arabic-aware search, a player that streams from IslamHouse with a link back. `features/videos/`, `tests/videos/`.
+- [ ] Ask the reviewer to confirm that showing IslamHouse videos this way is allowed (no explicit embedding licence was found; see `THIRD_PARTY.md`). Record the answer there.
+- [ ] Topic names that IslamHouse hasn't translated fall back to English; consider hiding topics with very few videos.
+- [ ] Consider a "related videos" block under an answer on the Ask page, matched by topic. Show only IslamHouse's own titles; never generate text about a video.
+- [ ] Many IslamHouse thumbnails return 404; tell IslamHouse if a contact is available.
+
 ## Ideas if time allows
 
 - [ ] Add «بينات: أسئلة وأجوبة عن الإسلام» (dawa.center) once its usage terms are confirmed: ingest it into `data/corpus/` with its own passage kind.
