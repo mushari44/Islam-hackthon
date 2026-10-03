@@ -12,10 +12,11 @@ import os
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from ...core.db import get_db
-from ..auth.public import SeekerSession, seeker
+from ...core.db import get_db, iso
+from ..auth.public import SeekerSession, account_session_ids, seeker
 from .corpus import get_corpus
 from .models import ChatTurn, purge_expired, recent_turns
 from .pipeline import AskContext, ask, plain_text
@@ -23,6 +24,9 @@ from .pipeline import AskContext, ask, plain_text
 router = APIRouter(prefix="/api")
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
+# What a saved turn keeps to show the answer again. Cards are rebuilt from `sources`; the trace (which can
+# hold text the pipeline removed) and timings are never stored.
+SAVED_KEYS = ("segments", "sources", "kind", "level", "lang", "mode", "quote_check", "notices", "suggest_daai", "ocr")
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 
 
@@ -52,7 +56,7 @@ def ask_question(question: str = Form(""), lang: str = Form("ar"), image: Upload
                             history=_history(db, me.id), image=data, image_type=media_type))
     turn = ChatTurn(session_id=me.id, question=question.strip()[:2000] or "(image)", lang=result["lang"],
                     level=result.get("level", "A"), kind=result["kind"], mode=result["mode"],
-                    answer={k: result.get(k) for k in ("segments", "sources", "kind", "level", "lang", "quote_check")})
+                    answer={k: result.get(k) for k in SAVED_KEYS})
     db.add(turn)
     db.commit()
     return {"turn_id": turn.id, **result, "trace": public_trace(result.get("trace") or {})}
@@ -68,6 +72,33 @@ def public_trace(trace: dict) -> dict:
         if k in out:
             out[k] = len(out[k]) if isinstance(out[k], list) else out[k]
     return out
+
+
+@router.get("/ask/history")
+def ask_history(limit: int = 50, me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
+    """This seeker's earlier questions and answers, oldest first, so the chat comes back on any signed-in device.
+    `saved` says whether they are kept (signed in) or follow the normal retention (anonymous)."""
+    purge_expired(db)
+    corpus = get_corpus()
+    turns = []
+    for turn in recent_turns(db, me.id, limit=max(1, min(limit, 200))):
+        ans = dict(turn.answer or {})
+        lang = ans.get("lang") or turn.lang
+        ans["cards"] = {pid: corpus.get(pid).card(lang) for pid in ans.get("sources") or [] if corpus.get(pid)}
+        turns.append({"turn_id": turn.id, "question": "" if turn.question == "(image)" else turn.question,
+                      "had_image": turn.question == "(image)", "created_at": iso(turn.created_at),
+                      "helpful": turn.helpful, "answer": {**ans, "turn_id": turn.id}})
+    accounts = account_session_ids().subquery()
+    saved = db.scalar(select(accounts.c.session_id).where(accounts.c.session_id == me.id)) is not None
+    return {"saved": saved, "turns": turns}
+
+
+@router.delete("/ask/history")
+def clear_history(me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
+    """Clears this seeker's saved questions and answers (on every device, when signed in)."""
+    db.execute(delete(ChatTurn).where(ChatTurn.session_id == me.id))
+    db.commit()
+    return {"ok": True}
 
 
 class Feedback(BaseModel):

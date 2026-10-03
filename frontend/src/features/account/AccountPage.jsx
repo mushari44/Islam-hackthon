@@ -244,6 +244,38 @@ function Activity() {
   );
 }
 
+function SavedChats() {
+  const { t, fmtNum } = useI18n();
+  const [count, setCount] = useState(null);
+  const [sure, setSure] = useState(false);
+  useEffect(() => { api.get("/api/ask/history?limit=200").then((h) => setCount(h.turns.length)).catch(() => setCount(0)); }, []);
+  const clear = async () => {
+    try {
+      await api.del("/api/ask/history");
+      try { sessionStorage.removeItem("sabeeli.chat"); } catch { /* ignore */ }
+      setCount(0); setSure(false); toast(t("acc.chats_deleted"), "success");
+    } catch (err) { toast(accError(err, t), "error"); }
+  };
+  if (count === null) return null;
+  return (
+    <section className="card stack">
+      <h3>{t("acc.chats")}</h3>
+      <p className="small muted">{count ? t("acc.chats_lead", { n: fmtNum(count) }) : t("acc.chats_none")}</p>
+      {count > 0 && (
+        <div className="row">
+          <a className="btn btn-sm" href="#/ask"><Icon name="chat" />{t("acc.chats_open")}</a>
+          {sure ? (
+            <>
+              <button type="button" className="btn btn-sm btn-danger" onClick={clear}><Icon name="trash" />{t("acc.chats_confirm")}</button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setSure(false)}>{t("common.cancel")}</button>
+            </>
+          ) : <button type="button" className="btn btn-sm btn-ghost danger-text" onClick={() => setSure(true)}><Icon name="trash" />{t("acc.chats_delete")}</button>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function Security() {
   const { t } = useI18n();
   const [pw, setPw] = useState({ password: "", new_password: "" });
@@ -321,6 +353,7 @@ export default function AccountPage() {
       </div>
       <div className="stack">
         <Activity />
+        <SavedChats />
         <Place account={account} />
         <AgeCard account={account} />
         <EmailCard account={account} />

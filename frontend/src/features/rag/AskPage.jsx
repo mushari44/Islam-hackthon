@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, openSheet, toast } from "../../core/ui.jsx";
+import { useAccount } from "../account/public.js";
 import { startReferral } from "../calls/public.jsx";
 import { RelatedVideos } from "../videos/public.js";
 import { Answer, LevelBadge } from "./Answer.jsx";
@@ -17,6 +18,15 @@ function loadChat() {
 }
 function saveChat(items) {
   try { sessionStorage.setItem(STORE, JSON.stringify(items.slice(-20))); } catch { /* storage full */ }
+}
+
+/** Saved turns from the server (GET /api/ask/history) as chat items. Restored answers skip related videos,
+ * which are looked up afresh only for a live answer. */
+function fromHistory(turns) {
+  return turns.flatMap((x) => [
+    { role: "user", text: x.question, hadImage: x.had_image },
+    { role: "assistant", answer: { ...x.answer, restored: true } },
+  ]);
 }
 
 /** Small preview kept in the chat history (the full photo is only sent to the server). */
@@ -147,7 +157,7 @@ function BotMessage({ ans, question }) {
           </div>
         )}
         <Answer answer={ans} />
-        {showVideos(ans) && <RelatedVideos question={question} hints={hints} lang={ans.lang || lang} />}
+        {showVideos(ans) && !ans.restored && <RelatedVideos question={question} hints={hints} lang={ans.lang || lang} />}
         <div className="row spread answer-foot">
           <Feedback turnId={ans.turn_id} />
           <div className="row">
@@ -172,6 +182,7 @@ function UserMessage({ item }) {
     <div className="msg msg-user">
       <div className="msg-body">
         {item.image && <img className="msg-photo" src={item.image} alt={t("ask.photo_attached")} />}
+        {item.hadImage && !item.image && <p className="faint small">{t("ask.photo_attached")}</p>}
         {item.text && <p dir="auto">{item.text}</p>}
       </div>
     </div>
@@ -181,6 +192,8 @@ function UserMessage({ item }) {
 export default function AskPage() {
   const { t, lang } = useI18n();
   const [chat, setChat] = useState(loadChat);
+  const { account } = useAccount();
+  const username = account && account.username;
   const [text, setText] = useState("");
   const [photo, setPhoto] = useState(null);       // {file, url}
   const [busy, setBusy] = useState(false);
@@ -189,6 +202,11 @@ export default function AskPage() {
   const endRef = useRef(null);
 
   useEffect(() => { saveChat(chat); }, [chat]);
+  // Signed in: the chat is saved to the account, so bring it back on any device.
+  useEffect(() => {
+    if (!username) return;
+    api.get("/api/ask/history").then((h) => { if (h.turns.length) setChat(fromHistory(h.turns)); }).catch(() => {});
+  }, [username]);
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => {
     const el = inputRef.current;
@@ -235,7 +253,8 @@ export default function AskPage() {
   return (
     <>
       <div className="page-head row spread">
-        <div><h1>{t("ask.title")}</h1><p>{t("ask.lead")}</p></div>
+        <div><h1>{t("ask.title")}</h1><p>{t("ask.lead")}</p>
+          {username && <p className="small faint"><Icon name="lock" size={14} /> {t("ask.saved_note")}</p>}</div>
         {chat.length > 0 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChat([])}><Icon name="plus" />{t("ask.clear")}</button>}
       </div>
       <div className="ask-layout">

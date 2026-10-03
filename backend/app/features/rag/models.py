@@ -8,10 +8,12 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from ...core.config import settings
 from ...core.db import Base, on_session_delete, utcnow
+from ..auth.public import account_session_ids
 
 
 class ChatTurn(Base):
-    """One question and its answer. Deleted after RETENTION_HOURS."""
+    """One question and its answer. Anonymous turns are deleted after RETENTION_HOURS; a signed-in
+    seeker's turns are filed under their account's session and kept until they clear them or delete the account."""
     __tablename__ = "chat_turn"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     session_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -35,7 +37,7 @@ def recent_turns(db: Session, session_id: str, limit: int = 6) -> list[ChatTurn]
 
 def purge_expired(db: Session) -> None:
     cutoff = utcnow() - timedelta(hours=settings.retention_hours)
-    db.execute(delete(ChatTurn).where(ChatTurn.created_at < cutoff))
+    db.execute(delete(ChatTurn).where(ChatTurn.created_at < cutoff, ChatTurn.session_id.not_in(account_session_ids())))
     db.commit()
 
 

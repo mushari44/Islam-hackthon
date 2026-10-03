@@ -44,6 +44,8 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 | Method | Path | Auth | Body / params | Returns |
 |---|---|---|---|---|
 | POST | `/api/ask` | seeker | multipart: `question` (text; may be empty if `image` is sent), `lang` (`ar`, anything else means `en`; default `ar`), `image?` (JPEG/PNG/WebP/GIF, max 5 MB) | Answer. 400 `empty question`, 413 image too large, 415 unsupported image type |
+| GET | `/api/ask/history` | seeker | `?limit=` (1–200, default 50) | `{saved: bool, turns: [{turn_id, question, had_image, created_at, helpful, answer: Answer}]}`, oldest first. `answer` has no `trace`; `cards` are rebuilt from `sources`. `saved` is true when the session belongs to a seeker account: those turns are kept until cleared or the account is deleted, while anonymous turns are deleted after `RETENTION_HOURS` (24) |
+| DELETE | `/api/ask/history` | seeker | – | `{ok: true}`. Deletes this seeker's turns (on every device, when signed in) |
 | POST | `/api/ask/{turn_id}/feedback` | seeker (owner of the turn) | `{helpful: bool, reason?: string ≤ 64}` | `{ok: true}`. 404 if the turn isn't yours |
 | GET | `/api/sources/{id}` | none | `id` = `q:2:256`, `h:2962`, `t:tawhid`, `qa:36065`, `b:12`; `?lang=ar\|en` (default `ar`) | Source card. 404 for an unknown id |
 | GET | `/api/corpus` | none | – | `{quran_verses, hadiths, terms, qa, bayyinat, semantic_search}` (`bayyinat` is 0 until the copy has run `scripts/ingest_bayyinat.py`; `semantic_search` is a status string such as `on (intfloat/multilingual-e5-large, cuda, dense 70% + BM25 30%)`, `loading` or `off`) |
