@@ -22,8 +22,10 @@ register({
     "src.h": "موسوعة الأحاديث النبوية HadeethEnc: أحاديث صحيحة مع درجتها وتخريجها وشرحها.",
     "src.t": "نماذج قاموس المصطلحات الأساسية من وثيقة «المرجعية والحزمة العلمية والبيانات» للتحدي.",
     "src.names": "أسماء السور من واجهة mp3quran.net العامة.",
+    "src.icadb_note": "موسوعتا الأسئلة والأجوبة لغير المسلمين وللمسلمين، من قاعدة بيانات المحتوى الإسلامي (icadb) لجمعية خدمة المحتوى الإسلامي باللغات. الآيات داخل أجوبتهما تُعرض من نص المصحف.",
+    "src.bayyinat_note": "كتاب «بينات: أسئلة وأجوبة عن الإسلام» (مركز أصول)، المرجع المعتمد في الحزمة للشبهات والأسئلة المتكررة. الآيات فيه تُعرض من نص المصحف.",
     "src.v": "قسم «مرئيات»: مقاطع موقع دار الإسلام (IslamHouse) عبر واجهته البرمجية الرسمية، تُعرض من موقعهم كما نُشرت مع رابط لكل مقطع.",
-    "src.later": "مقترح للإضافة بعد تأكيد ضوابط الاستخدام: «بينات: أسئلة وأجوبة عن الإسلام»، وقاموس الجمهرة، والدرر السنية.",
+    "src.later": "مقترح للإضافة: قاموس الجمهرة، والدرر السنية.",
     "src.license": "تتيح الجمعية محتوى منصاتها مجاناً للأفراد والجهات عبر واجهات برمجية عامة، بحسب بيانها في الحزمة العلمية.",
     "priv.title": "الخصوصية", "priv.lead": "صممنا سَبِيلي ليعمل دون أن نعرف من أنت.",
     "priv.1": "لا حسابات للسائلين: رمز جلسة عشوائي في متصفحك فقط.",
@@ -54,8 +56,10 @@ register({
     "src.h": "The Encyclopedia of Translated Prophetic Hadiths (HadeethEnc): authentic hadiths with grade, attribution and explanation.",
     "src.t": "The sample glossary of core terms from the challenge's scholarly package.",
     "src.names": "Surah names from the public mp3quran.net API.",
+    "src.icadb_note": "The Q&A encyclopedias for non-Muslims and for Muslims, from the Islamic Content Service Association's content database (icadb), in Arabic. Verses inside their answers are shown from the Mushaf text.",
+    "src.bayyinat_note": "The book “Bayyinat: Questions and Answers about Islam” (Osoul Center), the package's reference for doubts and recurring questions, in Arabic. Verses in it are shown from the Mushaf text.",
     "src.v": "The Videos section: videos from IslamHouse through its official API, played from IslamHouse as published, each with a link to its page.",
-    "src.later": "Proposed once usage terms are confirmed: “Bayyinat: Questions and Answers about Islam”, the Jamhara dictionary and Dorar.",
+    "src.later": "Proposed: the Jamhara dictionary and Dorar.",
     "src.license": "The association makes its platforms' content free for individuals and organisations through public APIs, per its statement in the package.",
     "priv.title": "Privacy", "priv.lead": "Sabeeli is designed to work without knowing who you are.",
     "priv.1": "No accounts for people asking: just a random session token in your browser.",
@@ -99,7 +103,9 @@ export function About() {
 
 const SOURCES = [
   ["src.q", "https://quranenc.com/ar/browse/arabic_moyassar"], ["src.qen", "https://quranenc.com/en/browse/english_rwwad"],
-  ["src.h", "https://hadeethenc.com"], ["src.t", ""], ["src.names", "https://www.mp3quran.net/api"], ["src.v", "https://islamhouse.com/"],
+  ["src.h", "https://hadeethenc.com"], ["src.icadb_note", "https://islamenc.com/ar/enc-cards/110"],
+  ["src.bayyinat_note", "https://dawa.center/file/7937"], ["src.t", ""], ["src.names", "https://www.mp3quran.net/api"],
+  ["src.v", "https://islamhouse.com/"],
 ];
 
 export function Sources() {

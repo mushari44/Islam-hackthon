@@ -11,6 +11,8 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 | HadeethEnc (Islamic Content Service Association) | Hadith text, grade, attribution, explanation, lessons (Arabic and English) | Public API, `scripts/ingest_hadith.py` | Same as above |
 | Challenge scholarly package, sample glossary | 10 core terms and their usage rules (`data/corpus/glossary.json`) | Transcribed from the package (page 7) | Provided by the organisers for participants |
 | mp3quran.net API | Surah names | Public API | Public, no key |
+| icadb.com (Islamic Content Service Association): «موسوعة الأسئلة والأجوبة لغير المسلمين» (202) and «موسوعة الأسئلة والأجوبة للمسلمين» (341) | Approved answers to doubts and new-Muslim questions, in Arabic (`data/corpus/qa.jsonl`). Cards link to the same items on islamenc.com | Public export API, no key, approved versions only; `scripts/ingest_icadb.py` | Listed in the package (page 10). Same association and terms as QuranEnc and HadeethEnc |
+| «بينات: أسئلة وأجوبة عن الإسلام» (مركز أصول, جمعية الدعوة والإرشاد وتوعية الجاليات بالربوة, 1445 AH) | 263 questions with short and detailed answers, the package's named source for doubts and recurring questions (page 4) | PDF from the package's link dawa.center/file/7937, extracted by `scripts/ingest_bayyinat.py` | Rights reserved by the publisher. Provided by the package for this use, but **not redistributed**: the PDF and the extracted text are git-ignored and each copy builds them locally. Ask the reviewer before committing the text |
 | IslamHouse (islamhouse.com, Islamic Content Service Association): videos | The «مرئيات» section: titles, descriptions, presenters, topics, thumbnails and video files in 107 languages | Official API v3 (`api3.islamhouse.com/v3`) with the public key published in its Postman documentation (documenter.getpostman.com/view/7929737/TzkyMfPc); read live by `backend/app/features/videos/islamhouse.py` and cached in memory for 6 hours. Nothing is stored in the repo | Listed in the package (page 9: «... وصوتيات ومرئيات مصنّفة موضوعياً», with this developer interface). No explicit embedding or redistribution licence was found; the site footer says it protects intellectual property under the Saudi copyright law. So media is **never re-hosted**: MP4s stream from IslamHouse's CDN, each item links back to its IslamHouse page, and text is shown as published. Ask the reviewer to confirm |
 
 ## Models and services
@@ -31,5 +33,6 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 | anthropic (Python SDK) | MIT |
 | python-dotenv, python-multipart, websockets | BSD / Apache-2.0 |
 | pytest | MIT |
+| PyMuPDF (`pip install pymupdf`), used only by `scripts/ingest_bayyinat.py` to read the Bayyinat PDF; not needed to run the app | AGPL-3.0 (or commercial). Not part of the app or its requirements |
 | React, React DOM | MIT |
 | Vite, @vitejs/plugin-react | MIT |

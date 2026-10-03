@@ -85,6 +85,9 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 
 ## Ideas if time allows
 
-- [ ] Add «بينات: أسئلة وأجوبة عن الإسلام» (dawa.center) once its usage terms are confirmed: ingest it into `data/corpus/` with its own passage kind.
+- [x] Add «بينات: أسئلة وأجوبة عن الإسلام» (dawa.center): `scripts/ingest_bayyinat.py`, passage kind `bayyinat` (built locally, git-ignored).
+- [x] Add icadb's two Q&A encyclopedias (`qa.jsonl`, 543 items).
+- [ ] Ask the reviewer whether the extracted Bayyinat text may be committed to the public repo (rights reserved). Until then it stays git-ignored.
+- [ ] English: icadb's Q&A cards have no translations. icadb's books (e.g. «الإسلام دين الفطرة والعقل والسعادة», «رسالة موجزة إلى ملحد», «من خلق الكون؟») do, in many languages: a candidate source for English answers.
 - [ ] Add Jamhara dictionary terms to `data/corpus/glossary.json`.
 - [ ] Dense embeddings next to BM25 (only if allowed and documented in `THIRD_PARTY.md`).

@@ -3,7 +3,8 @@
 Safety properties enforced here, not left to the prompt:
   * Scripture shown to the user is rendered from the corpus by id ([[q:..]] / [[h:..]]
     markers); Arabic verse text the model writes itself is swapped for the marker or removed.
-  * Markers may only point at passages that were retrieved for this question.
+  * Markers may only point at passages that were retrieved for this question (or at the
+    Mushaf verses quoted inside a retrieved Q&A answer).
   * Personal-fatwa questions (level D) always carry the referral notice.
   * Without the model (no key, outage, refusal) the app still answers in
     sources-only mode: the closest approved passages, with no generated text.
@@ -21,12 +22,12 @@ from ...core.config import settings
 from ...core.textnorm import has_arabic, normalize_ar, tokens
 from . import assistant
 from .assistant import AnswerResult
-from .corpus import Passage, get_corpus
+from .corpus import ANSWER_KINDS, Passage, get_corpus
 from .quran_match import get_matcher, looks_like_quote
 
 log = logging.getLogger("sabeeli.pipeline")
 
-MARKER_RE = re.compile(r"\[\[(q:\d{1,3}:\d{1,3}|h:\d+|t:[a-z_]+)\]\]")
+MARKER_RE = re.compile(r"\[\[(q:\d{1,3}:\d{1,3}|h:\d+|t:[a-z_]+|qa:\d+|b:\d+)\]\]")
 QURAN_BRACKETS_RE = re.compile(r"﴿([^﴾]{3,600})﴾")
 QUOTE_RE = re.compile(r"[«\"“]([^»\"”]{8,600})[»\"”]")
 HARAKAT_RE = re.compile(r"[\u064B-\u0652]")
@@ -203,8 +204,8 @@ def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[
             chosen.append(p)
             seen.add(p.id)
             trace.append({"id": p.id, "score": None, "coverage": None, "via": "glossary"})
-    per_kind = {"quran": 0, "hadith": 0, "term": 0}
-    limit = {"quran": 5, "hadith": 4, "term": 2}
+    per_kind = {"quran": 0, "hadith": 0, "term": 0, "qa": 0, "bayyinat": 0}
+    limit = {"quran": 5, "hadith": 4, "term": 2, "qa": 2, "bayyinat": 2}
     for pid, score, _ in raw:
         p = corpus.get(pid)
         if not p or pid in seen or per_kind[p.kind] >= limit[p.kind]:
@@ -284,8 +285,14 @@ def _clean_markers(text: str, allowed: set[str], trace: dict) -> str:
     return MARKER_RE.sub(repl, text)
 
 
-def _sources_only(passages: list[Passage], lang: str, show: int = 3) -> list[dict]:
-    picks = [p for p in passages if p.kind == "term"][:1] + [p for p in passages if p.kind in ("quran", "hadith")][:show]
+def _sources_only(passages: list[Passage], lang: str, rtrace: list[dict], show: int = 3) -> list[dict]:
+    """The closest passages, shown as they are. An approved answer (Q&A or Bayyinat) leads when it
+    covers the question well, since it was written for this kind of question."""
+    coverage = {r["id"]: r["coverage"] or 0 for r in rtrace}
+    answers = [p for p in passages if p.kind in ANSWER_KINDS and coverage.get(p.id, 0) >= 0.5]
+    qa = sorted(answers, key=lambda p: -coverage[p.id])[:1]
+    picks = ([p for p in passages if p.kind == "term"][:1] + qa
+             + [p for p in passages if p.kind in ("quran", "hadith")][:show])
     segs = []
     for p in picks:
         segs.append({"text": f"\n[[{p.id}]]\n", "cites": [p.id]})
@@ -384,7 +391,7 @@ def ask(ctx: AskContext) -> dict:
     passages, rtrace = retrieve(analysis, question, quote_ids)
     timings["retrieve"] = round(time.perf_counter() - t2, 3)
     trace["retrieval"] = rtrace
-    allowed = {p.id for p in passages}
+    allowed = {p.id for p in passages} | {vid for p in passages for vid in p.verse_refs()}
     best_cov = max([r["coverage"] or 0 for r in rtrace if r["via"] == "search"] or [0])
     trace["best_coverage"] = round(best_cov, 2)
 
@@ -456,7 +463,7 @@ def ask(ctx: AskContext) -> dict:
         elif qc and qc["status"] in ("exact", "differs", "ambiguous"):
             kind = "sources"  # the quote check below shows the matching verse(s)
         else:
-            segments = _sources_only(passages, lang)
+            segments = _sources_only(passages, lang, rtrace)
             kind = "sources"
 
     # Quote-check verdict leads the answer when the user sent a verse.

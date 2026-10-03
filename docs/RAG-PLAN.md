@@ -11,7 +11,8 @@
 | Rowwad English translation (QuranEnc `english_rwwad`) | ingested | attached to its verse | English meaning, shown under the verse |
 | HadeethEnc | ingested, 3,574 hadiths (2,328 also have English) | one hadith with grade, attribution, explanation, lessons | Evidence with grade; the explanation is citable |
 | Package glossary (10 terms) | ingested | one term | Approved English equivalents and usage rules |
-| «بينات: أسئلة وأجوبة عن الإسلام» (dawa.center) | **next**, once usage terms are confirmed | one question and answer | The best source for doubts and level-B questions |
+| icadb Q&A encyclopedias: for non-Muslims (110) and for Muslims (102) | ingested, 543 items (Arabic) | one question and answer | Approved answers to doubts and new-Muslim questions; verses inside become Mushaf markers |
+| «بينات: أسئلة وأجوبة عن الإسلام» (dawa.center/file/7937) | ingested locally, 263 questions (rights reserved: built by each copy, not in git) | one question with its short and detailed answer | The package's named source for doubts and level-B questions |
 | Jamhara dictionary (islamic-content.com) | later | one term | More approved term equivalents |
 
 **Chunking rule:** keep the source's natural unit (verse, hadith, Q&A item), never fixed-size chunks, so that every citation points to a complete, checkable unit with a stable id (`q:2:256`, `h:2962`, `t:tawhid`).
@@ -73,7 +74,7 @@
 1. Add the API key and run the 6 sample questions.
 2. Write the 60 cases.
 3. Build the eval runner and get a baseline score (needs approval for the API cost).
-4. Ingest «بينات» if its terms allow.
+4. ~~Ingest «بينات»~~ done (built locally); the icadb Q&A encyclopedias are in too.
 5. Add embeddings with fusion and keep them only if the score improves.
 6. Tune the prompts and thresholds on the failures.
 7. Run the final evaluation, then update the deck and README.
