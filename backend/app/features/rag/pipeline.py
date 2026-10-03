@@ -28,8 +28,14 @@ from .quran_match import get_matcher, looks_like_quote
 log = logging.getLogger("sabeeli.pipeline")
 
 MARKER_RE = re.compile(r"\[\[(q:\d{1,3}:\d{1,3}|h:\d+|t:[a-z_]+|qa:\d+|b:\d+)\]\]")
-QURAN_BRACKETS_RE = re.compile(r"﴿([^﴾]{3,600})﴾")
-QUOTE_RE = re.compile(r"[«\"“]([^»\"”]{8,600})[»\"”]")
+QURAN_BRACKETS_RE = re.compile(r"[﴿{]([^﴾}]{3,600})[﴾}]")
+QUOTE_RE = re.compile(r"[«\"“‹„]([^»\"”›“]{8,600})[»\"”›“]")
+UNVERIFIED = "\uE000"     # left by the guard where a quoted text matched no source; its sentence is dropped
+INTRO_MAX_WORDS = 12      # a line introducing the verse or hadith right after it («...قوله تعالى:»)
+# Words that make even a short sentence a claim (a ruling, a judgement), so it must cite like any other.
+CLAIM_RE = re.compile(r"(حرام|حلال|باطل|صحيح|واجب|يجب|فرض|محرم|يجوز|كفر|كافر|شرك|بدعه|حكم)"
+                      r"|\b(invalid|valid|haram|halal|must|forbidden|allowed|obligatory|sinful|sin|kufr|disbeliever|ruling)\b",
+                      re.I)
 HARAKAT_RE = re.compile(r"[\u064B-\u0652]")
 
 MAX_QUESTION_CHARS = 2000
@@ -42,6 +48,7 @@ TEXT = {
         "en": "Peace be upon you. I'm Sabeeli, an AI assistant that answers questions about Islam from approved sources and shows you those sources. Ask me anything you're curious about, or talk directly with a guide (da'i) in your language.",
     },
     "thanks": {"ar": "حيّاك الله. إن كان لديك سؤال آخر فأنا هنا.", "en": "You're welcome. I'm here if you have another question."},
+    "clarify_default": {"ar": "هل يمكنك توضيح سؤالك أكثر؟", "en": "Could you say a little more about what you'd like to know?"},
     "off_topic": {
         "ar": "أنا مخصص للأسئلة عن الإسلام وتعاليمه. يسعدني أن أساعدك في أي سؤال عن الإسلام.",
         "en": "I'm made for questions about Islam and its teachings. I'd be glad to help with any question about Islam.",
@@ -105,12 +112,23 @@ def t(key: str, lang: str) -> str:
 # Rule-based analysis (used when the model is unavailable)
 # ---------------------------------------------------------------------------
 
-PERSONAL_AR = [r"هل يجوز لي", r"هل يجوز لنا", r"(يجوز|حرام|حلال)\s+(لي|علي|عليّ)", r"\bزوج(ي|تي)\b", r"\bطلاق(ي|ها)?\b",
+PERSONAL_AR = [r"هل يجوز (لي|ليا|لنا)", r"\b(ليا)\b", r"(يجوز|حرام|حلال)\s+(لي|علي|عليّ)", r"\bزوج(ي|تي)\b", r"\bطلاق(ي|ها)?\b",
                r"\bطلقني\b", r"\b(صلاتي|صيامي|زواجي|عقدي|وضوئي|طلاقي|ميراثي)\b", r"في حالتي", r"\bوضعي\b",
                r"\bأنا\s+(مسلم|مسلمة|امرأة|رجل|متزوج|متزوجة|أعيش|اعيش|أعمل|اعمل)", r"ماذا (أفعل|افعل)", r"\bأبي\b.*\b(يجوز|حكم)"]
 PERSONAL_EN = [r"\b(can|may|should|must) i\b", r"\bam i allowed\b", r"\bis it (allowed|permissible|haram|halal|ok|okay) for me\b",
                r"\bmy (husband|wife|marriage|divorce|boss|fianc[eé]e?|boyfriend|girlfriend)\b", r"\bin my (case|situation)\b",
-               r"\bi (live|work) in\b", r"\bwhat should i do\b"]
+               r"\bi (live|work) in\b", r"\bwhat should i do\b", r"\bis it (ok|okay|fine|alright) if i\b"]
+# First-person wording that is personal only next to a ruling word («أنا امرأة، هل يجوز السفر؟»,
+# "I am a woman, is it allowed to travel alone?"), not in "I am a student, what is Tawhid?".
+PERSONAL_WEAK = [r"\bi am\b", r"\bi'?m\b", r"\bif i\b", r"\bme\b", r"\bmy\b", r"\bانا\b", r"\bلي\b", r"\bعلي\b"]
+RULING_WORD = re.compile(r"(يجوز|حرام|حلال|حكم|جائز|مباح|باطل|صحيح)|\b(allowed|permissible|haram|halal|forbidden|ruling|valid|sin)\b",
+                         re.I)
+# "Is X haram?", «هل الموسيقى حرام؟», «ما حكم ...»: a ruling asked for, not its wisdom ("why is pork forbidden?").
+RULING_QUESTION = re.compile(
+    r"^\s*(هل|ما\s+حكم|حكم)\b.*\b(حرام|حلال|يجوز|جائز|مباح|محرم|محرمة|مكروه)"
+    r"|^\s*ما\s+حكم\b"
+    r"|^\s*(is|are|can|may)\b.*\b(haram|halal|allowed|permissible|permitted|forbidden|prohibited|sinful)\b"
+    r"|\bwhat\s+is\s+the\s+ruling\b", re.I)
 DISAGREE = [r"خلاف", r"اختلاف العلماء", r"المذاهب", r"\bdiffer", r"\bdisagree", r"madhhab", r"\bsects?\b"]
 GREETING = re.compile(r"^\s*(السلام عليكم[\w\s]*|سلام|مرحبا|مرحباً|أهلا|اهلا|hi|hello|hey|salam|assalamu alaikum|as-salamu alaykum)[\s!.؟?]*$", re.I)
 THANKS = re.compile(r"^\s*(شكرا|شكراً|جزاك الله خيرا|جزاكم الله خيرا|thanks|thank you|jazakallah[\w ]*)[\s!.]*$", re.I)
@@ -127,7 +145,10 @@ def rule_based_analysis(question: str, ui_lang: str) -> dict:
         intent = "request_human"
     else:
         intent = "question"
-    personal = any(re.search(p, question) for p in PERSONAL_AR) or any(re.search(p, question, re.I) for p in PERSONAL_EN)
+    norm = normalize_ar(question).lower()    # «لى» or «يَجوز» must not slip past the patterns
+    personal = (any(re.search(normalize_ar(p), norm) for p in PERSONAL_AR)
+                or any(re.search(p, question, re.I) for p in PERSONAL_EN)
+                or (RULING_WORD.search(norm) is not None and any(re.search(normalize_ar(p), norm) for p in PERSONAL_WEAK)))
     level = "D" if personal else ("C" if any(re.search(p, question, re.I) for p in DISAGREE) else "B")
     quoted = ""
     for rx in (QURAN_BRACKETS_RE, QUOTE_RE):
@@ -135,9 +156,12 @@ def rule_based_analysis(question: str, ui_lang: str) -> dict:
         if m and has_arabic(m.group(1)):
             quoted = m.group(1)
             break
+    if level == "B" and RULING_QUESTION.search(question):
+        level = "C"
     return {"language": lang, "intent": intent, "level": level, "personal_case": personal, "hostile": False,
             "asks_for_evidence": bool(re.search(r"(دليل|حديث يثبت|آية تثبت|prove|evidence)", question, re.I)),
-            "quoted_text": quoted, "standalone_question": question, "queries_ar": [], "queries_en": [],
+            "quoted_text": quoted, "quoted_kind": "quran" if quoted and "﴿" in question else ("unclear" if quoted else "none"),
+            "standalone_question": question, "queries_ar": [], "queries_en": [],
             "terms": [], "clarify": "", "source": "rules"}
 
 
@@ -152,6 +176,49 @@ class AskContext:
     image_type: str = ""
     surface: str = "chat"                                 # chat | group
     max_words: int = 180
+
+
+def _normalize_analysis(a: dict) -> dict:
+    """The model's analysis made safe to use: lists are lists of strings, the level is one of A-D, and so on.
+    Structured output usually guarantees this, but not every model or provider enforces the schema."""
+    a = dict(a or {})
+    for k in ("queries_ar", "queries_en", "terms"):
+        v = a.get(k)
+        a[k] = [str(x) for x in v if isinstance(x, (str, int, float)) and str(x).strip()][:6] if isinstance(v, list) \
+            else ([v] if isinstance(v, str) and v.strip() else [])
+    level = str(a.get("level") or "B").strip().upper()[:1]
+    a["level"] = level if level in ("A", "B", "C", "D") else "B"
+    for k in ("language", "intent", "quoted_text", "quoted_kind", "standalone_question", "clarify"):
+        a[k] = a[k].strip() if isinstance(a.get(k), str) else ""
+    for k in ("personal_case", "hostile", "asks_for_evidence"):
+        a[k] = a.get(k) is True
+    if a["intent"] not in ("question", "greeting", "thanks", "request_human", "off_topic"):
+        a["intent"] = "question"
+    return a
+
+
+def _dedupe_markers(segments: list[dict]) -> list[dict]:
+    """Show each verse or hadith card once, where it first appears."""
+    seen: set[str] = set()
+    out = []
+    for s in segments:
+        def keep_first(m: re.Match) -> str:
+            if m.group(1) in seen:
+                return ""
+            seen.add(m.group(1))
+            return m.group(0)
+        out.append({**s, "text": MARKER_RE.sub(keep_first, s["text"])})
+    return out
+
+
+def _safe_clarify(text: str, lang: str) -> str:
+    """The analysis' clarifying question is model text shown without grounding, so only a short plain
+    question passes; anything else (a claim, a verse, a long text) becomes the fixed one."""
+    words = text.split()
+    ok = (0 < len(words) <= 25 and text.rstrip().endswith(("?", "؟")) and not MARKER_RE.search(text)
+          and not CLAIM_RE.search(normalize_ar(text)) and len(HARAKAT_RE.findall(text)) <= 4
+          and not get_matcher().verse_runs(text, min_words=5))
+    return text if ok else t("clarify_default", lang)
 
 
 def _quote_check(texts: list[str]) -> dict | None:
@@ -260,6 +327,8 @@ def _guard_scripture(text: str, allowed: set[str], trace: dict) -> str:
         return None
 
     def bracket(m: re.Match) -> str:
+        if not has_arabic(m.group(1)):
+            return m.group(0)     # {braces} around non-Arabic text are not a verse
         marker = verse_marker(m.group(1))
         trace.setdefault("scripture_guard", []).append({"span": m.group(1)[:80], "action": "marker" if marker else "removed"})
         return marker or ""
@@ -281,9 +350,18 @@ def _guard_scripture(text: str, allowed: set[str], trace: dict) -> str:
             if p and norm in normalize_ar(" ".join(p.context_blocks("ar", full=True) + p.context_blocks("en", full=True))):
                 return m.group(0)
         trace.setdefault("unverified_quotes", []).append(span[:120])
-        return span  # keep the words, drop the quotation marks: it is not a verified quote
+        return UNVERIFIED   # a quotation found in no source (a hadith from memory?): its sentence goes
 
     text = QUOTE_RE.sub(quote, text)
+
+    # Verse text typed without any brackets (7+ words following the Mushaf): the marker, or nothing.
+    for a, b in reversed(matcher.verse_runs(text)):
+        span = text[a:b]
+        found = matcher.match(span)
+        exact = found and found[0].score >= 0.9 and not found[0].ambiguous
+        marker = "\n" + "\n".join(f"[[{i}]]" for i in found[0].ids) + "\n" if exact else ""
+        trace.setdefault("scripture_guard", []).append({"span": span[:80], "action": "marker" if marker else "removed"})
+        text = text[:a] + marker + text[b:]
 
     # Heavily vowelled Arabic outside brackets is almost always a verse typed from memory.
     words = text.split()
@@ -404,7 +482,7 @@ def ask(ctx: AskContext) -> dict:
         quote_report = ocr["text"]
     if llm:
         try:
-            analysis = assistant.analyze(llm, question, ctx.history, ctx.ui_lang, quote_report)
+            analysis = _normalize_analysis(assistant.analyze(llm, question, ctx.history, ctx.ui_lang, quote_report))
             analysis["source"] = "model"
         except LLMUnavailable as exc:
             log.warning("analyze failed: %s", exc)
@@ -412,10 +490,13 @@ def ask(ctx: AskContext) -> dict:
         analysis = rule_based_analysis(question, ctx.ui_lang)
         if llm:
             mode = "sources_only"
-    # Safety net: obvious personal-case wording is level D whatever the classifier said.
+    # Safety nets whatever the classifier said: obvious personal-case wording is level D, and a yes/no
+    # ruling question the classifier didn't call settled (A) gets the disagreement notice (C).
     if analysis.get("level") != "D" and rule_based_analysis(question, ctx.ui_lang)["level"] == "D":
         analysis["level"] = "D"
         analysis["personal_case"] = True
+    elif analysis.get("level") == "B" and RULING_QUESTION.search(question):
+        analysis["level"] = "C"
     timings["analyze"] = round(time.perf_counter() - t1, 2)
     lang = analysis.get("language") if analysis.get("language") in ("ar", "en") else ctx.ui_lang
     level = analysis.get("level", "B")
@@ -431,14 +512,14 @@ def ask(ctx: AskContext) -> dict:
         return {**base, "kind": intent, "segments": [{"text": t(intent, lang), "cites": []}],
                 "suggest_daai": intent in ("request_human", "greeting")}
     if analysis.get("clarify") and level != "D" and not ocr and not analysis.get("quoted_text"):
-        return {**base, "kind": "clarify", "segments": [{"text": analysis["clarify"], "cites": []}]}
+        return {**base, "kind": "clarify", "segments": [{"text": _safe_clarify(analysis["clarify"], lang), "cites": []}]}
 
     # 4. Quoted verses (typed or photographed) checked against the Mushaf
     quote_texts = list((ocr or {}).get("quran_segments") or [])
     if ocr and not quote_texts and ocr.get("text"):
         quote_texts.append(ocr["text"])
-    if analysis.get("quoted_text"):
-        quote_texts.append(analysis["quoted_text"])
+    if analysis.get("quoted_text") and analysis.get("quoted_kind") != "hadith":
+        quote_texts.append(analysis["quoted_text"])   # a hadith is not checked against the Mushaf
     if not quote_texts and has_arabic(question) and looks_like_quote(question) and not INTERROGATIVE_RE.search(question):
         quote_texts.append(question)   # «لماذا خلق الله الشر؟» is a question, not a misquoted verse
     qc = _quote_check(quote_texts)
@@ -496,6 +577,8 @@ def ask(ctx: AskContext) -> dict:
         for seg in answer.segments:
             text = _guard_scripture(seg["text"], allowed, trace)
             text = _clean_markers(text, allowed, trace)
+            if UNVERIFIED in text and not settings.strict_grounding:
+                text = ""
             cites = []
             for c in seg["citations"]:
                 if 0 <= c["index"] < len(index_to_id) and index_to_id[c["index"]] not in cites:
@@ -508,17 +591,36 @@ def ask(ctx: AskContext) -> dict:
             # (short connecting phrases such as "and" or "in short" are kept).
             kept, removed = [], []
             for k, s in enumerate(segments):
-                words = len(MARKER_RE.sub("", s["text"]).split())
-                # a line that introduces the verse or hadith shown right after it («...قوله تعالى:») stays
-                intro = s["text"].rstrip().endswith(":") and any(
-                    MARKER_RE.search(nxt["text"]) for nxt in segments[k + 1:k + 3])
-                if not s["cites"] and not MARKER_RE.search(s["text"]) and words > settings.max_uncited_words and not intro:
-                    removed.append(s["text"].strip()[:200])
-                else:
+                plain = MARKER_RE.sub("", s["text"]).replace(UNVERIFIED, "")
+                words = len(plain.split())
+                markers = MARKER_RE.findall(s["text"])
+                if UNVERIFIED in s["text"]:          # quoted a text no source has
+                    removed.append(plain.strip()[:200])
+                    if markers:
+                        kept.append({"text": "\n" + "\n".join(f"[[{m}]]" for m in markers) + "\n", "cites": []})
+                    continue
+                # A verse/hadith marker in a sentence cites that passage (only retrieved ones survive
+                # _clean_markers) - except at level D, where a ruling-like sentence needs a real citation.
+                marker_cites = bool(markers) and not (level == "D" and CLAIM_RE.search(normalize_ar(plain)))
+                if s["cites"] or words == 0 or marker_cites:
                     kept.append(s)
-            segments = kept
+                    continue
+                # a short line introducing the verse or hadith shown right after it («...قوله تعالى:»)
+                intro = (plain.rstrip().endswith(":") and words <= INTRO_MAX_WORDS
+                         and any(MARKER_RE.search(nxt["text"]) for nxt in segments[k:k + 3]))
+                # a short connecting phrase ("In short,"), never a claim, and at level D almost nothing
+                connector = (words <= (3 if level == "D" else settings.max_uncited_words)
+                             and not CLAIM_RE.search(normalize_ar(plain)))
+                if intro or connector:
+                    kept.append(s)
+                    continue
+                removed.append(plain.strip()[:200])
+                if markers:                          # the uncited words go; the verses/hadiths they carried stay
+                    kept.append({"text": "\n" + "\n".join(f"[[{m}]]" for m in markers) + "\n", "cites": []})
+            segments = _dedupe_markers(kept)
             trace["removed_uncited"] = removed
-        cited_any = any(s["cites"] for s in segments) or any(MARKER_RE.search(s["text"]) for s in segments)
+        cited_any = (any(s["cites"] and MARKER_RE.sub("", s["text"]).strip() for s in segments)
+                     or any(MARKER_RE.search(s["text"]) for s in segments))
         if not cited_any:
             kind = "abstain"
             segments = [{"text": t("abstain", lang), "cites": []}]  # fixed text, nothing generated

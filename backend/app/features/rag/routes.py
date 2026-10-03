@@ -8,6 +8,8 @@ Contract used by frontend/src/features/rag (see docs/API.md):
 """
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -53,7 +55,19 @@ def ask_question(question: str = Form(""), lang: str = Form("ar"), image: Upload
                     answer={k: result.get(k) for k in ("segments", "sources", "kind", "level", "lang", "quote_check")})
     db.add(turn)
     db.commit()
-    return {"turn_id": turn.id, **result}
+    return {"turn_id": turn.id, **result, "trace": public_trace(result.get("trace") or {})}
+
+
+def public_trace(trace: dict) -> dict:
+    """What the "How I found this" sheet needs. Text the pipeline removed (uncited sentences, unverified
+    quotes, verses the model typed) stays on the server: counts only. SABEELI_DEBUG_TRACE=1 keeps it all."""
+    if os.getenv("SABEELI_DEBUG_TRACE") == "1":
+        return trace
+    out = dict(trace)
+    for k in ("removed_uncited", "unverified_quotes", "scripture_guard", "uncited"):
+        if k in out:
+            out[k] = len(out[k]) if isinstance(out[k], list) else out[k]
+    return out
 
 
 class Feedback(BaseModel):

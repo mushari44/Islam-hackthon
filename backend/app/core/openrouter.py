@@ -118,8 +118,9 @@ class OpenRouter:
                     "type": "json_schema", "json_schema": {"name": "result", "strict": True, "schema": schema}}})
                 return _parse(self._text(data)[0])
             except LLMUnavailable as exc:
-                if "400" not in str(exc) and "response_format" not in str(exc) and "unparseable" not in str(exc):
-                    raise
+                msg = str(exc).lower()
+                if not any(w in msg for w in ("response_format", "json_schema", "structured", "schema")):
+                    raise   # an unrelated failure (a rejected image, a bad reply) must not drop the schema for good
                 log.warning("json_schema not accepted by %s, using json_object: %s", self.model, exc)
                 self._schema_ok = False
         hint = "\n\nReply with one JSON object only, matching this JSON Schema:\n" + json.dumps(schema, ensure_ascii=False)
@@ -135,7 +136,7 @@ def _parse(text: str) -> dict:
     fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.S)
     if fenced:
         text = fenced.group(1)
-    elif not text.startswith("{") and "{" in text:
+    elif not text.startswith("{") and "{" in text and "}" in text:
         text = text[text.index("{"): text.rindex("}") + 1]
     try:
         out = json.loads(text)

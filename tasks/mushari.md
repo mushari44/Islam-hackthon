@@ -88,6 +88,9 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [x] Only related text and videos are shown: precision-first bars in `pipeline.py` (SHOW_*) and `videos/related.py`, checked with `eval/display_audit.py` on 30 questions. Also fixed: «؟» and «،» stuck to the word before them in search tokens (`core/textnorm.py`, shared), and questions were sometimes checked as misquoted verses.
 - [ ] Recall without the model is now low for English and for some Arabic questions (they say "not found"). With the API key, Claude's Arabic/English search phrases should bring most back: re-run `eval/display_audit.py` then.
 
+- [x] RAG review (3 October): fixed uncited text slipping past grounding (marker-carrying sentences, short claims, long intro lines), verses typed without brackets or in {}, unverified hadith quotes, unchecked `clarify` text, odd model JSON crashing a request, one failed call dropping structured output for good, personal questions missed without the model, removed text sent to the browser, and splitter edge cases. Tests in `tests/rag/test_review_fixes.py`.
+- [ ] Gemma's `[n]` citations are self-declared: in the evaluation, sample cited sentences and judge whether the cited passage supports them; if not reliable, add a check (E5 similarity between the sentence and the passage).
+
 ## Ideas if time allows
 
 - [x] Add «بينات: أسئلة وأجوبة عن الإسلام» (dawa.center): `scripts/ingest_bayyinat.py`, passage kind `bayyinat` (built locally, git-ignored).

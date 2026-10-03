@@ -45,7 +45,13 @@
   - B: explain from the approved material, with the reference;
   - C: note that scholars differ, or refer to a specialist;
   - D: general information only, plus the fatwa notice and a da'i referral.
-- **Strict grounding (built):** every model sentence must cite an approved passage, or it is removed before the user sees it; short connectors of 6 words or fewer are kept. An answer with no citation at all is replaced by the fixed "not found in the sources" message. Removed text is listed in `trace.removed_uncited`, so the evaluation can count it.
+- **Citations by provider.** Claude cites through its search-result citation feature (the cited span comes from the passage). Gemma (OpenRouter, the default) gets the passages as numbered sources and ends each sentence with `[n]` (or a result id, which Gemma often writes); the answer is split into sentences and clauses (`.`, `?`, `؟`, `;`, `؛`), and each one keeps only the citations attached to it. These citations are declared by the model and not yet checked against the passage text: the evaluation should sample cited sentences and judge them (see `tasks/mushari.md`).
+- **Strict grounding (built):** every model sentence must cite an approved passage, or it is removed before the user sees it. Exceptions, all narrow:
+  - a short connector of at most 6 words (3 at level D) with no ruling word (حرام، يجب، باطل، invalid, must ...);
+  - a line of at most 12 words ending in ":" that introduces the verse or hadith shown right after it.
+  A verse or hadith marker inside an uncited sentence keeps the marker and loses the words. An answer with no citation at all is replaced by the fixed "not found in the sources" message.
+- **Scripture guard (built):** verses in ﴿﴾ or {} and quotes in «» "" “” ‹› are matched against the Mushaf and become markers. Any 7+ consecutive words that follow the Mushaf word for word, with or without brackets, are replaced by the verse marker (or removed when the match isn't exact). A quoted text found in no retrieved passage (a hadith from memory) removes its whole sentence. The analysis' clarifying question is shown only if it is a short plain question; otherwise a fixed one.
+- Removed text stays on the server: the API returns only counts in `trace` (`SABEELI_DEBUG_TRACE=1` returns the text, for evaluation).
 - **Refusal paths:**
   - retrieval coverage low → the model is told to abstain unless the passages clearly answer;
   - no citation in the answer → shown as "not found in the sources";
