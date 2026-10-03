@@ -57,7 +57,7 @@ def test_gemma_answer_is_grounded_by_numbered_citations(calls):
     assert out["mode"] == "ai" and out["kind"] == "answer"
     analyze, answer = calls[0], calls[1]
     assert analyze["response_format"]["type"] == "json_schema"
-    assert analyze["provider"] == {"data_collection": "deny"}            # only providers that don't keep prompts
+    assert analyze["provider"] == {"data_collection": "deny", "sort": "throughput"}   # private providers, fastest first
     assert answer["messages"][1]["content"].startswith("Search results:\n\n[1] ")
     assert "Citations:" in answer["messages"][0]["content"]
     first = out["segments"][0]
