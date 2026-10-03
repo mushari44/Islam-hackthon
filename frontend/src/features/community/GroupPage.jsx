@@ -85,7 +85,7 @@ export default function GroupPage({ params }) {
     <>
       <a className="btn btn-ghost btn-sm" href="#/community"><Icon name="arrow" className="icon-back" />{t("gr.back")}</a>
       <div className="page-head">
-        <div className="row"><span className="badge">{langName(group.lang)}</span>{group.is_demo && <span className="badge badge-warn">{t("common.demo")}</span>}</div>
+        <div className="row"><span className="badge">{langName(group.lang)}</span></div>
         <h1>{group.title}</h1>
         <p>{group.description}</p>
       </div>

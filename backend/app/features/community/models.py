@@ -66,6 +66,9 @@ class Meetup(Base):
     duration_min: Mapped[int] = mapped_column(Integer, default=90)
     capacity: Mapped[int] = mapped_column(Integer, default=20)
     audience: Mapped[str] = mapped_column(String(16), default="all")  # all | women | men | families
+    registration: Mapped[str] = mapped_column(String(16), default="required")  # required (register for a booking code) | open (join with one tap)
+    age_group: Mapped[str] = mapped_column(String(16), default="all")  # all | kids (with a guardian) | youth | adults | seniors
+    series: Mapped[str] = mapped_column(String(32), default="")       # "" | qawl_amal ("Word and deed in Islam") | ramadan
     host_id: Mapped[int] = mapped_column(ForeignKey("daai.id"))
     group_id: Mapped[int | None] = mapped_column(ForeignKey("study_group.id", ondelete="SET NULL"), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="open")   # open | cancelled

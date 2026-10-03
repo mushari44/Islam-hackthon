@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
-import { GroupMessage, audienceKey } from "../community/public.js";
+import { AGE_GROUPS, COUNTRIES, GroupMessage, REGISTRATION, SERIES, audienceKey, countryName } from "../community/public.js";
 
 function Select({ id, name, value, onChange, options }) {
   return (
@@ -16,7 +16,7 @@ function Select({ id, name, value, onChange, options }) {
 }
 
 function GroupForm({ close, onDone }) {
-  const { t, langName } = useI18n();
+  const { t, lang, langName } = useI18n();
   const [f, setF] = useState({ title: "", description: "", lang: "ar", audience: "all", city: "", country: "" });
   const set = (k) => (v) => setF({ ...f, [k]: typeof v === "string" ? v : v.target.value });
   const submit = async (e) => {
@@ -28,10 +28,10 @@ function GroupForm({ close, onDone }) {
       <div className="field"><label htmlFor="g-title">{t("dg.title")}</label><input id="g-title" className="input" required minLength={3} value={f.title} onChange={set("title")} /></div>
       <div className="field"><label htmlFor="g-desc">{t("dg.desc")}</label><textarea id="g-desc" className="textarea" rows={3} value={f.description} onChange={set("description")} /></div>
       <div className="grid grid-2">
-        <div className="field"><label htmlFor="g-lang">{t("dg.lang")}</label><Select id="g-lang" value={f.lang} onChange={set("lang")} options={["ar", "en", "fr", "ur"].map((l) => [l, langName(l)])} /></div>
+        <div className="field"><label htmlFor="g-lang">{t("dg.lang")}</label><Select id="g-lang" value={f.lang} onChange={set("lang")} options={["ar", "en"].map((l) => [l, langName(l)])} /></div>
         <div className="field"><label htmlFor="g-aud">{t("dg.audience")}</label><Select id="g-aud" value={f.audience} onChange={set("audience")} options={["all", "women", "men"].map((a) => [a, t(audienceKey(a))])} /></div>
         <div className="field"><label htmlFor="g-city">{t("dg.city")}</label><input id="g-city" className="input" value={f.city} onChange={set("city")} /></div>
-        <div className="field"><label htmlFor="g-country">{t("dg.country")}</label><input id="g-country" className="input" maxLength={2} value={f.country} onChange={set("country")} /></div>
+        <div className="field"><label htmlFor="g-country">{t("dg.country")}</label><Select id="g-country" value={f.country} onChange={set("country")} options={[["", "—"], ...COUNTRIES.map((c) => [c, countryName(c, lang)])]} /></div>
       </div>
       <div className="row"><button type="submit" className="btn btn-primary">{t("dg.create")}</button></div>
     </form>
@@ -122,30 +122,45 @@ function GroupsTab() {
 }
 
 function MeetupForm({ groups, close, onDone }) {
-  const { t, langName } = useI18n();
+  const { t, lang, langName } = useI18n();
   const [f, setF] = useState({ title: "", description: "", venue: "", city: "", starts_at: "", duration_min: 90, capacity: 20,
-    lang: "ar", audience: "all", group_id: "", public_venue: false });
+    lang: "ar", country: "SA", audience: "all", registration: "required", age_group: "all", series: "", group_id: "", public_venue: false });
   const set = (k) => (v) => setF({ ...f, [k]: typeof v === "object" && v.target ? v.target.value : v });
   const submit = async (e) => {
     e.preventDefault();
-    const body = { ...f, country: "", starts_at: new Date(f.starts_at).toISOString(), duration_min: Number(f.duration_min),
+    const body = { ...f, starts_at: new Date(f.starts_at).toISOString(), duration_min: Number(f.duration_min),
       capacity: Number(f.capacity), group_id: f.group_id ? Number(f.group_id) : null };
     try { await api.dPost("/api/daai/meetups", body); close(); onDone(); } catch (err) { toast(errorText(err, t), "error"); }
   };
   return (
     <form className="stack" onSubmit={submit}>
+      <div className="field">
+        <span className="field-label">{t("dm.kind")}</span>
+        <div className="row" role="group" aria-label={t("dm.kind")}>
+          {REGISTRATION.map((r) => (
+            <button key={r} type="button" className="chip" aria-pressed={f.registration === r} onClick={() => setF({ ...f, registration: r })}>
+              {t(`com.reg.${r}`)}
+            </button>
+          ))}
+        </div>
+        <span className="faint">{t(f.registration === "open" ? "dm.kind_open" : "dm.kind_required")}</span>
+      </div>
       <div className="field"><label htmlFor="m-title">{t("dg.title")}</label><input id="m-title" className="input" required minLength={3} value={f.title} onChange={set("title")} /></div>
       <div className="field"><label htmlFor="m-desc">{t("dg.desc")}</label><textarea id="m-desc" className="textarea" rows={2} value={f.description} onChange={set("description")} /></div>
       <div className="grid grid-2">
         <div className="field"><label htmlFor="m-venue">{t("dm.venue")}</label><input id="m-venue" className="input" required value={f.venue} onChange={set("venue")} /></div>
+        <div className="field"><label htmlFor="m-country">{t("dg.country")}</label><Select id="m-country" value={f.country} onChange={set("country")} options={COUNTRIES.map((c) => [c, countryName(c, lang)])} /></div>
         <div className="field"><label htmlFor="m-city">{t("dg.city")}</label><input id="m-city" className="input" required value={f.city} onChange={set("city")} /></div>
         <div className="field"><label htmlFor="m-when">{t("dm.when")}</label><input id="m-when" className="input" type="datetime-local" required value={f.starts_at} onChange={set("starts_at")} /></div>
         <div className="field"><label htmlFor="m-dur">{t("dm.duration")}</label><input id="m-dur" className="input" type="number" min={15} max={480} value={f.duration_min} onChange={set("duration_min")} /></div>
-        <div className="field"><label htmlFor="m-cap">{t("dm.capacity")}</label><input id="m-cap" className="input" type="number" min={2} max={500} value={f.capacity} onChange={set("capacity")} /></div>
-        <div className="field"><label htmlFor="m-lang">{t("dg.lang")}</label><Select id="m-lang" value={f.lang} onChange={set("lang")} options={["ar", "en", "fr"].map((l) => [l, langName(l)])} /></div>
+        <div className="field"><label htmlFor="m-cap">{t(f.registration === "open" ? "dm.capacity_open" : "dm.capacity")}</label><input id="m-cap" className="input" type="number" min={2} max={500} value={f.capacity} onChange={set("capacity")} /></div>
+        <div className="field"><label htmlFor="m-lang">{t("dg.lang")}</label><Select id="m-lang" value={f.lang} onChange={set("lang")} options={["ar", "en"].map((l) => [l, langName(l)])} /></div>
         <div className="field"><label htmlFor="m-aud">{t("dg.audience")}</label><Select id="m-aud" value={f.audience} onChange={set("audience")} options={["all", "women", "men", "families"].map((a) => [a, t(audienceKey(a))])} /></div>
+        <div className="field"><label htmlFor="m-age">{t("com.age")}</label><Select id="m-age" value={f.age_group} onChange={set("age_group")} options={AGE_GROUPS.map((a) => [a, t(`com.age.${a}`)])} /></div>
+        <div className="field"><label htmlFor="m-series">{t("dm.series")}</label><Select id="m-series" value={f.series} onChange={set("series")} options={[["", t("dm.none")], ...SERIES.map((sr) => [sr, t(`com.series.${sr}`)])]} /></div>
         <div className="field"><label htmlFor="m-group">{t("dm.group")}</label><Select id="m-group" value={f.group_id} onChange={set("group_id")} options={[["", t("dm.none")], ...groups.map((g) => [String(g.id), g.title])]} /></div>
       </div>
+      {f.age_group === "kids" && <p className="small muted">{t("dm.kids_note")}</p>}
       <label className="check"><input type="checkbox" checked={f.public_venue} onChange={(e) => setF({ ...f, public_venue: e.target.checked })} /><span>{t("dm.public")}</span></label>
       <div className="row"><button type="submit" className="btn btn-primary" disabled={!f.public_venue}>{t("dm.create")}</button></div>
     </form>
@@ -173,14 +188,17 @@ function MeetupsTab() {
           <div className="row">
             <span className="badge">{langName(m.lang)}</span>
             <span className="badge badge-purple">{t(audienceKey(m.audience))}</span>
+            {m.age_group !== "all" && <span className="badge">{t(`com.age.${m.age_group}`)}</span>}
+            {m.series && <span className="badge badge-purple">{t(`com.series.${m.series}`)}</span>}
             {m.status === "cancelled" && <span className="badge badge-warn">{t("dm.cancelled")}</span>}
           </div>
           <h3>{m.title}</h3>
           <p className="faint">{fmtDate(m.starts_at)} · {fmtTime(m.starts_at)} · {m.venue}</p>
-          <details>
+          {m.registration === "open" ? <p className="walk-in">{t("com.walk_in")}</p> : <p className="reg-needed">{t("com.reg_needed")}</p>}
+          {m.registration === "open" ? null : <details>
             <summary>{t("dm.attendees", { n: fmtNum(m.attendees.length) })}</summary>
             <ul>{m.attendees.map((n, i) => <li key={i}>{n}</li>)}</ul>
-          </details>
+          </details>}
           {m.status === "open" && (
             <div className="row">
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => api.dPost(`/api/daai/meetups/${m.id}/cancel`, {}).then(load).catch((err) => toast(errorText(err, t), "error"))}>

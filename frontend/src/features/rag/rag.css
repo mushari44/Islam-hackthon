@@ -5,12 +5,7 @@
 @media (max-width: 980px) { .ask-layout { grid-template-columns: 1fr; } .ask-side { position: static; order: 2; } }
 .ask-main { display: flex; flex-direction: column; gap: 14px; min-height: 50vh; }
 
-.trust-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; font-size: .9rem; color: var(--text-muted); }
-.trust-list li { display: flex; gap: 10px; align-items: flex-start; }
-.trust-list svg { width: 20px; height: 20px; flex: none; color: var(--accent-ink); margin-top: 2px; }
 
-.suggest { padding: 8px 0 4px; }
-.suggest .row { gap: 8px; }
 
 /* thread */
 .thread { display: flex; flex-direction: column; gap: 18px; }
@@ -132,7 +127,11 @@
   flex: 1; border: 0; background: transparent; resize: none; padding: 9px 6px; min-height: 42px; max-height: 180px;
   line-height: 1.6; outline: none;
 }
-.composer-send { width: 44px; padding: 0; flex: none; }
+/* doubled selectors: feature styles load before base.css, so plain .composer-* rules would lose to .btn and :focus-visible */
+.btn.composer-send { width: 46px; height: 46px; min-height: 46px; padding: 0; flex: none; border-radius: 50%; }
+.btn.composer-send svg { width: 20px; height: 20px; }
+.composer-input.composer-input:focus-visible { outline: none; }
+.composer:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent), var(--shadow); }
 .composer-preview { display: flex; align-items: center; gap: 8px; padding: 4px 6px 8px; }
 .composer-preview img { height: 64px; border-radius: 10px; }
 

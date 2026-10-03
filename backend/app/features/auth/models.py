@@ -1,14 +1,17 @@
 """Accounts and sessions. Owner: Eman.
 
-Seekers have no accounts: a random session token kept in the browser is all
-that links their questions, referrals, calls and RSVPs. Da'is (and the
-reviewer) sign in with a username and password.
+A seeker starts with no account: a random session token kept in the browser links
+their questions, referrals, calls and RSVPs. They may add an optional account
+(a username and password, nothing else that identifies them) to keep that history
+on any device: each browser session then points at the account's own session, so
+every feature keeps using one session id. Da'is (and the reviewer) sign in with a
+username and password.
 """
 from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ...core.db import Base, utcnow
@@ -36,8 +39,28 @@ class Daai(Base):
                 "gender": self.gender, "languages": self.languages or []}
 
 
+class SeekerAccount(Base):
+    """Optional seeker account: a username and a password, and an optional email for password resets. No real name or phone."""
+    __tablename__ = "seeker_account"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(32))
+    username_key: Mapped[str] = mapped_column(String(32), unique=True)   # lower-cased, for lookups
+    password_hash: Mapped[str] = mapped_column(String(256))
+    recovery_hash: Mapped[str] = mapped_column(String(256))             # one-time code shown at sign-up
+    email: Mapped[str] = mapped_column(String(254), default="")         # optional, only to reset a forgotten password
+    reset_hash: Mapped[str] = mapped_column(String(256), default="")    # emailed 6-digit code, hashed
+    reset_expires: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    session_id: Mapped[str] = mapped_column(String(64))                 # the session all features file data under
+    country: Mapped[str] = mapped_column(String(2), default="")         # optional, for nearby groups and events
+    city: Mapped[str] = mapped_column(String(64), default="")
+    lang: Mapped[str] = mapped_column(String(8), default="ar")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class SeekerSession(Base):
     __tablename__ = "seeker_session"
     id: Mapped[str] = mapped_column(String(64), primary_key=True)    # sha256 of the browser token
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_seen: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # Set while this browser is signed in to an account.
+    account_id: Mapped[int | None] = mapped_column(ForeignKey("seeker_account.id", ondelete="SET NULL"), nullable=True)
