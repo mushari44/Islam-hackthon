@@ -39,6 +39,21 @@ CLAIM_RE = re.compile(r"(حرام|حلال|باطل|صحيح|واجب|يجب|ف�
                       r"|\b(invalid|valid|haram|halal|must|forbidden|allowed|obligatory|sinful|sin|kufr|disbeliever|ruling)\b",
                       re.I)
 HARAKAT_RE = re.compile(r"[\u064B-\u0652]")
+# The model saying the sources don't cover the question («لم أجد في المصادر...», "the sources don't mention").
+# Such a sentence cites nothing, so grounding drops it; the app then shows its own fixed notice instead.
+# Matched on normalize_ar() text (ا for أ/إ, ي for ى, ه for ة), lower-cased.
+NOT_FOUND_RE = re.compile(
+    r"(لم اجد|لا يوجد|لا توجد|لم (يرد|ترد|يذكر|تذكر|تتناول|يتناول|تتطرق|تتضمن|تشر|تجب|يتم)|"
+    r"لا (تذكر|يذكر|تتناول|يتناول|تتطرق|تتضمن|تحتوي|تشير|تجيب)|ليس (فيها|هناك|في))"
+    r"|\b(could ?n[o']?t|can ?n?[o']?t|did ?n[o']?t|unable to) (find|locate)\b"
+    r"|\b(do|does|did) ?n[o']?t (mention|address|cover|contain|include|discuss|specify|say|answer)\b"
+    r"|\bno (specific |direct |explicit |clear |matching )?(mention|evidence|information|text|hadith|verse|answer|ruling|reference)s?\b"
+    r"|\bnot (mentioned|found|addressed|covered|discussed)\b")
+SOURCES_WORD = re.compile(r"(مصادر|نتايج|نتائج|نصوص|مراجع|متاحه)|\b(sources?|results?|texts?|provided|available)\b")
+# A connecting word that leans on a sentence grounding removed («ومع ذلك،», "Instead,"): dropped with it.
+LEADING_CONNECTOR_RE = re.compile(
+    r"^(\s*)(?:(ومع ذلك|مع ذلك|ولكن|لكن|بل|وبدلا من ذلك|بدلا من ذلك|لذلك|لذا|وعليه|however|but|instead|nevertheless|"
+    r"nonetheless|that said|therefore)\s*[,،]?|(so|still|rather)\s*,)\s+", re.I)
 
 MAX_QUESTION_CHARS = 2000
 # A question mark, or a word that only starts questions (not «ما»/«من», which also start verses).
@@ -62,6 +77,10 @@ TEXT = {
     "abstain": {
         "ar": "لم أجد في المصادر المعتمدة المتاحة لي ما يكفي للإجابة عن هذا السؤال بثقة، ولا أريد أن أقول ما لا أستطيع إسناده. يمكنك طرحه على داعية يناقشه معك.",
         "en": "I couldn't find enough in the approved sources available to me to answer this confidently, and I don't want to say anything I can't back with a source. You can discuss it with a da'i (guide).",
+    },
+    "partial": {
+        "ar": "لم أجد في المصادر المعتمدة المتاحة لي جواباً مباشراً عن سؤالك بهذا التحديد، وهذا ما ورد فيها مما يتصل به:",
+        "en": "I didn't find a direct answer to this exact question in the approved sources available to me. Here is what they say on related points:",
     },
     "sources_only": {
         "ar": "هذه أقرب النصوص إلى سؤالك من المصادر المعتمدة. الشرح المولّد بالذكاء الاصطناعي غير متاح الآن، فأعرض النصوص كما هي من مصادرها.",
@@ -116,10 +135,17 @@ def t(key: str, lang: str) -> str:
 
 PERSONAL_AR = [r"هل يجوز (لي|ليا|لنا)", r"\b(ليا)\b", r"(يجوز|حرام|حلال)\s+(لي|علي|عليّ)", r"\bزوج(ي|تي)\b", r"\bطلاق(ي|ها)?\b",
                r"\bطلقني\b", r"\b(صلاتي|صيامي|زواجي|عقدي|وضوئي|طلاقي|ميراثي)\b", r"في حالتي", r"\bوضعي\b",
-               r"\bأنا\s+(مسلم|مسلمة|امرأة|رجل|متزوج|متزوجة|أعيش|اعيش|أعمل|اعمل)", r"ماذا (أفعل|افعل)", r"\bأبي\b.*\b(يجوز|حكم)"]
+               r"\bأنا\s+(مسلم|مسلمة|امرأة|رجل|متزوج|متزوجة|أعيش|اعيش|أعمل|اعمل|مريض|مريضة|مقيم|مقيمة)",
+               r"ماذا (أفعل|افعل)", r"\bأبي\b.*\b(يجوز|حكم)",
+               # «هل يجب علي صيام رمضان؟», «هل راتبي حرام؟», «كم نصيبي من الميراث؟»
+               r"(يجب|يلزم)\s+(علي|عليّ)\b", r"\bيلزمني\b", r"\b(نصيبي|راتبي|دخلي|قرضي|تركتي)\b",
+               r"\b(توفي|توفيت|مات|ماتت)\s+(أبي|ابي|أمي|امي|والدي|والدتي|زوجي|زوجتي)\b"]
 PERSONAL_EN = [r"\b(can|may|should|must) i\b", r"\bam i allowed\b", r"\bis it (allowed|permissible|haram|halal|ok|okay) for me\b",
                r"\bmy (husband|wife|marriage|divorce|boss|fianc[eé]e?|boyfriend|girlfriend)\b", r"\bin my (case|situation)\b",
-               r"\bi (live|work) in\b", r"\bwhat should i do\b", r"\bis it (ok|okay|fine|alright) if i\b"]
+               r"\bi (live|work) in\b", r"\bwhat should i do\b", r"\bis it (ok|okay|fine|alright) if i\b",
+               # "What exactly do I have to do now?", "Are we still married?", "Is my salary haram?"
+               r"\bdo i (have|need) to\b", r"\bwhat (exactly )?do i (do|have to do)\b", r"\bam i still\b",
+               r"\bare we still married\b", r"\bmy (salary|income|mortgage|loan|debt|inheritance|share)\b"]
 # First-person wording that is personal only next to a ruling word («أنا امرأة، هل يجوز السفر؟»,
 # "I am a woman, is it allowed to travel alone?"), not in "I am a student, what is Tawhid?".
 PERSONAL_WEAK = [r"\bi am\b", r"\bi'?m\b", r"\bif i\b", r"\bme\b", r"\bmy\b", r"\bانا\b", r"\bلي\b", r"\bعلي\b"]
@@ -200,17 +226,37 @@ def _normalize_analysis(a: dict) -> dict:
 
 
 def _dedupe_markers(segments: list[dict]) -> list[dict]:
-    """Show each verse or hadith card once, where it first appears."""
+    """Show each verse or hadith card once, where it first appears. A sentence whose marker repeats an
+    earlier one still cites that passage (as a citation, without the card again)."""
     seen: set[str] = set()
     out = []
     for s in segments:
+        repeated: list[str] = []
+
         def keep_first(m: re.Match) -> str:
             if m.group(1) in seen:
+                repeated.append(m.group(1))
                 return ""
             seen.add(m.group(1))
             return m.group(0)
-        out.append({**s, "text": MARKER_RE.sub(keep_first, s["text"])})
+        text = MARKER_RE.sub(keep_first, s["text"])
+        cites = s["cites"] + [pid for pid in repeated if pid not in s["cites"] and MARKER_RE.sub("", text).strip()]
+        out.append({**s, "text": text, "cites": cites})
     return out
+
+
+def _says_not_found(sentence: str) -> bool:
+    text = normalize_ar(sentence).lower()
+    return bool(NOT_FOUND_RE.search(text) and SOURCES_WORD.search(text))
+
+
+def _drop_leading_connector(text: str) -> str:
+    """«ومع ذلك، توضح المصادر...» after the sentence it answered was removed: «توضح المصادر...»."""
+    m = LEADING_CONNECTOR_RE.match(text)
+    if not m:
+        return text
+    rest = text[m.end():]
+    return m.group(1) + (rest[:1].upper() + rest[1:] if rest[:1].isascii() else rest)
 
 
 def _safe_clarify(text: str, lang: str) -> str:
@@ -264,6 +310,9 @@ def _hadith_sig(p: Passage) -> str:
     return re.sub(r"[^ء-ي]", "", skeleton(matn.group(1) if matn else p.data["text_ar"]))[:80]
 
 
+ANSWER_SLOT: float | None = 0.84   # E5 similarity an approved answer needs for its own place (None: off)
+
+
 def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[Passage], list[dict]]:
     corpus = get_corpus()
     queries = [analysis.get("standalone_question") or question, question]
@@ -290,6 +339,18 @@ def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[
     seen_text = {_hadith_sig(p) for p in chosen if p.kind == "hadith"}
     per_kind = {"quran": 0, "hadith": 0, "term": 0, "qa": 0, "bayyinat": 0}
     limit = {"quran": 5, "hadith": 4, "term": 2, "qa": 2, "bayyinat": 2}
+    idf = corpus.index.idf
+    total = sum(idf.get(tk, max_idf) for tk in q_tokens) or 1.0
+
+    def take(p: Passage, score: float, via: str) -> None:
+        doc_terms = set(tokens(p.search_text()))
+        cov = sum(idf.get(tk, 0.0) for tk in q_tokens if tk in doc_terms) / total
+        chosen.append(p)
+        seen.add(p.id)
+        per_kind[p.kind] += 1
+        trace.append({"id": p.id, "score": round(score, 4 if retriever == "hybrid" else 2), "coverage": round(cov, 2),
+                      "dense": dense.get(p.id), "via": via})
+
     for pid, score, _ in raw:
         p = corpus.get(pid)
         if not p or pid in seen or per_kind[p.kind] >= limit[p.kind]:
@@ -299,17 +360,20 @@ def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[
             if sig in seen_text:
                 continue
             seen_text.add(sig)
-        doc_terms = set(tokens(p.search_text()))
-        idf = corpus.index.idf
-        total = sum(idf.get(tk, max_idf) for tk in q_tokens) or 1.0
-        cov = sum(idf.get(tk, 0.0) for tk in q_tokens if tk in doc_terms) / total
-        chosen.append(p)
-        seen.add(pid)
-        per_kind[p.kind] += 1
-        trace.append({"id": pid, "score": round(score, 4 if retriever == "hybrid" else 2), "coverage": round(cov, 2),
-                      "dense": dense.get(pid), "via": retriever})
+        take(p, score, retriever)
         if len(chosen) >= settings.top_k + len(quote_ids):
             break
+    # An approved answer written for this very question (Q&A, Bayyinat) is the best material the model can
+    # get, but it is long and Arabic only, so BM25 ranks it low for English or loosely worded questions
+    # (e.g. "Do Muslims believe Jesus is the son of God?" -> «هل عيسى عليه السلام ابن الله؟» came 16th).
+    # The closest one in meaning gets a place of its own.
+    if ANSWER_SLOT is not None and dense:
+        fused = {pid: score for pid, score, _ in raw}
+        best = max(((pid, d) for pid, d in dense.items() if pid not in seen and corpus.get(pid)
+                    and corpus.get(pid).kind in ANSWER_KINDS), key=lambda x: x[1], default=None)
+        top_answer = max([dense.get(p.id, 0) for p in chosen if p.kind in ANSWER_KINDS] or [0])
+        if best and best[1] >= ANSWER_SLOT and best[1] > top_answer:
+            take(corpus.get(best[0]), fused.get(best[0], 0.0), "answer_slot")
     return chosen, trace
 
 
@@ -519,7 +583,8 @@ def _ask(ctx: AskContext) -> dict:
     lang = analysis.get("language") if analysis.get("language") in ("ar", "en") else ctx.ui_lang
     level = analysis.get("level", "B")
     trace["analysis"] = {k: analysis.get(k) for k in ("language", "intent", "level", "personal_case", "hostile",
-                                                       "asks_for_evidence", "queries_ar", "queries_en", "terms", "source")}
+                                                       "asks_for_evidence", "standalone_question", "queries_ar",
+                                                       "queries_en", "terms", "source")}
 
     base = {"mode": mode, "lang": lang, "level": level, "ocr": ocr, "notices": notices, "trace": trace,
             "cards": {}, "sources": [], "quote_check": None, "suggest_daai": False}
@@ -595,6 +660,7 @@ def _ask(ctx: AskContext) -> dict:
     timings["answer"] = round(time.perf_counter() - t3, 2)
 
     if answer:
+        partial = False
         index_to_id = [p.id for p in passages]
         for seg in answer.segments:
             with timing.step("scripture_guard"):
@@ -613,12 +679,14 @@ def _ask(ctx: AskContext) -> dict:
             # Only the approved package may speak: drop any model sentence that cites no passage
             # (short connecting phrases such as "and" or "in short" are kept).
             kept, removed = [], []
+            after_removed = False      # the last sentence before this one was dropped
             for k, s in enumerate(segments):
                 plain = MARKER_RE.sub("", s["text"]).replace(UNVERIFIED, "")
                 words = len(plain.split())
                 markers = MARKER_RE.findall(s["text"])
                 if UNVERIFIED in s["text"]:          # quoted a text no source has
                     removed.append(plain.strip()[:200])
+                    after_removed = True
                     if markers:
                         kept.append({"text": "\n" + "\n".join(f"[[{m}]]" for m in markers) + "\n", "cites": []})
                     continue
@@ -626,6 +694,9 @@ def _ask(ctx: AskContext) -> dict:
                 # _clean_markers) - except at level D, where a ruling-like sentence needs a real citation.
                 marker_cites = bool(markers) and not (level == "D" and CLAIM_RE.search(normalize_ar(plain)))
                 if s["cites"] or words == 0 or marker_cites:
+                    if words and after_removed:
+                        s = {**s, "text": _drop_leading_connector(s["text"])}
+                    after_removed = after_removed and not words
                     kept.append(s)
                     continue
                 # a short line introducing the verse or hadith shown right after it («...قوله تعالى:»)
@@ -636,23 +707,35 @@ def _ask(ctx: AskContext) -> dict:
                              and not CLAIM_RE.search(normalize_ar(plain)))
                 if intro or connector:
                     kept.append(s)
+                    after_removed = False
                     continue
                 removed.append(plain.strip()[:200])
+                after_removed = True
                 if markers:                          # the uncited words go; the verses/hadiths they carried stay
                     kept.append({"text": "\n" + "\n".join(f"[[{m}]]" for m in markers) + "\n", "cites": []})
             segments = _dedupe_markers(kept)
             trace["removed_uncited"] = removed
+            # The model said the sources don't cover (part of) the question: that sentence is gone, so the
+            # person gets the fixed notice in its place, not a related answer that looks like a full one.
+            partial = any(_says_not_found(r) for r in removed)
         cited_any = (any(s["cites"] and MARKER_RE.sub("", s["text"]).strip() for s in segments)
                      or any(MARKER_RE.search(s["text"]) for s in segments))
+        # Sentences of ten words or more shown without any citation (a verse/hadith marker counts, as does
+        # a line introducing one): with strict grounding this should stay empty.
+        uncited = [s["text"].strip()[:140] for s in segments
+                   if not s["cites"] and not MARKER_RE.search(s["text"])
+                   and len(s["text"].split()) >= 10 and not s["text"].rstrip().endswith(":")]
         if not cited_any:
             kind = "abstain"
             segments = [{"text": t("abstain", lang), "cites": []}]  # fixed text, nothing generated
-        uncited = [s["text"].strip()[:140] for s in segments
-                   if not s["cites"] and len(MARKER_RE.sub("", s["text"]).split()) >= 10]
+            uncited = []
         words_total = sum(len(MARKER_RE.sub("", s["text"]).split()) for s in segments) or 1
         words_cited = sum(len(MARKER_RE.sub("", s["text"]).split()) for s in segments if s["cites"])
         trace["uncited"] = uncited
         trace["cited_share"] = round(words_cited / words_total, 2)
+        if cited_any and partial:
+            segments.insert(0, {"text": t("partial", lang) + "\n", "cites": []})
+            trace["partial"] = True
     else:
         has_term = any(p.kind == "term" for p in passages)
         if level == "D" and not quote_ids:

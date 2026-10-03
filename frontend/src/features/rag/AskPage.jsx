@@ -95,7 +95,8 @@ function Trace({ ans }) {
                 <code>{r.id}</code>{" "}
                 {r.via === "quote" ? <span className="badge badge-mint">{t("ask.via_quote")}</span>
                   : r.via === "glossary" ? <span className="badge">{t("ask.via_glossary")}</span>
-                    : <span className="faint">{fmtNum(Math.round((r.coverage || 0) * 100))}%</span>}
+                    : r.via === "answer_slot" ? <span className="badge">{t("ask.via_answer")}</span>
+                      : <span className="faint">{fmtNum(Math.round((r.coverage || 0) * 100))}%</span>}
                 {r.dense != null && <span className="faint">{" · "}{t("ask.via_meaning")} {fmtNum(Math.round(r.dense * 100))}%</span>}
               </li>
             ))}
