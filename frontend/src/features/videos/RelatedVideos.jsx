@@ -15,6 +15,8 @@ const MAX_TRIES = 12;     // the first video list of a language takes ~30 s to b
 export default function RelatedVideos({ question, hints = [], lang }) {
   const { t } = useI18n();
   const [items, setItems] = useState([]);
+  const [requested, setRequested] = useState(false);
+  const [done, setDone] = useState(false);
   const hintKey = hints.join("|");
 
   useEffect(() => {
@@ -22,13 +24,16 @@ export default function RelatedVideos({ question, hints = [], lang }) {
     let timer;
     let tries = 0;
     setItems([]);
+    setDone(false);
     if (!question) return undefined;
     const load = () => {
       api.post("/api/videos/related", { lang, q: question, hints, k: 3 }, { as: "none" })
         .then((d) => {
           if (!alive) return;
           setItems(d.items || []);
+          setRequested(Boolean(d.requested));
           if (d.state === "loading" && ++tries < MAX_TRIES) timer = setTimeout(load, RETRY_MS);
+          else setDone(true);
         })
         .catch(() => { /* suggestions are optional */ });
     };
@@ -37,7 +42,13 @@ export default function RelatedVideos({ question, hints = [], lang }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question, lang, hintKey]);
 
-  if (!items.length) return null;
+  if (!items.length) {
+    // asked for a video and none is close enough: say so, and point to the videos page
+    return requested && done ? (
+      <p className="vid-related-none faint small"><Icon name="play" size={14} />{t("vid.related_none")}{" "}
+        <a href="#/videos">{t("vid.related_browse")}</a></p>
+    ) : null;
+  }
   return (
     <section className="vid-related" aria-label={t("vid.related")}>
       <h4 className="vid-related-head"><Icon name="play" size={16} />{t("vid.related")}</h4>

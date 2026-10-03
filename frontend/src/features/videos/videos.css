@@ -67,3 +67,4 @@
 .vid-card-compact h3 { font-size: .9rem; margin: 0; }
 .vid-card-compact .vid-topic { display: none; }
 .vid-related .faint { margin: 8px 0 0; }
+.vid-related-none { display: flex; align-items: center; gap: 6px; margin-block-start: 12px; flex-wrap: wrap; }

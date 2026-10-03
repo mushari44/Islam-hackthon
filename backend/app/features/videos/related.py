@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 import threading
 from collections import Counter
 
@@ -40,6 +41,17 @@ MEANING = 0.85
 COVERAGE = 0.45           # share of the question's words (idf-weighted; words no video uses count fully)
 # Without the encoder, words alone must be much stronger.
 WORDS_ONLY_SCORE, WORDS_ONLY_COVERAGE = 10.0, 0.6
+# When the person asks for a video ("I want a video showing me how to pray", «أريد مقطعاً عن الصلاة»), the
+# request words are left out of the match and the bars are a little lower: a close video is the answer.
+VIDEO_REQUEST = re.compile(
+    r"\b(videos?|clips?|watch|show(ing)? me|youtube|i want|i would like|i'?d like|can you|please|give me|find me)\b"
+    r"|(فيديو|فديو|مقطع|مقاطع|مقطعا|مقطعاً|مرئي|مرئيات|أشاهد|اشاهد|شاهد|أرني|ارني|وريني|أريد|اريد|ابغى|أبغى|يشرح|يوضح)",
+    re.I)
+REQUESTED_MEANING, REQUESTED_COVERAGE = 0.83, 0.3
+
+
+def wants_video(question: str) -> bool:
+    return bool(re.search(r"\b(videos?|clips?|watch|youtube)\b|فيديو|فديو|مقطع|مقاطع|مرئي|أشاهد|اشاهد", question or "", re.I))
 DENSE_WEIGHT = 0.7        # same split as RAG search
 RRF_C = 60
 
@@ -177,17 +189,21 @@ def _similarities(st: _Stats, enc, texts: list[str]):
 def related(idx, question: str, hints: list[str] | None = None, k: int = 3, encoder=None) -> list[dict]:
     """The k videos of this language most related to the question, best first; [] when none is close."""
     st = _stats(idx)
+    requested = wants_video(question)
+    if requested:      # match on the topic, not on "I want a video showing me"
+        question = re.sub(r"\s+", " ", VIDEO_REQUEST.sub(" ", question)).strip() or question
     q_toks = set(tokens(question))
     h_toks = set(tokens(" ".join(hints or []))) - q_toks
     if pending(idx, encoder):
         return []    # meaning is on the way: better nothing for a few seconds than word-only guesses
     words = _word_ranking(st, q_toks, h_toks)
     sims = _similarities(st, encoder, [question, " ".join(hints or [])]) if encoder is not None else None
+    meaning_bar, coverage_bar = (REQUESTED_MEANING, REQUESTED_COVERAGE) if requested else (MEANING, COVERAGE)
     if sims is None:   # words only: keep strong matches
         words = [w for w in words if w[1] >= WORDS_ONLY_SCORE and w[2] >= WORDS_ONLY_COVERAGE]
         meaning: list[tuple[int, float]] = []
     else:              # both must agree: close in meaning, and most of the question's words in title/topic
-        words = [w for w in words if w[2] >= COVERAGE and sims[w[0]] >= MEANING]
+        words = [w for w in words if w[2] >= coverage_bar and sims[w[0]] >= meaning_bar]
         meaning = sorted(((i, float(sims[i])) for i, *_ in words), key=lambda x: -x[1])
     fused: dict[int, float] = {}
     for rank, (i, *_) in enumerate(words, start=1):
