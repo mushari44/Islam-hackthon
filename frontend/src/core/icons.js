@@ -44,10 +44,17 @@ export const PATHS = {
   volume: '<path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
 };
 
-// The Sabeeli mark: a path that opens onto a star (an eight-point khatam).
+// The Sabeeli mark: a white circle of light glowing in the dark ("knowledge that enlightens").
 export const LOGO = `<svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
-  <rect width="48" height="48" rx="14" fill="#161D48"/>
-  <path d="M24 9l3.6 5.4L34 13l-1.4 6.4L38 24l-5.4 3.6L34 34l-6.4-1.4L24 38l-3.6-5.4L14 34l1.4-6.4L10 24l5.4-3.6L14 13l6.4 1.4Z" stroke="#2EF2C2" stroke-width="1.6" stroke-linejoin="round"/>
-  <path d="M17 31c3-1.5 4.5-4 6-7.5S27 17 31 16" stroke="#F2F4FF" stroke-width="2.4" stroke-linecap="round"/>
-  <circle cx="31" cy="16" r="2.2" fill="#2EF2C2"/>
+  <defs>
+    <radialGradient id="sabeeli-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".95"/>
+      <stop offset=".42" stop-color="#FFFFFF" stop-opacity=".45"/>
+      <stop offset=".7" stop-color="#C9D2FF" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#C9D2FF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x=".75" y=".75" width="46.5" height="46.5" rx="13.5" fill="#070A1F" stroke="#FFFFFF" stroke-opacity=".28" stroke-width="1.5"/>
+  <circle cx="24" cy="24" r="21" fill="url(#sabeeli-glow)"/>
+  <circle cx="24" cy="24" r="9" fill="#FFFFFF"/>
 </svg>`;

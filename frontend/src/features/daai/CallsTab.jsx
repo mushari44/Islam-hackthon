@@ -8,6 +8,12 @@ import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
 import { CallPanel } from "../calls/public.jsx";
 import { SourceCard } from "../rag/public.js";
 
+// Arabic counts change form with the number (1, 2, 3-10, 11+), so pick the right string.
+function callCount(n, t, fmtNum) {
+  const form = n === 1 ? "one" : n === 2 ? "two" : n >= 3 && n <= 10 ? "few" : "many";
+  return t(`dc.calls_${form}`, { n: fmtNum(n) });
+}
+
 function secs(n, fmtNum, t) {
   return n < 60 ? t("unit.s", { n: fmtNum(n) }) : t("unit.m", { n: fmtNum(Math.floor(n / 60)) });
 }
@@ -129,7 +135,7 @@ function Experiment({ me }) {
         {Object.entries(data.arms || {}).map(([arm, s]) => (
           <div className="exp-arm" key={arm}>
             <strong>{t(`dc.arm.${arm}`)}</strong>
-            <div className="faint">{fmtNum(s.calls)} {t("dc.calls")}</div>
+            <div className="faint">{callCount(s.calls, t, fmtNum)}</div>
             {s.no_reexplain_rate != null && <div>{fmtNum(Math.round(s.no_reexplain_rate * 100))}% {t("dc.no_reexplain")}</div>}
             {s.card_accurate_rate != null && <div>{fmtNum(Math.round(s.card_accurate_rate * 100))}% {t("dc.accuracy")}</div>}
             {s.median_seconds_to_understand != null && <div>{secs(Math.round(s.median_seconds_to_understand), fmtNum, t)} {t("dc.median")}</div>}

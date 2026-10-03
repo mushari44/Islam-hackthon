@@ -61,3 +61,55 @@
 .login-card { max-width: 440px; }
 .daai-panel { min-height: 40vh; }
 .card.card-link.row svg { width: 22px; height: 22px; color: var(--accent-ink); }
+
+/* ---------- home: the three ways in, as stops along one path ---------- */
+.home-hero .hero-text { gap: 10px; }
+.home-hero .hero-lead { font-size: 1.05rem; max-width: 40ch; }
+.journey {
+  position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  width: 100%; max-width: 520px; margin-block-start: 14px;
+}
+/* the path: a dotted mint line through the three stops, drawn once on load */
+.journey::before {
+  content: ""; position: absolute; inset-inline: 16.66%; top: 34px; height: 2px;
+  background-image: linear-gradient(90deg, var(--mint-500) 55%, transparent 0); background-size: 9px 2px;
+  transform-origin: right; animation: draw-path .9s var(--ease) .15s both;
+}
+[dir="ltr"] .journey::before { transform-origin: left; }
+@keyframes draw-path { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.stop {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 6px; border-radius: 18px;
+  text-decoration: none; color: var(--text); text-align: center; transition: background .25s var(--ease);
+}
+.stop:hover { background: color-mix(in srgb, var(--navy-500) 8%, transparent); }
+.stop-node {
+  flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--navy-800); color: var(--mint-400); box-shadow: 0 0 0 6px var(--surface);
+  transition: background .25s var(--ease), color .25s, transform .25s var(--ease);
+}
+.stop:hover .stop-node { background: var(--mint-400); color: var(--navy-900); transform: scale(1.06); }
+.stop-text { min-width: 0; display: flex; flex-direction: column; line-height: 1.4; gap: 2px; }
+.stop-text strong { font-size: 1.02rem; }
+.stop-text span { color: var(--text-muted); font-size: .82rem; }
+.stop-go { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .stop-node { background: var(--surface-2); border: 1px solid var(--border-strong); } }
+:root[data-theme="dark"] .stop-node { background: var(--surface-2); border: 1px solid var(--border-strong); }
+@media (max-width: 900px) {
+  /* phones: the verse sits right under the name, then the prompt and the path */
+  .home-hero { gap: 12px; }
+  .home-hero .hero-text { display: contents; }
+  .home-hero .hero-text > * { position: relative; z-index: 1; }
+  .home-hero .hero-title { order: 1; font-size: clamp(2.6rem, 14vw, 3.4rem); }
+  .home-hero .hero-tag { order: 2; }
+  .home-hero .hero-side { order: 3; margin-block: 6px; }
+  .home-hero .hero-lead { order: 4; }
+  .journey { order: 5; max-width: none; margin-block-start: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .journey::before { animation: none; } }
+/* the verse on the home page: no green, the text carries it */
+.home-verse.verse-card { border-color: var(--border); }
+.home-verse.verse-card::before { display: none; }
+.home-verse .verse-text .orn { color: var(--text-faint); }
+.home-verse figcaption { color: var(--text-muted); font-weight: 500; }
+.home-verse { margin: 0; }
+.home-verse figcaption { margin-block-start: 6px; font-size: .9rem; }

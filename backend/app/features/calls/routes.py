@@ -9,7 +9,7 @@ Contract used by frontend/src/features/calls (see docs/API.md).
 """
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -25,7 +25,7 @@ from .models import CallMessage, CallRequest, Referral
 router = APIRouter(prefix="/api")
 
 ONLINE_WINDOW = timedelta(seconds=90)
-LANGS = {"ar", "en", "fr", "ur", "id", "tr", "es", "de", "bn", "ru", "zh", "sw", "ha", "so", "fa"}
+LANGS = {"ar", "en"}   # the languages we support for now; add more when da'is and content cover them
 
 
 def online_daais(db: Session):
@@ -49,8 +49,9 @@ def availability(db: Session = Depends(get_db)):
 def rtc_config():
     servers = [{"urls": settings.stun_urls}] if settings.stun_urls else []
     if settings.turn_url:
-        servers.append({"urls": [settings.turn_url], "username": settings.turn_username,
-                        "credential": settings.turn_credential})
+        # TURN_URL may list several addresses separated by commas (e.g. port 80, 443 and turns: over TLS).
+        urls = [u.strip() for u in settings.turn_url.split(",") if u.strip()]
+        servers.append({"urls": urls, "username": settings.turn_username, "credential": settings.turn_credential})
     return {"iceServers": servers, "iceTransportPolicy": "relay" if settings.call_relay_only and settings.turn_url else "all"}
 
 
@@ -230,6 +231,48 @@ def daai_end_call(cid: int, body: DaaiFeedback, me: Daai = Depends(daai), db: Se
     db.commit()
     return {"ok": True}
 
+
+# ---------------------------------------------------------------------------
+# Monthly call log for the signed-in da'i: every call they answered, with dates.
+# Numbers only: no audio is ever stored, and nothing that identifies the seeker leaves the server.
+# ---------------------------------------------------------------------------
+
+@router.get("/daai/calls")
+def daai_call_log(month: str = "", me: Daai = Depends(daai), db: Session = Depends(get_db)):
+    """The calls this da'i answered in one month (YYYY-MM, default this month), newest first, with dates."""
+    now = utcnow()
+    try:
+        year, mon = (int(x) for x in month.split("-")) if month else (now.year, now.month)
+        start = datetime(year, mon, 1)
+    except ValueError:
+        raise HTTPException(400, "month must be YYYY-MM")
+    end = datetime(year + (mon == 12), mon % 12 + 1, 1)
+    answered = select(CallRequest).where(CallRequest.daai_id == me.id, CallRequest.status == "ended",
+                                         CallRequest.accepted_at.is_not(None))
+    calls = db.scalars(answered.where(CallRequest.accepted_at >= start, CallRequest.accepted_at < end)
+                       .order_by(CallRequest.accepted_at.desc())).all()
+    months = sorted({c.accepted_at.strftime("%Y-%m") for c in db.scalars(answered).all()} | {now.strftime("%Y-%m")},
+                    reverse=True)
+    modes = {r.id: r.mode for r in db.scalars(select(Referral).where(
+        Referral.id.in_([c.referral_id for c in calls if c.referral_id])))} if calls else {}
+
+    def secs(a, b):
+        return int((b - a).total_seconds()) if a and b else None
+
+    items = [{"id": c.id, "lang": c.lang, "accepted_at": iso(c.accepted_at), "ended_at": iso(c.ended_at),
+              "duration_seconds": secs(c.accepted_at, c.ended_at),
+              "seconds_to_understand": secs(c.accepted_at, c.understood_at),
+              "referral_mode": modes.get(c.referral_id, "direct") if c.referral_id else "direct",
+              "reexplain_needed": c.reexplain_needed, "card_accurate": c.card_accurate,
+              "seeker_rating": c.seeker_rating, "note": c.daai_note} for c in calls]
+    rated = [i for i in items if i["reexplain_needed"] is not None]
+    stars = [i["seeker_rating"] for i in items if i["seeker_rating"]]
+    return {"month": f"{year:04d}-{mon:02d}", "months": months, "calls": items,
+            "summary": {"calls": len(items),
+                        "minutes": round(sum(i["duration_seconds"] or 0 for i in items) / 60),
+                        "no_reexplain": sum(1 for i in rated if not i["reexplain_needed"]),
+                        "rated": len(rated),
+                        "avg_rating": round(sum(stars) / len(stars), 1) if stars else None}}
 
 # ---------------------------------------------------------------------------
 # Referral experiment (reviewer/admin)
