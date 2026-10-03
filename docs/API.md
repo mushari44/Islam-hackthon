@@ -79,12 +79,13 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 | POST | `/api/daai/groups/{gid}/messages/{mid}/delete` | daai (leader) | – | `{ok: true}` (soft delete) |
 | POST | `/api/daai/groups/{gid}/messages/{mid}/resolve` | daai (leader) | – | `{ok: true}` (clears `needs_leader`) |
 | POST | `/api/daai/groups/{gid}/members/{member_id}/mute` | daai (leader) | `{muted: bool}` | `{ok: true, muted}` |
-| GET | `/api/meetups` | seeker? | `?country=&city=&lang=&registration=&age=&series=&audience=women\|men&ui=` | `[Meetup]`: status `open`, starting no earlier than 3 h ago, soonest first. `age` keeps that age group and `all`; `audience` keeps what that person can attend (their own, `all` and `families`) |
-| POST | `/api/meetups/{mid}/rsvp` | seeker | `?ui=`; `{nickname: 2–40, confirm_audience?: bool}` (must be `true` for `women` / `men` meetups) | Meetup with `my_rsvp`. Safe to repeat. 400 (audience, or nickname rejected as for groups), 404, 409 `full` / `meetup already started` |
+| GET | `/api/meetups` | seeker? | `?country=&city=&lang=&registration=&age=&series=&audience=women\|men&format=in_person\|online&ui=` | `[Meetup]`: status `open`, starting no earlier than 3 h ago, soonest first. `age` keeps that age group and `all`; `audience` keeps what that person can attend (their own, `all` and `families`); `country` / `city` keep online meetups too (they can be joined from anywhere) |
+| POST | `/api/meetups/{mid}/rsvp` | seeker | `?ui=`; `{nickname: 2–40, confirm_audience?: bool}` (must be `true` for `women` / `men` meetups) | Meetup with `my_rsvp` (and `online_url` for an online meetup). Safe to repeat. 400 (audience, or nickname rejected as for groups), 404, 409 `full` / `meetup already started` |
 | POST | `/api/meetups/{mid}/cancel-rsvp` | seeker | – | `{ok: true}` |
-| GET | `/api/meetups/{mid}/ics` | none | – | `text/calendar` attachment (linked with a plain `<a href download>`); `STATUS:CANCELLED` once the host cancels |
+| GET | `/api/meetups/{mid}/ics` | none | – | `text/calendar` attachment (linked with a plain `<a href download>`); `STATUS:CANCELLED` once the host cancels. For an online meetup the location is "Online" and the link is left out (this file is public) |
+| GET | `/api/community/mine` | seeker | `?ui=` | `{meetups: [Meetup], groups: [Group]}`: meetups this browser or account booked (not cancelled by them) starting from 30 days ago on, soonest first, including ones the host cancelled (`status: cancelled`), with `my_rsvp` and the online link; and the groups they are a member of |
 | GET | `/api/daai/meetups` | daai | `?ui=` | `[Meetup + attendees: [nickname]]` (meetups I host, in any status) |
-| POST | `/api/daai/meetups` | daai | `?ui=`; `{title: 3–160, description?, lang: 2–3 lowercase letters, country?: ≤ 64, city: 2–64, venue: 3–200, starts_at: ISO 8601 (no offset = UTC), duration_min: 15–480 (default 90), capacity: 2–500 (default 20), audience: all\|women\|men\|families, group_id?: int\|null, public_venue: true}` | Meetup. 400 if `public_venue` isn't true, the time has passed, the audience is bad, or the group isn't yours |
+| POST | `/api/daai/meetups` | daai | `?ui=`; `{title: 3–160, description?, lang: 2–3 lowercase letters, country?: ≤ 64, city: 2–64, venue: 3–200, starts_at: ISO 8601 (no offset = UTC), duration_min: 15–480 (default 90), capacity: 2–500 (default 20), audience: all\|women\|men\|families, registration?: required\|open, age_group?, series?, group_id?: int\|null, public_venue: true, format?: in_person\|online (default in_person), online_url?: https link ≤ 500, tz?: IANA zone name such as `Asia/Riyadh`}`. An online meetup needs `online_url` and no place (`country`, `city`, `venue` and `public_venue` are ignored); one in person needs `city`, `venue` and `public_venue: true` | Meetup (with `online_url`). 400 if the format is bad, an online meetup has no https link, one in person has no public venue, city or venue, the time has passed, the audience or type is bad, or the group isn't yours; 422 for a malformed `tz` |
 | POST | `/api/daai/meetups/{mid}/cancel` | daai (host) | – | `{ok: true}` |
 
 ## Videos — owner: Mushari
@@ -289,11 +290,12 @@ Every field after `username` is optional. Defaults: `lang` `"ar"`; `email`, `cou
 ```json
 {"id": 4, "title": "…", "description": "…", "lang": "en", "country": "", "city": "…", "venue": "…",
  "starts_at": "2026-10-10T16:00:00Z", "duration_min": 90, "capacity": 20, "going": 5, "spots_left": 15,
- "audience": "families", "host": {"id": 1, "name": "…", "gender": "f", "languages": ["en"]}, "group_id": null,
+ "audience": "families", "registration": "required", "age_group": "all", "series": "",
+ "format": "in_person", "tz": "Europe/London", "online_url": "", "host": {"id": 1, "name": "…", "gender": "f", "languages": ["en"]}, "group_id": null,
  "status": "open", "is_demo": true, "my_rsvp": {"code": "…", "nickname": "…"}}
 ```
 
-`audience` is `all` | `women` | `men` | `families`, `status` is `open` | `cancelled`, and `my_rsvp` is `null` when you haven't booked.
+`audience` is `all` | `women` | `men` | `families`, `status` is `open` | `cancelled`, and `my_rsvp` is `null` when you haven't booked. `format` is `in_person` (at `venue`, a public place) or `online` (no place: `country`, `city` and `venue` are empty). `online_url` is the meeting link, filled in only for someone who booked and for the host; otherwise `""`. `tz` is the venue's time zone (the host's, for an online meetup; `""` for older meetups): show an in-person meetup's time in it, and an online one in the viewer's own.
 
 ---
 

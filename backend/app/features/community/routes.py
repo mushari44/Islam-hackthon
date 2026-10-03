@@ -9,12 +9,13 @@ Contract used by frontend/src/features/community (see docs/API.md).
 from __future__ import annotations
 
 import logging
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ...core.db import SessionLocal, get_db, iso, utcnow
@@ -33,6 +34,10 @@ BOT_FAILED = {"ar": "تعذّر على المساعد الإجابة الآن. �
 
 
 LANG = r"^[a-z]{2,3}$"    # interface or content language code, e.g. ar, en, fr
+TZ = r"^$|^[A-Za-z]+(?:/[A-Za-z0-9_+\-]+){0,2}$"    # an IANA time zone name, e.g. Asia/Riyadh
+ONLINE_URL = re.compile(r"^https://[^\s<>\"']{4,490}$")
+ONLINE_LOCATION = {"ar": "عن بُعد (أونلاين)", "en": "Online"}
+ONLINE_NOTE = {"ar": "رابط اللقاء في سَبِيلي: المجتمع ← أنشطتي.", "en": "The meeting link is in Sabeeli: Community > My activities."}
 MESSAGES_PAGE = 200
 
 
@@ -375,7 +380,7 @@ _UNSET = object()
 
 
 def _meetup_view(db: Session, m: Meetup, lang: str, sid: str | None = None, going: int | None = None,
-                 rsvp: RSVP | None | object = _UNSET) -> dict:
+                 rsvp: RSVP | None | object = _UNSET, host_view: bool = False) -> dict:
     host = db.get(Daai, m.host_id)
     if going is None:
         going = _going_counts(db, [m.id]).get(m.id, 0)
@@ -388,19 +393,24 @@ def _meetup_view(db: Session, m: Meetup, lang: str, sid: str | None = None, goin
             "city": m.city, "venue": m.venue, "starts_at": iso(m.starts_at), "duration_min": m.duration_min,
             "capacity": m.capacity, "going": going, "spots_left": max(0, m.capacity - going), "audience": m.audience,
             "registration": m.registration, "age_group": m.age_group, "series": m.series,
+            "format": m.format, "tz": m.tz,
+            # the meeting link goes only to people who booked (and the host), never into the public list
+            "online_url": m.online_url if m.format == "online" and (r or host_view) else "",
             "host": host.public(_ui(lang)) if host else None, "group_id": m.group_id, "status": m.status,
             "is_demo": m.is_demo, "my_rsvp": mine}
 
 
 @router.get("/meetups")
 def list_meetups(country: str = "", city: str = "", lang: str = "", ui: str = "ar",
-                 registration: str = "", age: str = "", series: str = "", audience: str = "",
+                 registration: str = "", age: str = "", series: str = "", audience: str = "", format: str = "",
                  me: SeekerSession | None = Depends(optional_seeker), db: Session = Depends(get_db)):
     q = select(Meetup).where(Meetup.status == "open", Meetup.starts_at >= utcnow() - timedelta(hours=3))
-    if country:
-        q = q.where(Meetup.country == country)
+    if country:   # an online meetup can be joined from anywhere
+        q = q.where(or_(Meetup.country == country, Meetup.format == "online"))
     if city:
-        q = q.where(Meetup.city == city)
+        q = q.where(or_(Meetup.city == city, Meetup.format == "online"))
+    if format in FORMATS:
+        q = q.where(Meetup.format == format)
     if lang:
         q = q.where(Meetup.lang == lang)
     if registration:
@@ -460,6 +470,25 @@ def cancel_rsvp(mid: int, me: SeekerSession = Depends(seeker), db: Session = Dep
     return {"ok": True}
 
 
+@router.get("/community/mine")
+def my_activities(ui: str = "ar", me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
+    """What this seeker takes part in: booked meetups (from 30 days ago on, soonest first, including ones the
+    host cancelled, so the seeker learns of it) and the groups they are in."""
+    booked = {r.meetup_id: r for r in db.scalars(select(RSVP).where(RSVP.session_id == me.id,
+                                                                     RSVP.cancelled.is_(False))).all()}
+    meetups = db.scalars(select(Meetup).where(Meetup.id.in_(list(booked)),
+                                              Meetup.starts_at >= utcnow() - timedelta(days=30))
+                         .order_by(Meetup.starts_at)).all() if booked else []
+    going = _going_counts(db, [m.id for m in meetups])
+    member = {m.group_id: m for m in db.scalars(select(GroupMember).where(GroupMember.session_id == me.id,
+                                                                          GroupMember.left.is_(False))).all()}
+    groups = db.scalars(select(Group).where(Group.id.in_(list(member)), Group.active.is_(True))
+                        .order_by(Group.id)).all() if member else []
+    counts = _member_counts(db, [g.id for g in groups])
+    return {"meetups": [_meetup_view(db, m, ui, going=going.get(m.id, 0), rsvp=booked[m.id]) for m in meetups],
+            "groups": [_group_view(db, g, ui, member[g.id], counts.get(g.id, 0)) for g in groups]}
+
+
 def _ics_time(dt: datetime) -> str:
     return dt.strftime("%Y%m%dT%H%M%SZ")
 
@@ -489,13 +518,15 @@ def meetup_ics(mid: int, db: Session = Depends(get_db)):
     m = db.get(Meetup, mid)
     if not m:
         raise HTTPException(404, "not found")
-
+    # This file is public, so an online meetup's link stays in the app: attendees find it under My activities.
+    online = m.format == "online"
+    where = ONLINE_LOCATION.get(m.lang, ONLINE_LOCATION["en"]) if online else f"{m.venue}, {m.city}"
+    about = f"{m.description}\n\n{ONLINE_NOTE.get(m.lang, ONLINE_NOTE['en'])}".strip() if online else m.description
     lines = [
         "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Sabeeli//Meetups//AR", "BEGIN:VEVENT",
         f"UID:sabeeli-meetup-{m.id}@sabeeli", f"DTSTAMP:{_ics_time(utcnow())}",
         f"DTSTART:{_ics_time(m.starts_at)}", f"DTEND:{_ics_time(m.starts_at + timedelta(minutes=m.duration_min))}",
-        f"SUMMARY:{_ics_text(m.title)}", f"LOCATION:{_ics_text(m.venue + ', ' + m.city)}",
-        f"DESCRIPTION:{_ics_text(m.description)}",
+        f"SUMMARY:{_ics_text(m.title)}", f"LOCATION:{_ics_text(where)}", f"DESCRIPTION:{_ics_text(about)}",
         f"STATUS:{'CANCELLED' if m.status == 'cancelled' else 'CONFIRMED'}",
         "END:VEVENT", "END:VCALENDAR"]
     body = "".join(_ics_fold(line) + "\r\n" for line in lines)
@@ -508,8 +539,8 @@ class MeetupIn(BaseModel):
     description: str = Field(default="", max_length=2000)
     lang: str = Field(default="ar", pattern=LANG)
     country: str = Field(default="", max_length=64)
-    city: str = Field(min_length=2, max_length=64)
-    venue: str = Field(min_length=3, max_length=200)
+    city: str = Field(default="", max_length=64)       # required in person (checked below)
+    venue: str = Field(default="", max_length=200)     # required in person (checked below)
     starts_at: datetime
     duration_min: int = Field(default=90, ge=15, le=480)
     capacity: int = Field(default=20, ge=2, le=500)
@@ -519,8 +550,12 @@ class MeetupIn(BaseModel):
     series: str = ""
     group_id: int | None = None
     public_venue: bool = False
+    format: str = "in_person"
+    online_url: str = Field(default="", max_length=500)
+    tz: str = Field(default="", max_length=64, pattern=TZ)
 
 
+FORMATS = ("in_person", "online")
 REGISTRATION = ("required", "open")
 AGE_GROUPS = ("all", "kids", "youth", "adults", "seniors")
 GROUP_AGE_GROUPS = ("all", "youth", "adults", "seniors")   # an online group with strangers is no place for children
@@ -535,14 +570,23 @@ def my_meetups(ui: str = "ar", lead: Daai = Depends(daai), db: Session = Depends
         for r in db.scalars(select(RSVP).where(RSVP.meetup_id.in_(list(attendees)), RSVP.cancelled.is_(False))
                             .order_by(RSVP.id)).all():
             attendees[r.meetup_id].append(r.nickname)
-    return [{**_meetup_view(db, m, ui, going=len(attendees[m.id]), rsvp=None), "attendees": attendees[m.id]}
-            for m in meetups]
+    return [{**_meetup_view(db, m, ui, going=len(attendees[m.id]), rsvp=None, host_view=True),
+             "attendees": attendees[m.id]} for m in meetups]
 
 
 @router.post("/daai/meetups")
 def create_meetup(body: MeetupIn, ui: str = "ar", lead: Daai = Depends(daai), db: Session = Depends(get_db)):
-    if not body.public_venue:
-        raise HTTPException(400, "meetups must be at a public venue")
+    if body.format not in FORMATS:
+        raise HTTPException(400, "bad meetup format")
+    online = body.format == "online"
+    url, city, venue = body.online_url.strip(), body.city.strip(), body.venue.strip()
+    if online and not ONLINE_URL.match(url):
+        raise HTTPException(400, "an online meetup needs an https meeting link")
+    if not online:
+        if not body.public_venue:
+            raise HTTPException(400, "meetups must be at a public venue")
+        if len(city) < 2 or len(venue) < 3:
+            raise HTTPException(400, "a meetup in person needs a city and a venue")
     if body.audience not in ("all", "women", "men", "families"):
         raise HTTPException(400, "bad audience")
     if body.registration not in REGISTRATION or body.age_group not in AGE_GROUPS or body.series not in SERIES:
@@ -555,13 +599,14 @@ def create_meetup(body: MeetupIn, ui: str = "ar", lead: Daai = Depends(daai), db
         g = db.get(Group, body.group_id)
         if not g or g.leader_id != lead.id:
             raise HTTPException(400, "you can only link your own group")
-    m = Meetup(title=body.title.strip(), description=body.description.strip(), lang=body.lang, country=body.country,
-               city=body.city.strip(), venue=body.venue.strip(), starts_at=starts, duration_min=body.duration_min,
-               capacity=body.capacity, audience=body.audience, registration=body.registration,
-               age_group=body.age_group, series=body.series, host_id=lead.id, group_id=body.group_id)
+    m = Meetup(title=body.title.strip(), description=body.description.strip(), lang=body.lang,
+               country="" if online else body.country, city="" if online else city, venue="" if online else venue,
+               starts_at=starts, duration_min=body.duration_min, capacity=body.capacity, audience=body.audience,
+               registration=body.registration, age_group=body.age_group, series=body.series, host_id=lead.id,
+               group_id=body.group_id, format=body.format, online_url=url if online else "", tz=body.tz)
     db.add(m)
     db.commit()
-    return _meetup_view(db, m, ui)
+    return _meetup_view(db, m, ui, host_view=True)
 
 
 @router.post("/daai/meetups/{mid}/cancel")

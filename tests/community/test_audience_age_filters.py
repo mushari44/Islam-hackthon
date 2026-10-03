@@ -38,7 +38,7 @@ def test_meetups_filter_by_audience(client, daai_login):
             "public_venue": True}
     made = {a: client.post("/api/daai/meetups", json={**base, "audience": a}, headers=lead).json()["id"]
             for a in ("all", "women", "men", "families")}
-    q = "/api/meetups?city=تبوك"
+    q = "/api/meetups?city=تبوك&format=in_person"
     assert ids(client.get(q).json()) == set(made.values())
     assert ids(client.get(f"{q}&audience=women").json()) == {made["all"], made["women"], made["families"]}
     assert ids(client.get(f"{q}&audience=men").json()) == {made["all"], made["men"], made["families"]}

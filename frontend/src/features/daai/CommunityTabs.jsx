@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
-import { AGE_GROUPS, COUNTRIES, GROUP_AGE_GROUPS, GroupMessage, REGISTRATION, SERIES, audienceKey, countryName } from "../community/public.js";
+import { AGE_GROUPS, COUNTRIES, FORMATS, GROUP_AGE_GROUPS, GroupMessage, REGISTRATION, SERIES, audienceKey, countryName, useWhen } from "../community/public.js";
+
+const DEVICE_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return ""; } })();
 
 function Select({ id, name, value, onChange, options }) {
   return (
@@ -125,16 +127,28 @@ function GroupsTab() {
 function MeetupForm({ groups, close, onDone }) {
   const { t, lang, langName } = useI18n();
   const [f, setF] = useState({ title: "", description: "", venue: "", city: "", starts_at: "", duration_min: 90, capacity: 20,
-    lang: "ar", country: "SA", audience: "all", registration: "required", age_group: "all", series: "", group_id: "", public_venue: false });
+    lang: "ar", country: "SA", audience: "all", registration: "required", age_group: "all", series: "", group_id: "", public_venue: false,
+    format: "in_person", online_url: "" });
+  const online = f.format === "online";
   const set = (k) => (v) => setF({ ...f, [k]: typeof v === "object" && v.target ? v.target.value : v });
   const submit = async (e) => {
     e.preventDefault();
     const body = { ...f, starts_at: new Date(f.starts_at).toISOString(), duration_min: Number(f.duration_min),
-      capacity: Number(f.capacity), group_id: f.group_id ? Number(f.group_id) : null };
+      capacity: Number(f.capacity), group_id: f.group_id ? Number(f.group_id) : null, tz: DEVICE_TZ };
     try { await api.dPost("/api/daai/meetups", body); close(); onDone(); } catch (err) { toast(errorText(err, t), "error"); }
   };
   return (
     <form className="stack" onSubmit={submit}>
+      <div className="field">
+        <span className="field-label">{t("com.format")}</span>
+        <div className="row" role="group" aria-label={t("com.format")}>
+          {FORMATS.map((fm) => (
+            <button key={fm} type="button" className="chip" aria-pressed={f.format === fm} onClick={() => setF({ ...f, format: fm })}>
+              <Icon name={fm === "online" ? "globe" : "pin"} size={16} />{t(`com.fmt.${fm}`)}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="field">
         <span className="field-label">{t("dm.kind")}</span>
         <div className="row" role="group" aria-label={t("dm.kind")}>
@@ -144,15 +158,27 @@ function MeetupForm({ groups, close, onDone }) {
             </button>
           ))}
         </div>
-        <span className="faint">{t(f.registration === "open" ? "dm.kind_open" : "dm.kind_required")}</span>
+        <span className="faint">{t(f.registration === "open" ? "dm.kind_open" : online ? "dm.kind_required_online" : "dm.kind_required")}</span>
       </div>
       <div className="field"><label htmlFor="m-title">{t("dg.title")}</label><input id="m-title" className="input" required minLength={3} value={f.title} onChange={set("title")} /></div>
       <div className="field"><label htmlFor="m-desc">{t("dg.desc")}</label><textarea id="m-desc" className="textarea" rows={2} value={f.description} onChange={set("description")} /></div>
+      {online && (
+        <div className="field">
+          <label htmlFor="m-url">{t("com.online_url")}</label>
+          <input id="m-url" className="input" type="url" required pattern="https://.+" placeholder="https://" dir="ltr" value={f.online_url} onChange={set("online_url")} />
+          <span className="faint small">{t("com.online_url_hint")}</span>
+        </div>
+      )}
       <div className="grid grid-2">
-        <div className="field"><label htmlFor="m-venue">{t("dm.venue")}</label><input id="m-venue" className="input" required value={f.venue} onChange={set("venue")} /></div>
-        <div className="field"><label htmlFor="m-country">{t("dg.country")}</label><Select id="m-country" value={f.country} onChange={set("country")} options={COUNTRIES.map((c) => [c, countryName(c, lang)])} /></div>
-        <div className="field"><label htmlFor="m-city">{t("dg.city")}</label><input id="m-city" className="input" required value={f.city} onChange={set("city")} /></div>
-        <div className="field"><label htmlFor="m-when">{t("dm.when")}</label><input id="m-when" className="input" type="datetime-local" required value={f.starts_at} onChange={set("starts_at")} /></div>
+        {!online && <>
+          <div className="field"><label htmlFor="m-venue">{t("dm.venue")}</label><input id="m-venue" className="input" required value={f.venue} onChange={set("venue")} /></div>
+          <div className="field"><label htmlFor="m-country">{t("dg.country")}</label><Select id="m-country" value={f.country} onChange={set("country")} options={COUNTRIES.map((c) => [c, countryName(c, lang)])} /></div>
+          <div className="field"><label htmlFor="m-city">{t("dg.city")}</label><input id="m-city" className="input" required value={f.city} onChange={set("city")} /></div>
+        </>}
+        <div className="field">
+          <label htmlFor="m-when">{t("dm.when")}</label><input id="m-when" className="input" type="datetime-local" required value={f.starts_at} onChange={set("starts_at")} />
+          {DEVICE_TZ && <span className="faint small">{t("com.tz_note", { tz: DEVICE_TZ })}</span>}
+        </div>
         <div className="field"><label htmlFor="m-dur">{t("dm.duration")}</label><input id="m-dur" className="input" type="number" min={15} max={480} value={f.duration_min} onChange={set("duration_min")} /></div>
         <div className="field"><label htmlFor="m-cap">{t(f.registration === "open" ? "dm.capacity_open" : "dm.capacity")}</label><input id="m-cap" className="input" type="number" min={2} max={500} value={f.capacity} onChange={set("capacity")} /></div>
         <div className="field"><label htmlFor="m-lang">{t("dg.lang")}</label><Select id="m-lang" value={f.lang} onChange={set("lang")} options={["ar", "en"].map((l) => [l, langName(l)])} /></div>
@@ -162,14 +188,27 @@ function MeetupForm({ groups, close, onDone }) {
         <div className="field"><label htmlFor="m-group">{t("dm.group")}</label><Select id="m-group" value={f.group_id} onChange={set("group_id")} options={[["", t("dm.none")], ...groups.map((g) => [String(g.id), g.title])]} /></div>
       </div>
       {f.age_group === "kids" && <p className="small muted">{t("dm.kids_note")}</p>}
-      <label className="check"><input type="checkbox" checked={f.public_venue} onChange={(e) => setF({ ...f, public_venue: e.target.checked })} /><span>{t("dm.public")}</span></label>
-      <div className="row"><button type="submit" className="btn btn-primary" disabled={!f.public_venue}>{t("dm.create")}</button></div>
+      {!online && <label className="check"><input type="checkbox" checked={f.public_venue} onChange={(e) => setF({ ...f, public_venue: e.target.checked })} /><span>{t("dm.public")}</span></label>}
+      <div className="row"><button type="submit" className="btn btn-primary" disabled={!online && !f.public_venue}>{t("dm.create")}</button></div>
     </form>
   );
 }
 
+/** Date, time and place of one of the da'i's meetups, in the venue's time zone; the link for an online one. */
+function MeetupWhere({ m }) {
+  const { t } = useI18n();
+  const w = useWhen(m);
+  return (
+    <p className="faint">
+      {w.date} · {w.time} · {m.format === "online"
+        ? <>{t("com.fmt.online")}{m.online_url && <> · <a href={m.online_url} target="_blank" rel="noopener noreferrer" dir="ltr">{t("com.open_link")}</a></>}</>
+        : <span dir="auto">{m.venue}</span>}
+    </p>
+  );
+}
+
 function MeetupsTab() {
-  const { t, fmtNum, fmtDate, fmtTime, langName } = useI18n();
+  const { t, fmtNum, langName } = useI18n();
   const [data, setData] = useState({ meetups: [], groups: [] });
   const load = () => Promise.all([api.dGet("/api/daai/meetups"), api.dGet("/api/daai/groups")])
     .then(([meetups, groups]) => setData({ meetups, groups })).catch((err) => toast(errorText(err, t), "error"));
@@ -187,14 +226,15 @@ function MeetupsTab() {
       {data.meetups.map((m) => (
         <article className="card stack" key={m.id}>
           <div className="row">
+            <span className="badge">{t(`com.fmt.${m.format === "online" ? "online" : "in_person"}`)}</span>
             <span className="badge">{langName(m.lang)}</span>
             <span className="badge badge-purple">{t(audienceKey(m.audience))}</span>
             {m.age_group !== "all" && <span className="badge">{t(`com.age.${m.age_group}`)}</span>}
             {m.series && <span className="badge badge-purple">{t(`com.series.${m.series}`)}</span>}
             {m.status === "cancelled" && <span className="badge badge-warn">{t("dm.cancelled")}</span>}
           </div>
-          <h3>{m.title}</h3>
-          <p className="faint">{fmtDate(m.starts_at)} · {fmtTime(m.starts_at)} · {m.venue}</p>
+          <h3 dir="auto">{m.title}</h3>
+          <MeetupWhere m={m} />
           {m.registration === "open" ? <p className="walk-in">{t("com.walk_in")}</p> : <p className="reg-needed">{t("com.reg_needed")}</p>}
           {m.registration === "open" ? null : <details>
             <summary>{t("dm.attendees", { n: fmtNum(m.attendees.length) })}</summary>

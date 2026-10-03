@@ -1,7 +1,8 @@
 """Synthetic demo groups and meetups (labelled as demo data). Owner: Mushari."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -85,6 +86,19 @@ MEETUPS = [
     {"host": "maryam", "title": "لقاء تعريفي للزائرات في الدمام", "lang": "ar", "country": "SA", "city": "الدمام",
      "venue": "مركز ثقافي عام (مكان تجريبي)", "days": 9, "hour": 17, "capacity": 20, "audience": "women",
      "registration": "open", "description": "جلسة ودية للتعارف والأسئلة عن الإسلام. (بيانات تجريبية)"},
+    # Online meetups: the link (a placeholder for the demo) is shown only to people who join. `zone` sets the hour.
+    {"host": "khalid", "group": 0, "title": "حلقة عن بُعد: أسئلة المهتمين بالإسلام", "lang": "ar", "format": "online",
+     "online_url": "https://meet.example.com/sabeeli-demo-ar", "zone": "SA", "days": 5, "hour": 20, "capacity": 50,
+     "audience": "all", "registration": "open",
+     "description": "لقاء مباشر عبر الإنترنت: اسأل عن الإسلام من بيتك مع داعية. يظهر رابط اللقاء لمن ينضم. (بيانات تجريبية)"},
+    {"host": "yusuf", "group": 1, "title": "Online circle: Questions about Islam", "lang": "en", "format": "online",
+     "online_url": "https://meet.example.com/sabeeli-demo-en", "zone": "GB", "days": 6, "hour": 19, "capacity": 40,
+     "audience": "all",
+     "description": "A live video circle with a guide: ask anything about Islam from home. Book a place to get the link. (demo data)"},
+    {"host": "maryam", "group": 2, "title": "لقاء نسائي عن بُعد: أسئلة المسلمات الجدد", "lang": "ar", "format": "online",
+     "online_url": "https://meet.example.com/sabeeli-demo-women", "zone": "SA", "days": 8, "hour": 21, "capacity": 25,
+     "audience": "women",
+     "description": "لقاء مرئي للنساء مع داعية للإجابة عن أسئلة المسلمات الجدد والمهتمات. (بيانات تجريبية)"},
     # Ramadan 1448 (expected mid-February to mid-March 2027). Times are in UTC.
     {"host": "khalid", "group": 0, "title": "إفطار جماعي: تعرّف على رمضان", "lang": "ar", "country": "SA", "city": "الرياض",
      "venue": "ساحة المركز الثقافي (مكان تجريبي)", "at": (2027, 2, 12, 14, 30), "capacity": 120, "audience": "all",
@@ -104,9 +118,52 @@ MEETUPS = [
 ]
 
 
+# Demo venues' time zones, with their usual offset for a system that has no time zone data (Windows without tzdata).
+ZONES = {"SA": ("Asia/Riyadh", 3), "AE": ("Asia/Dubai", 4), "EG": ("Africa/Cairo", 3), "GB": ("Europe/London", 1),
+         "US": ("America/New_York", -4), "MY": ("Asia/Kuala_Lumpur", 8)}
+
+
+def _zone(spec: dict) -> str:
+    return spec.get("zone") or spec["country"]
+
+
+def _shift(dt: datetime, code: str, to_utc: bool) -> datetime:
+    """Converts a naive time between UTC and local time in the zone of country `code`."""
+    name, offset = ZONES[code]
+    try:
+        zone = ZoneInfo(name)
+    except ZoneInfoNotFoundError:
+        return dt - timedelta(hours=offset) if to_utc else dt + timedelta(hours=offset)
+    if to_utc:
+        return dt.replace(tzinfo=zone).astimezone(timezone.utc).replace(tzinfo=None)
+    return dt.replace(tzinfo=timezone.utc).astimezone(zone).replace(tzinfo=None)
+
+
+def _start(spec: dict) -> datetime:
+    """`at` is a fixed UTC time; otherwise `days` from today at `hour` o'clock, local time at the venue."""
+    if "at" in spec:
+        return datetime(*spec["at"])
+    code = _zone(spec)
+    today = _shift(utcnow(), code, to_utc=False).replace(hour=0, minute=0, second=0, microsecond=0)
+    return _shift(today + timedelta(days=spec["days"], hours=spec["hour"]), code, to_utc=True)
+
+
+def _meetup(spec: dict, daais: dict[str, Daai], groups: list[Group]) -> Meetup:
+    online = spec.get("format") == "online"
+    group = groups[spec["group"]] if "group" in spec and spec["group"] < len(groups) else None
+    return Meetup(title=spec["title"], description=spec["description"], lang=spec["lang"],
+                  country="" if online else spec["country"], city="" if online else spec["city"],
+                  venue="" if online else spec["venue"], capacity=spec["capacity"], audience=spec["audience"],
+                  registration=spec.get("registration", "required"), age_group=spec.get("age_group", "all"),
+                  series=spec.get("series", ""), format=spec.get("format", "in_person"),
+                  online_url=spec.get("online_url", ""), tz=ZONES[_zone(spec)][0], starts_at=_start(spec),
+                  host_id=daais[spec["host"]].id, group_id=group.id if group else None, is_demo=True)
+
+
 def seed(db: Session, daais: dict[str, Daai]) -> None:
     if db.scalars(select(Group).where(Group.is_demo.is_(True))).first():
         _backfill_age_groups(db)
+        _refresh_demo_meetups(db, daais)
         return
     groups = []
     for spec in GROUPS:
@@ -119,16 +176,30 @@ def seed(db: Session, daais: dict[str, Daai]) -> None:
         db.add(GroupMessage(group_id=g.id, author_type="daai", author_name=leader.display_name if spec["lang"] == "ar"
                             else leader.display_name_en, daai_id=leader.id, text=spec["welcome"]))
         groups.append(g)
-    base = utcnow().replace(minute=0, second=0, microsecond=0)
     for spec in MEETUPS:
-        db.add(Meetup(title=spec["title"], description=spec["description"], lang=spec["lang"], country=spec["country"],
-                      city=spec["city"], venue=spec["venue"], capacity=spec["capacity"], audience=spec["audience"],
-                      registration=spec.get("registration", "required"), age_group=spec.get("age_group", "all"),
-                      series=spec.get("series", ""),
-                      starts_at=datetime(*spec["at"]) if "at" in spec else
-                      base + timedelta(days=spec["days"], hours=spec["hour"] - base.hour - 3),
-                      host_id=daais[spec["host"]].id,
-                      group_id=groups[spec["group"]].id if "group" in spec else None, is_demo=True))
+        db.add(_meetup(spec, daais, groups))
+    db.commit()
+
+
+def _refresh_demo_meetups(db: Session, daais: dict[str, Daai]) -> None:
+    """Keeps an older or long-running demo database in step: adds demo meetups added to MEETUPS since, gives older
+    ones their time zone (re-timing relative ones, which used to be put on Riyadh time everywhere), and moves
+    relative ones that have passed forward by whole weeks, so the demo always has upcoming meetups.
+    Only demo rows are touched."""
+    rows = {m.title: m for m in db.scalars(select(Meetup).where(Meetup.is_demo.is_(True))).all()}
+    groups = db.scalars(select(Group).where(Group.is_demo.is_(True)).order_by(Group.id)).all()
+    now = utcnow()
+    for spec in MEETUPS:
+        m = rows.get(spec["title"])
+        if m is None:
+            if spec["host"] in daais:
+                db.add(_meetup(spec, daais, groups))
+            continue
+        if not m.tz:
+            m.tz, m.starts_at = ZONES[_zone(spec)][0], _start(spec)
+        if "days" in spec and m.status == "open" and m.starts_at < now - timedelta(hours=3):
+            code, weeks = _zone(spec), (now - m.starts_at).days // 7 + 1
+            m.starts_at = _shift(_shift(m.starts_at, code, to_utc=False) + timedelta(weeks=weeks), code, to_utc=True)
     db.commit()
 
 
