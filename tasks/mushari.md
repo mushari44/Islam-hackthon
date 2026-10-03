@@ -90,4 +90,6 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] Ask the reviewer whether the extracted Bayyinat text may be committed to the public repo (rights reserved). Until then it stays git-ignored.
 - [ ] English: icadb's Q&A cards have no translations. icadb's books (e.g. «الإسلام دين الفطرة والعقل والسعادة», «رسالة موجزة إلى ملحد», «من خلق الكون؟») do, in many languages: a candidate source for English answers.
 - [ ] Add Jamhara dictionary terms to `data/corpus/glossary.json`.
-- [ ] Dense embeddings next to BM25 (only if allowed and documented in `THIRD_PARTY.md`).
+- [x] Dense embeddings next to BM25: multilingual E5-large + LangChain (`features/rag/embeddings.py`), documented in `THIRD_PARTY.md`.
+- [ ] Use the evaluation set to compare BM25 alone (`SABEELI_EMBEDDINGS=0`) with the hybrid, and tune the fusion weights and the abstain threshold on the result.
+- [ ] Glossary matching takes «سنة» (year) for the term «السنة» (e.g. «عمري ١٤ سنة» shows the Sunnah term card): match terms only with the article or in a religious context.

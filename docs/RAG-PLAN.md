@@ -21,12 +21,15 @@
 
 1. **Analyse** (Claude, low effort, structured output): language, content level A-D, personal case, any quoted text, and **2-4 search queries in both Arabic and English**. This query expansion is what bridges "Kaaba" to «القبلة» and to the tafsir's vocabulary.
 2. **Keyword search (built):** BM25 over normalised Arabic (Uthmani-aware) plus English. It is fast and needs no extra service.
-3. **Semantic search (to add on 4 October):**
-   - embed each unit once, with a multilingual model, and store the vectors next to the corpus;
-   - search with each query and merge with BM25 using reciprocal rank fusion;
-   - candidates are a hosted embedding API or a small local model; whichever is used goes into `THIRD_PARTY.md`.
+3. **Semantic search (built, optional):** `features/rag/embeddings.py`, with LangChain.
+   - Model: `intfloat/multilingual-e5-large`, run locally, with E5's `query:` / `passage:` prefixes. Arabic and English with the same meaning land close together.
+   - Units: one vector per verse (Uthmani text without marks, tafsir, translation), per hadith language, per term; long Q&A and Bayyinat answers are split into ~900-character chunks, each carrying its question. A hit always maps back to the whole passage id; chunks never reach the model or the user.
+   - Index: LangChain's FAISS store, inner product on normalised vectors (cosine), built by `scripts/build_embeddings.py` into `data/cache/vectors/` (not in git).
+   - Retrieval: our BM25 as a LangChain retriever, a dense retriever (every query line, best chunk per passage), fused by LangChain's `EnsembleRetriever` (weighted reciprocal rank fusion, deduplicated by passage id): **70% dense, 30% BM25** (`SABEELI_DENSE_WEIGHT`, decided by the team on 3 October). Each passage scores 0.7/(60 + its dense rank) + 0.3/(60 + its BM25 rank).
+   - Abstaining: a question is "covered" when BM25's word coverage is high enough **or** a passage's E5 similarity reaches `DENSE_STRONG` (0.86, set by hand: unrelated text scores ~0.80-0.83, a passage on the same question ~0.86-0.90). In sources-only mode an approved Q&A or Bayyinat answer then leads. Tune this threshold on the evaluation set. The trace sheet shows both scores.
+   - Without the packages or the index, or with `SABEELI_EMBEDDINGS=0`, search is BM25 alone.
 
-   Measure on the evaluation set whether it beats BM25 + query expansion before keeping it.
+   Measure on the evaluation set whether it beats BM25 + query expansion before relying on it (`SABEELI_EMBEDDINGS=0` gives the baseline).
 4. **Quote check (built):** text that looks like a verse is matched word by word against the Mushaf, so a misquote is detected without relying on the model.
 5. **Select** about 8 passages:
    - at most 5 verses and 4 hadiths;
@@ -75,6 +78,6 @@
 2. Write the 60 cases.
 3. Build the eval runner and get a baseline score (needs approval for the API cost).
 4. ~~Ingest «بينات»~~ done (built locally); the icadb Q&A encyclopedias are in too.
-5. Add embeddings with fusion and keep them only if the score improves.
+5. ~~Add embeddings with fusion~~ built; keep them on only if the evaluation score improves.
 6. Tune the prompts and thresholds on the failures.
 7. Run the final evaluation, then update the deck and README.

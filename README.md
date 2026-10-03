@@ -29,6 +29,8 @@ python -m uvicorn backend.app.main:app --port 8000
 
 Open http://localhost:8000. For frontend development, run `npm run dev` in `frontend/` and open http://localhost:5173; API calls are proxied to port 8000.
 
+**Semantic search (optional):** `pip install -r requirements-embeddings.txt`, then `python scripts/build_embeddings.py` (downloads multilingual E5-large, about 2.2 GB; a few minutes on a GPU). The app picks the index up on its next start and fuses it with BM25; without it, search is BM25 alone.
+
 **Demo accounts** (synthetic, created on first start): da'i console at `#/daai`, users `khalid`, `maryam`, `yusuf` and `reviewer` (reviewer can run the referral experiment). The password is the value of `DEMO_PASSWORD` in `.env` (`sabeeli-demo` by default). Change it before deploying.
 
 To try a call locally, open the app in two browsers: in one, sign in as a da'i and switch on "Available"; in the other, go to **تحدّث**.

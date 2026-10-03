@@ -73,3 +73,14 @@ The content level (A-D) is decided per question by the analysis step, not stored
 - 6,236 verses with no empty tafsir or translation (the Quran script exits with an error otherwise);
 - the hadith count is printed;
 - run `python -m pytest tests/rag` to confirm verse matching still works.
+
+## 4. Embed (optional semantic search, `features/rag/embeddings.py`)
+
+`python scripts/build_embeddings.py` embeds every passage with `intfloat/multilingual-e5-large` (prefix `passage: `, normalised vectors) and saves a LangChain FAISS index to `data/cache/vectors/<model>/` with a `stamp.json` (model, corpus file sizes, chunk count, time). Re-run it after any change in `data/corpus/`; the app warns if the index was built from a different corpus.
+
+What is embedded:
+- a verse: its text without marks, the tafsir and the English translation;
+- a hadith: the Arabic title, text and explanation, plus the same in English when translated;
+- a term: both forms, aliases and the usage rule;
+- a Q&A item: ~900-character chunks of the answer, each starting with the question (verse markers removed);
+- a Bayyinat question: the question with its similar wordings, the gist with the short answer, then chunks of the detailed answer.

@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from ...core.claude import LLMUnavailable, get_claude
 from ...core.config import settings
 from ...core.textnorm import has_arabic, normalize_ar, tokens
-from . import assistant
+from . import assistant, embeddings
 from .assistant import AnswerResult
 from .corpus import ANSWER_KINDS, Passage, get_corpus
 from .quran_match import get_matcher, looks_like_quote
@@ -186,7 +186,7 @@ def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[
     corpus = get_corpus()
     queries = [analysis.get("standalone_question") or question, question]
     queries += analysis.get("queries_ar", [])[:4] + analysis.get("queries_en", [])[:4] + analysis.get("terms", [])[:4]
-    raw = corpus.index.search(queries, k=30)
+    raw, dense, retriever = embeddings.search(queries, k=30)  # BM25 + E5 (fused), or BM25 alone
     q_tokens = set(tokens(question + " " + (analysis.get("standalone_question") or "")))
     max_idf = math.log(1 + len(corpus.index.ids))
     chosen: list[Passage] = []
@@ -217,7 +217,8 @@ def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[
         chosen.append(p)
         seen.add(pid)
         per_kind[p.kind] += 1
-        trace.append({"id": pid, "score": round(score, 2), "coverage": round(cov, 2), "via": "search"})
+        trace.append({"id": pid, "score": round(score, 4 if retriever == "hybrid" else 2), "coverage": round(cov, 2),
+                      "dense": dense.get(pid), "via": retriever})
         if len(chosen) >= settings.top_k + len(quote_ids):
             break
     return chosen, trace
@@ -287,10 +288,12 @@ def _clean_markers(text: str, allowed: set[str], trace: dict) -> str:
 
 def _sources_only(passages: list[Passage], lang: str, rtrace: list[dict], show: int = 3) -> list[dict]:
     """The closest passages, shown as they are. An approved answer (Q&A or Bayyinat) leads when it
-    covers the question well, since it was written for this kind of question."""
+    covers the question well (by its words, or by meaning), since it was written for this kind of question."""
     coverage = {r["id"]: r["coverage"] or 0 for r in rtrace}
-    answers = [p for p in passages if p.kind in ANSWER_KINDS and coverage.get(p.id, 0) >= 0.5]
-    qa = sorted(answers, key=lambda p: -coverage[p.id])[:1]
+    dense = {r["id"]: r.get("dense") or 0 for r in rtrace}
+    answers = [p for p in passages if p.kind in ANSWER_KINDS
+               and (coverage.get(p.id, 0) >= 0.5 or dense.get(p.id, 0) >= embeddings.DENSE_STRONG)]
+    qa = sorted(answers, key=lambda p: (-dense.get(p.id, 0), -coverage.get(p.id, 0)))[:1]
     picks = ([p for p in passages if p.kind == "term"][:1] + qa
              + [p for p in passages if p.kind in ("quran", "hadith")][:show])
     segs = []
@@ -392,8 +395,11 @@ def ask(ctx: AskContext) -> dict:
     timings["retrieve"] = round(time.perf_counter() - t2, 3)
     trace["retrieval"] = rtrace
     allowed = {p.id for p in passages} | {vid for p in passages for vid in p.verse_refs()}
-    best_cov = max([r["coverage"] or 0 for r in rtrace if r["via"] == "search"] or [0])
+    best_cov = max([r["coverage"] or 0 for r in rtrace if r["via"] in ("bm25", "hybrid")] or [0])
     trace["best_coverage"] = round(best_cov, 2)
+    best_dense = max([r.get("dense") or 0 for r in rtrace] or [0])
+    on_topic = best_dense >= embeddings.DENSE_STRONG  # a passage close in meaning, even with other words
+    trace["best_dense"] = round(best_dense, 3) if best_dense else None
 
     # 6. Answer
     t3 = time.perf_counter()
@@ -410,7 +416,7 @@ def ask(ctx: AskContext) -> dict:
             notes.append("The user asks for evidence. Cite only evidence present in the results; if none fits, say so.")
         if level == "D":
             notes.append("Personal case: give general information only, no ruling, and recommend asking a qualified scholar.")
-        if best_cov < 0.35 and not quote_ids:
+        if best_cov < 0.35 and not quote_ids and not on_topic:
             notes.append("Retrieval confidence is low: the results may not answer the question. Abstain unless they clearly do.")
         try:
             answer = assistant.answer(llm, analysis.get("standalone_question") or question,
@@ -457,7 +463,7 @@ def ask(ctx: AskContext) -> dict:
         trace["cited_share"] = round(words_cited / words_total, 2)
     else:
         has_term = any(p.kind == "term" for p in passages)
-        if not passages or (best_cov < 0.3 and not quote_ids and not has_term):
+        if not passages or (best_cov < 0.3 and not quote_ids and not has_term and not on_topic):
             kind = "abstain"
             segments = [{"text": t("abstain", lang), "cites": []}]
         elif qc and qc["status"] in ("exact", "differs", "ambiguous"):
