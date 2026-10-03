@@ -34,7 +34,9 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
   - 10 personal fatwa.
 
   Include all 12 sample cases from the scholarly package (page 6). Each row lists: id, group, language, question, the photo file if any, the expected behaviour (answer / abstain / refer / quote_differs), the expected source ids, and the content level.
-- [ ] **10 photo examples** in `eval/photos/`: synthetic photos of printed text, including verses with a deliberate mistake. Use no real people and no real chats.
+
+  *Built on 3 October in PR #8; tick it when that is merged.*
+- [ ] **10 photo examples** in `eval/photos/`: synthetic photos of printed text, including verses with a deliberate mistake. Use no real people and no real chats. *Built in PR #8 (`eval/make_photos.py`).*
 - [ ] **Eval runner** `eval/run_eval.py`: 3 runs per case (180 runs). Score each run:
   - behaviour correct;
   - every cited id exists and supports the claim (`trace.cited_share`, `trace.uncited`);
@@ -42,6 +44,8 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
   - no ruling on level D.
 
   Targets: **90% composite success** and **10/10 safe behaviour on personal fatwa**. Write `eval/results/<date>.json` and a short `eval/REPORT.md`. Estimate the cost first and get the team's OK before a full run.
+
+  *Built in PR #8. One run of 60 costs about 4 cents, and 180 runs about 13 cents. mushari asked for everything to be tested overnight on 3 October; the results are in `eval/REPORT.md`.*
 - [ ] Tune retrieval on the failures:
   - analysis prompt queries (`ANALYZE_SYSTEM`);
   - BM25 weights (`corpus.py`);
@@ -89,7 +93,7 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] Recall without the model is now low for English and for some Arabic questions (they say "not found"). With the API key, Claude's Arabic/English search phrases should bring most back: re-run `eval/display_audit.py` then.
 
 - [x] RAG review (3 October): fixed uncited text slipping past grounding (marker-carrying sentences, short claims, long intro lines), verses typed without brackets or in {}, unverified hadith quotes, unchecked `clarify` text, odd model JSON crashing a request, one failed call dropping structured output for good, personal questions missed without the model, removed text sent to the browser, and splitter edge cases. Tests in `tests/rag/test_review_fixes.py`.
-- [ ] Gemma's `[n]` citations are self-declared: in the evaluation, sample cited sentences and judge whether the cited passage supports them; if not reliable, add a check (E5 similarity between the sentence and the passage).
+- [ ] Gemma's `[n]` citations are self-declared: in the evaluation, sample cited sentences and judge whether the cited passage supports them; if not reliable, add a check (E5 similarity between the sentence and the passage). *Checked in PR #8: the 34 weakest of 287 cited sentences were all faithful, so no runtime check is needed (`eval/REPORT.md`).*
 
 ## Ideas if time allows
 
@@ -99,7 +103,10 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] English: icadb's Q&A cards have no translations. icadb's books (e.g. «الإسلام دين الفطرة والعقل والسعادة», «رسالة موجزة إلى ملحد», «من خلق الكون؟») do, in many languages: a candidate source for English answers.
 - [ ] Add Jamhara dictionary terms to `data/corpus/glossary.json`.
 - [x] Dense embeddings next to BM25: multilingual E5-large + LangChain (`features/rag/embeddings.py`), documented in `THIRD_PARTY.md`.
-- [ ] Use the evaluation set to compare BM25 alone (`SABEELI_EMBEDDINGS=0`) with the hybrid, and tune the fusion weights and the abstain threshold on the result.
+- [ ] Use the evaluation set to compare BM25 alone (`SABEELI_EMBEDDINGS=0`) with the hybrid, and tune the fusion weights and the abstain threshold on the result. *Done in PR #8:*
+  - *Hits: BM25 alone 17/23, hybrid 22/23, and 23/23 with the new answer slot.*
+  - *80/20 ranks the expected passage slightly better than 70/30; the split is the team's call.*
+  - *The `SHOW_*` bars stay as they are.*
 - [x] Glossary matching took «سنة» (year) for the term «السنة»: the bare alias is removed (the term still matches «السنة»).
 - [x] Level D without the model showed raw hadiths next to a personal question: now only the notice and the referral.
 - [x] The same hadith under two HadeethEnc ids was shown twice: deduplicated by text at retrieval.

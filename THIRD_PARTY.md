@@ -40,5 +40,7 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 | PyTorch | BSD-3-Clause |
 | FAISS (`faiss-cpu`) | MIT |
 | PyMuPDF (`pip install pymupdf`), used only by `scripts/ingest_bayyinat.py` to read the Bayyinat PDF; not needed to run the app | AGPL-3.0 (or commercial). Not part of the app or its requirements |
+| Pillow, used only by `eval/make_photos.py` to blur, shrink and tilt two of the synthetic evaluation photos; not needed to run the app | MIT-CMU (HPND) |
+| Google Chrome or Microsoft Edge in headless mode, used only by `eval/make_photos.py` to render the printed text of the synthetic evaluation photos (the photos are committed in `eval/photos/`) | The browser's own terms; nothing of it is redistributed |
 | React, React DOM | MIT |
 | Vite, @vitejs/plugin-react | MIT |

@@ -457,7 +457,11 @@ def _clean_markers(text: str, allowed: set[str], trace: dict) -> str:
 SHOW_ANSWER = 0.86       # an approved Q&A or Bayyinat answer
 SHOW_EXTRA = 0.89        # another passage next to that answer (rarely: the answer usually says it all;
                          # at 0.88 «لا يقبل الله صلاة حائض إلا بخمار» joined a question about prayer during menses)
-SHOW_PASSAGE = 0.85      # a verse or hadith when no approved answer is close
+SHOW_PASSAGE = 0.85      # a verse or hadith when no approved answer is close...
+SHOW_PASSAGE_WORDS = 0.4  # ...and it shares at least this much of the question's words,
+SHOW_PASSAGE_SURE = 0.87  # unless it is this close in meaning. Meaning alone let through a hadith about the
+                          # Last Hour's battles for "what does jihad actually mean?" (0.85) and hadiths on
+                          # dates and Paradise for a request to quote an invented hadith (0.86) (eval/REPORT.md).
 SHOW_WORDS = 0.65        # BM25-only installs (no E5): share of the question's words a passage must contain
 # A glossary card is shown only when the question asks what a term means, not whenever it names one.
 DEFINITION_RE = re.compile(r"(ما|ماذا)\s+(معنى|معني|تعريف|يعني|هو|هي)\b|^\s*(تعريف|معنى|معني)\b"
@@ -493,7 +497,8 @@ def _sources_only(passages: list[Passage], lang: str, rtrace: list[dict], questi
             picks = answers[:1] + [p for p in others if p.kind in ("quran", "hadith")
                                    and dense.get(p.id, 0) >= SHOW_EXTRA][:2]
         else:
-            picks = sorted((p for p in others if p.kind in ("quran", "hadith") and dense.get(p.id, 0) >= SHOW_PASSAGE),
+            picks = sorted((p for p in others if p.kind in ("quran", "hadith") and dense.get(p.id, 0) >= SHOW_PASSAGE
+                            and (coverage.get(p.id, 0) >= SHOW_PASSAGE_WORDS or dense[p.id] >= SHOW_PASSAGE_SURE)),
                            key=lambda p: -dense[p.id])[:show]
     else:       # words only: they must cover most of the question
         answers = sorted((p for p in others if p.kind in ANSWER_KINDS and coverage.get(p.id, 0) >= SHOW_WORDS),

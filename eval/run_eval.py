@@ -68,11 +68,14 @@ def written_text(out: dict) -> str:
 
 
 def behaviour(out: dict, expect: str) -> tuple[bool, str]:
+    from backend.app.features.rag.pipeline import _says_not_found
     kind, qc = out.get("kind"), out.get("quote_check") or {}
     got = {"answer": kind == "answer" or (kind == "sources" and out.get("mode") == "sources_only"),
            "abstain": kind == "abstain",
-           # an answer that opens with the fixed "not found exactly; here is what is related" notice
-           "partial": kind == "answer" and bool(out.get("trace", {}).get("partial")),
+           # an answer that says the sources don't answer this exactly: the app's fixed notice, or the
+           # model's own cited sentence saying so
+           "partial": kind == "answer" and (bool(out.get("trace", {}).get("partial"))
+                                            or any(_says_not_found(s["text"]) for s in out.get("segments", []))),
            "refer": out.get("level") == "D" and any(n["type"] == "fatwa" for n in out.get("notices", []))
                     and kind in ("answer", "refer", "abstain", "sources"),
            "clarify": kind == "clarify",
