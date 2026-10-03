@@ -86,25 +86,7 @@ function PlaceFields({ f, setF, prefix }) {
   );
 }
 
-function RecoveryCode({ code, onDone }) {
-  const { t } = useI18n();
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(code); toast(t("acc.copied"), "success"); } catch { /* the code stays selectable */ }
-  };
-  return (
-    <section className="card stack account-card code-card" aria-live="polite">
-      <h2>{t("acc.code_title")}</h2>
-      <p className="muted">{t("acc.code_lead")}</p>
-      <p className="recovery-code" dir="ltr">{code}</p>
-      <div className="row">
-        <button type="button" className="btn" onClick={copy}><Icon name="link" />{t("acc.copy")}</button>
-        <button type="button" className="btn btn-primary" onClick={onDone}><Icon name="check" />{t("acc.saved_code")}</button>
-      </div>
-    </section>
-  );
-}
-
-function SignedOut({ onCode }) {
+function SignedOut() {
   const { t, lang, setLang } = useI18n();
   const [mode, setMode] = useState("signin");          // signin | signup | forgot
   const [step, setStep] = useState("ask");             // forgot: ask -> email (code sent) | recovery (use backup code)
@@ -128,7 +110,8 @@ function SignedOut({ onCode }) {
           country: f.country, city: f.city, age_band: f.age_band, gender: f.gender,
         });
         setLang(r.account.lang);
-        onCode(r.recovery_code, r.account);
+        setAccount(r.account);
+        toast(t("acc.welcome", { u: r.account.username }), "success");
       } else if (step === "ask") {
         const r = await api.post("/api/account/forgot", { login: f.username });
         setStep(r.via === "email" ? "email" : "recovery");
@@ -137,8 +120,10 @@ function SignedOut({ onCode }) {
         setAccount(r.account);
         toast(t("acc.reset_done"), "success");
       } else {
+        // Recovery codes are no longer shown at sign-up; older accounts that saved one can still use it here.
         const r = await api.post("/api/account/recover", { username: f.username, recovery_code: f.code, new_password: f.password });
-        onCode(r.recovery_code, r.account);
+        setAccount(r.account);
+        toast(t("acc.reset_done"), "success");
       }
     } catch (err) {
       toast(accError(err, t), "error");
@@ -385,21 +370,12 @@ function Security() {
 export default function AccountPage() {
   const { t, fmtDate } = useI18n();
   const { account, loaded } = useAccount();
-  const [code, setCode] = useState(null);
   if (!loaded) return null;
-  if (code) {
-    return (
-      <>
-        <div className="page-head"><h1>{t("acc.mine")}</h1></div>
-        <RecoveryCode code={code.code} onDone={() => { setAccount(code.account); setCode(null); }} />
-      </>
-    );
-  }
   if (!account) {
     return (
       <>
         <div className="page-head"><h1>{t("acc.signin")}</h1></div>
-        <SignedOut onCode={(c, acc) => setCode({ code: c, account: acc })} />
+        <SignedOut />
       </>
     );
   }
