@@ -91,3 +91,26 @@ def test_missing_columns_are_added(tmp_path, monkeypatch):
         row = conn.execute(text("SELECT active, country, token_version FROM daai WHERE id = 1")).one()
     assert tuple(row) == (1, "", 0)
     assert core_db.add_missing_columns() == []      # running it again changes nothing
+
+
+def test_signup_takes_language_place_age_and_sex_with_defaults(client):
+    bare = client.post("/api/account/signup", json={"username": "defaults_1", "password": "long-pass-1"},
+                       headers=new_device(client)).json()["account"]
+    assert {k: bare[k] for k in ("lang", "country", "city", "age_band", "gender")} == \
+        {"lang": "ar", "country": "", "city": "", "age_band": "", "gender": ""}
+
+    h = new_device(client)
+    full = client.post("/api/account/signup", headers=h, json={
+        "username": "full_1", "password": "long-pass-1", "lang": "en", "country": "gb", "city": " London ",
+        "age_band": "18_24", "gender": "f"}).json()["account"]
+    assert {k: full[k] for k in ("lang", "country", "city", "age_band", "gender")} == \
+        {"lang": "en", "country": "GB", "city": "London", "age_band": "18_24", "gender": "f"}
+    assert client.post("/api/account/profile", json={"gender": "m", "lang": "ar"}, headers=h).json()["account"] \
+        .items() >= {"gender": "m", "lang": "ar"}.items()
+    assert client.post("/api/account/profile", json={"gender": ""}, headers=h).json()["account"]["gender"] == ""
+
+    for bad in ({"lang": "xx"}, {"gender": "x"}, {"age_band": "30"}, {"country": "G1"}):
+        res = client.post("/api/account/signup", headers=new_device(client),
+                          json={"username": "bad_1", "password": "long-pass-1", **bad})
+        assert res.status_code == 422, bad
+    assert client.post("/api/account/profile", json={"gender": "x"}, headers=h).status_code == 422

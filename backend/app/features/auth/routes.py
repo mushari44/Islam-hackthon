@@ -58,7 +58,24 @@ _failures: dict[str, list[float]] = {}     # username_key -> recent failed sign-
 MAX_FAILURES, FAILURE_WINDOW = 5, 600
 # Optional age bands a seeker may give. A band, never a birth date, so the account still can't identify anyone.
 AGE_BANDS = ("", "u18", "18_24", "25_34", "35_44", "45_54", "55p")
+GENDERS = ("", "m", "f")          # "" = not given
 COUNTRY = re.compile(r"^[A-Z]{2}$")
+
+
+def _check(value: str | None, allowed: tuple, name: str) -> str | None:
+    if value is not None and value not in allowed:
+        raise ValueError(f"{name} must be one of {allowed}")
+    return value
+
+
+def _country(value: str | None) -> str | None:
+    """An ISO 3166 two-letter code, upper-cased, or "" for none."""
+    if value is None:
+        return value
+    value = value.strip().upper()
+    if value and not COUNTRY.match(value):
+        raise ValueError("country must be a 2-letter code")
+    return value
 
 
 def _key(username: str) -> str:
@@ -83,7 +100,7 @@ def _recovery_code() -> str:
 
 def account_view(acc: SeekerAccount) -> dict:
     return {"username": acc.username, "email": acc.email, "country": acc.country, "city": acc.city, "lang": acc.lang,
-            "age_band": acc.age_band or "", "created_at": iso(acc.created_at)}
+            "age_band": acc.age_band or "", "gender": acc.gender or "", "created_at": iso(acc.created_at)}
 
 
 def _clean_email(v: str | None) -> str | None:
@@ -110,14 +127,41 @@ def _find(db: Session, login: str) -> SeekerAccount | None:
 
 
 class SignupIn(BaseModel):
+    """Only the username and password are required. Everything else is optional and has a default:
+    language "ar", and "" (not given) for country, city, age band and sex."""
     username: str = Field(max_length=24)
     password: str = Field(min_length=8, max_length=200)
     email: str = Field(default="", max_length=254)
+    lang: str = "ar"
+    country: str = Field(default="", max_length=2)
+    city: str = Field(default="", max_length=64)
+    age_band: str = ""
+    gender: str = ""
 
     @field_validator("email")
     @classmethod
     def valid_email(cls, v: str | None) -> str | None:
         return _clean_email(v)
+
+    @field_validator("lang")
+    @classmethod
+    def valid_lang(cls, v: str) -> str:
+        return _check(v, DAAI_LANGUAGES, "lang")
+
+    @field_validator("country")
+    @classmethod
+    def valid_country(cls, v: str) -> str:
+        return _country(v)
+
+    @field_validator("age_band")
+    @classmethod
+    def valid_age_band(cls, v: str) -> str:
+        return _check(v, AGE_BANDS, "age_band")
+
+    @field_validator("gender")
+    @classmethod
+    def valid_gender(cls, v: str) -> str:
+        return _check(v, GENDERS, "gender")
 
     @field_validator("username")
     @classmethod
@@ -151,7 +195,9 @@ def signup(body: SignupIn, device: SeekerSession = Depends(seeker_device), db: S
         raise HTTPException(409, "email taken")
     code = _recovery_code()
     acc = SeekerAccount(username=body.username, username_key=key, password_hash=hash_password(body.password),
-                        recovery_hash=hash_password(code), session_id=device.id, email=body.email)
+                        recovery_hash=hash_password(code), session_id=device.id, email=body.email, lang=body.lang,
+                        country=body.country, city=body.city.strip() if body.country else "",
+                        age_band=body.age_band, gender=body.gender)
     db.add(acc)
     db.flush()
     device.account_id = acc.id
@@ -217,18 +263,27 @@ class AccountIn(BaseModel):
     lang: str | None = None
     email: str | None = Field(default=None, max_length=254)   # "" removes it
     age_band: str | None = None                               # one of AGE_BANDS; "" removes it
+    gender: str | None = None                                 # m | f; "" removes it
 
     @field_validator("email")
     @classmethod
     def valid_email(cls, v: str | None) -> str | None:
         return _clean_email(v)
 
+    @field_validator("country")
+    @classmethod
+    def valid_country(cls, v: str | None) -> str | None:
+        return _country(v)
+
     @field_validator("age_band")
     @classmethod
     def valid_age_band(cls, v: str | None) -> str | None:
-        if v is not None and v not in AGE_BANDS:
-            raise ValueError(f"age_band must be one of {AGE_BANDS}")
-        return v
+        return _check(v, AGE_BANDS, "age_band")
+
+    @field_validator("gender")
+    @classmethod
+    def valid_gender(cls, v: str | None) -> str | None:
+        return _check(v, GENDERS, "gender")
 
 
 @router.post("/account/profile")
@@ -250,6 +305,8 @@ def account_profile(body: AccountIn, device: SeekerSession = Depends(seeker_devi
         acc.email = body.email
     if body.age_band is not None:
         acc.age_band = body.age_band
+    if body.gender is not None:
+        acc.gender = body.gender
     db.commit()
     return {"account": account_view(acc)}
 
@@ -399,19 +456,12 @@ class ProfileIn(BaseModel):
     @field_validator("gender")
     @classmethod
     def known_gender(cls, v: str | None) -> str | None:
-        if v is not None and v not in ("m", "f"):
-            raise ValueError("gender must be m or f")
-        return v
+        return _check(v, ("m", "f"), "gender")   # a da'i's sex is required: seekers can ask for it
 
     @field_validator("country")
     @classmethod
     def country_code(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        v = v.strip().upper()
-        if v and not COUNTRY.match(v):
-            raise ValueError("country must be a 2-letter code")
-        return v
+        return _country(v)
 
     @field_validator("name")
     @classmethod

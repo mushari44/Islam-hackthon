@@ -25,6 +25,67 @@ function Field({ id, label, hint, ...props }) {
   );
 }
 
+// Optional profile fields; keep in step with AGE_BANDS, GENDERS and DAAI_LANGUAGES in backend/app/features/auth/routes.py.
+const AGE_BANDS = ["u18", "18_24", "25_34", "35_44", "45_54", "55p"];
+const LANGS = ["ar", "en"];
+const ORDERED = ["SA", ...COUNTRIES.filter((c) => c !== "SA")];
+
+/** Language, sex and age band: used by the sign-up form and the "About me" card. Each one is optional
+ * except the language, which defaults to the interface language. */
+function AboutFields({ f, set, prefix }) {
+  const { t, langName } = useI18n();
+  return (
+    <div className="grid grid-2">
+      <div className="field">
+        <label htmlFor={`${prefix}-lang`}>{t("acc.lang")}</label>
+        <select id={`${prefix}-lang`} className="select" value={f.lang} onChange={set("lang")}>
+          {LANGS.map((l) => <option key={l} value={l}>{langName(l)}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${prefix}-gender`}>{t("acc.gender")}</label>
+        <select id={`${prefix}-gender`} className="select" value={f.gender} onChange={set("gender")}>
+          <option value="">{t("acc.not_say")}</option>
+          <option value="m">{t("acc.gender_m")}</option>
+          <option value="f">{t("acc.gender_f")}</option>
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${prefix}-age`}>{t("acc.age")}</label>
+        <select id={`${prefix}-age`} className="select" value={f.age_band} onChange={set("age_band")}>
+          <option value="">{t("acc.not_say")}</option>
+          {AGE_BANDS.map((b) => <option key={b} value={b}>{t(`acc.age.${b}`)}</option>)}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+/** Country and city (city only once a country is chosen); cities other members use are suggested. */
+function PlaceFields({ f, setF, prefix }) {
+  const { t, lang } = useI18n();
+  const [places, setPlaces] = useState([]);
+  useEffect(() => { api.get("/api/community/places").then(setPlaces).catch(() => {}); }, []);
+  const cities = (places.find((p) => p.country === f.country) || {}).cities || [];
+  return (
+    <div className="grid grid-2">
+      <div className="field">
+        <label htmlFor={`${prefix}-country`}>{t("acc.country")}</label>
+        <select id={`${prefix}-country`} className="select" value={f.country} onChange={(e) => setF({ ...f, country: e.target.value, city: "" })}>
+          <option value="">{t("acc.not_say")}</option>
+          {ORDERED.map((c) => <option key={c} value={c}>{countryName(c, lang)}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${prefix}-city`}>{t("acc.city")}</label>
+        <input id={`${prefix}-city`} className="input" list={`${prefix}-cities`} maxLength={64} disabled={!f.country}
+          value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} />
+        <datalist id={`${prefix}-cities`}>{cities.map((c) => <option key={c} value={c} />)}</datalist>
+      </div>
+    </div>
+  );
+}
+
 function RecoveryCode({ code, onDone }) {
   const { t } = useI18n();
   const copy = async () => {
@@ -44,10 +105,11 @@ function RecoveryCode({ code, onDone }) {
 }
 
 function SignedOut({ onCode }) {
-  const { t } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const [mode, setMode] = useState("signin");          // signin | signup | forgot
   const [step, setStep] = useState("ask");             // forgot: ask -> email (code sent) | recovery (use backup code)
-  const [f, setF] = useState({ username: "", password: "", email: "", code: "" });
+  // Defaults: the interface language, and "prefer not to say" for everything else.
+  const [f, setF] = useState({ username: "", password: "", email: "", code: "", lang, country: "", city: "", age_band: "", gender: "" });
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const pick = (m) => { setMode(m); setStep("ask"); };
@@ -57,10 +119,15 @@ function SignedOut({ onCode }) {
     try {
       if (mode === "signin") {
         const r = await api.post("/api/account/signin", { username: f.username, password: f.password });
+        if (r.account.lang) setLang(r.account.lang);   // the account's language follows the seeker to this device
         setAccount(r.account);
         toast(t("acc.welcome", { u: r.account.username }), "success");
       } else if (mode === "signup") {
-        const r = await api.post("/api/account/signup", { username: f.username, password: f.password, email: f.email });
+        const r = await api.post("/api/account/signup", {
+          username: f.username, password: f.password, email: f.email, lang: f.lang,
+          country: f.country, city: f.city, age_band: f.age_band, gender: f.gender,
+        });
+        setLang(r.account.lang);
         onCode(r.recovery_code, r.account);
       } else if (step === "ask") {
         const r = await api.post("/api/account/forgot", { login: f.username });
@@ -107,6 +174,14 @@ function SignedOut({ onCode }) {
             autoComplete={mode === "signin" ? "current-password" : "new-password"} required minLength={mode === "signin" ? 1 : 8}
             value={f.password} onChange={set("password")} />
         )}
+        {mode === "signup" && (
+          <fieldset className="stack about-fields">
+            <legend>{t("acc.about")}</legend>
+            <p className="small muted">{t("acc.about_lead")}</p>
+            <AboutFields f={f} set={set} prefix="su" />
+            <PlaceFields f={f} setF={setF} prefix="su" />
+          </fieldset>
+        )}
         {mode === "signup" && <p className="small muted">{t("acc.keep_note")}</p>}
         <div className="row">
           <button type="submit" className="btn btn-primary" disabled={busy}>
@@ -143,65 +218,47 @@ function EmailCard({ account }) {
   );
 }
 
-function Place({ account }) {
-  const { t, lang } = useI18n();
-  const [country, setCountry] = useState(account.country || "");
-  const [city, setCity] = useState(account.city || "");
-  const [places, setPlaces] = useState([]);
-  useEffect(() => { api.get("/api/community/places").then(setPlaces).catch(() => {}); }, []);
-  const cities = (places.find((p) => p.country === country) || {}).cities || [];
-  const ordered = ["SA", ...COUNTRIES.filter((c) => c !== "SA")];
+function PlaceCard({ account }) {
+  const { t } = useI18n();
+  const [f, setF] = useState({ country: account.country || "", city: account.city || "" });
   const save = async (e) => {
     e.preventDefault();
-    try { setAccount((await api.post("/api/account/profile", { country, city })).account); toast(t("acc.saved"), "success"); }
+    try { setAccount((await api.post("/api/account/profile", f)).account); toast(t("acc.saved"), "success"); }
     catch (err) { toast(accError(err, t), "error"); }
   };
   return (
     <form className="card stack" onSubmit={save}>
       <h3>{t("acc.place")}</h3>
       <p className="small muted">{t("acc.place_lead")}</p>
-      <div className="grid grid-2">
-        <div className="field">
-          <label htmlFor="acc-country">{t("acc.country")}</label>
-          <select id="acc-country" className="select" value={country} onChange={(e) => { setCountry(e.target.value); setCity(""); }}>
-            <option value="">{t("acc.any")}</option>
-            {ordered.map((c) => <option key={c} value={c}>{countryName(c, lang)}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="acc-city">{t("acc.city")}</label>
-          <input id="acc-city" className="input" list="acc-cities" maxLength={64} disabled={!country} value={city} onChange={(e) => setCity(e.target.value)} />
-          <datalist id="acc-cities">{cities.map((c) => <option key={c} value={c} />)}</datalist>
-        </div>
-      </div>
+      <PlaceFields f={f} setF={setF} prefix="acc" />
       <div className="row"><button type="submit" className="btn btn-primary"><Icon name="check" />{t("acc.save")}</button></div>
     </form>
   );
 }
 
-// Optional age bands; keep in step with AGE_BANDS in backend/app/features/auth/routes.py.
-const AGE_BANDS = ["u18", "18_24", "25_34", "35_44", "45_54", "55p"];
-
-function AgeCard({ account }) {
-  const { t } = useI18n();
-  const [band, setBand] = useState(account.age_band || "");
+function AboutCard({ account }) {
+  const { t, setLang } = useI18n();
+  const saved = { lang: account.lang || "ar", gender: account.gender || "", age_band: account.age_band || "" };
+  const [f, setF] = useState(saved);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const save = async (e) => {
     e.preventDefault();
-    try { setAccount((await api.post("/api/account/profile", { age_band: band })).account); toast(t("acc.saved"), "success"); }
-    catch (err) { toast(accError(err, t), "error"); }
+    try {
+      const r = await api.post("/api/account/profile", f);
+      setLang(r.account.lang);
+      setAccount(r.account);
+      toast(t("acc.saved"), "success");
+    } catch (err) { toast(accError(err, t), "error"); }
   };
   return (
     <form className="card stack" onSubmit={save}>
-      <h3>{t("acc.age")}</h3>
-      <p className="small muted">{t("acc.age_lead")}</p>
-      <div className="row email-row">
-        <select id="acc-age" className="select" aria-label={t("acc.age")} value={band} onChange={(e) => setBand(e.target.value)}>
-          <option value="">{t("acc.age_none")}</option>
-          {AGE_BANDS.map((b) => <option key={b} value={b}>{t(`acc.age.${b}`)}</option>)}
-        </select>
-        <button type="submit" className="btn btn-primary" disabled={band === (account.age_band || "")}><Icon name="check" />{t("acc.save")}</button>
+      <h3>{t("acc.about")}</h3>
+      <p className="small muted">{t("acc.about_lead")}</p>
+      <AboutFields f={f} set={set} prefix="ab" />
+      {f.age_band === "u18" && <p className="small muted">{t("acc.age_minor")}</p>}
+      <div className="row">
+        <button type="submit" className="btn btn-primary" disabled={JSON.stringify(f) === JSON.stringify(saved)}><Icon name="check" />{t("acc.save")}</button>
       </div>
-      {band === "u18" && <p className="small muted">{t("acc.age_minor")}</p>}
     </form>
   );
 }
@@ -355,8 +412,8 @@ export default function AccountPage() {
       <div className="stack">
         <Activity />
         <SavedChats />
-        <Place account={account} />
-        <AgeCard account={account} />
+        <AboutCard account={account} />
+        <PlaceCard account={account} />
         <EmailCard account={account} />
         <Security />
       </div>

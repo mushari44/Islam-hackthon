@@ -27,7 +27,8 @@ Other backend features use auth only through `backend/app/features/auth/public.p
 | POST | `/api/daai/login` | none | `{username, password}` | `{token, me: Profile}`. 401 on wrong credentials |
 | GET | `/api/account` | seeker | – | `{account: Account\|null}` (null when this browser isn't signed in) |
 | POST | `/api/account/signout` | seeker | – | `{ok: true}`. On the browser that created the account, the token then answers 401 everywhere (its session is the account's home), so the client starts a fresh anonymous session and the next person on that device can't see the account's data |
-| POST | `/api/account/profile` | seeker (signed in) | `{country?, city?, lang?, email?, age_band?}` | `{account: Account}`. `age_band` is one of `"" u18 18_24 25_34 35_44 45_54 55p` (`""` removes it), 422 otherwise. A new `country` without `city` clears the city |
+| POST | `/api/account/signup` | seeker | `{username, password, email?, lang?, country?, city?, age_band?, gender?}` | `{account: Account, recovery_code}`. Only `username` and `password` are required. Defaults: `lang` `"ar"`, and `""` (not given) for the rest. 409 `username taken` / `email taken`, 422 on bad input |
+| POST | `/api/account/profile` | seeker (signed in) | `{country?, city?, lang?, email?, age_band?, gender?}` | `{account: Account}`. `lang` is `ar`\|`en`; `country` a 2-letter code; `age_band` one of `"" u18 18_24 25_34 35_44 45_54 55p`; `gender` `""`\|`m`\|`f`. `""` removes a value, 422 otherwise. A new `country` without `city` clears the city |
 | GET | `/api/daai/me` | daai | – | Profile |
 | POST | `/api/daai/availability` | daai | `{available: bool}` | Profile |
 | POST | `/api/daai/profile` | daai | `{name?, name_en?, languages?, bio?, bio_en?, gender?: "m"\|"f", country?: "XX"\|"", city?}` | Profile. Fields left out stay as they are; a new `country` without `city` clears the city. 422 on bad input |
@@ -245,10 +246,11 @@ Limits after cleaning: `question`, `context` and `unclear` ≤ 600 chars, `langu
 ### Account (seeker)
 
 ```json
-{"username": "…", "email": "", "country": "SA", "city": "…", "lang": "ar", "age_band": "25_34", "created_at": "…Z"}
+{"username": "…", "email": "", "country": "SA", "city": "…", "lang": "ar", "age_band": "25_34", "gender": "f",
+ "created_at": "…Z"}
 ```
 
-Every field after `username` is optional and may be empty. There is no birth date, real name or phone number.
+Every field after `username` is optional. Defaults: `lang` `"ar"`; `email`, `country`, `city`, `age_band` and `gender` `""` (not given). There is no birth date, real name or phone number.
 
 ### Group
 

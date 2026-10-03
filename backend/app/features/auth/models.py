@@ -47,7 +47,8 @@ class Daai(Base):
 class SeekerAccount(Base):
     """Optional seeker account: a username and a password, and an optional email for password resets.
 
-    The seeker may also add a country, city and age band. No real name, phone or birth date."""
+    The seeker may also give a language, country, city, age band and sex, at sign-up or later. Each one is
+    optional and defaults to "not given" (language defaults to Arabic). No real name, phone or birth date."""
     __tablename__ = "seeker_account"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(32))
@@ -60,9 +61,10 @@ class SeekerAccount(Base):
     session_id: Mapped[str] = mapped_column(String(64))                 # the session all features file data under
     country: Mapped[str] = mapped_column(String(2), default="")         # optional, for nearby groups and events
     city: Mapped[str] = mapped_column(String(64), default="")
-    lang: Mapped[str] = mapped_column(String(8), default="ar")
+    lang: Mapped[str] = mapped_column(String(8), default="ar")             # interface and call language: ar | en
     # Optional age band (never a birth date), so meetups and groups for an age can be suggested.
     age_band: Mapped[str] = mapped_column(String(8), default="")
+    gender: Mapped[str] = mapped_column(String(1), default="")              # optional: m | f | "" (not given)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
