@@ -30,6 +30,8 @@ python scripts/ingest_bayyinat.py       # downloads the PDF once into data/raw/b
 
 The BM25 index (`data/cache/bm25.pkl`) rebuilds by itself when a corpus file changes.
 
+Videos (`backend/app/features/videos/`) are not part of this pipeline: they are read live from the IslamHouse API v3, cached in memory for 6 hours, and never ingested into `data/corpus/`. They are not retrieval units and are never cited in answers.
+
 ## 2. Normalise (`backend/app/core/textnorm.py`)
 
 **Rule: store and display the original text; normalise only copies used for search and matching.** Citations and cards always show the original.

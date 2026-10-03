@@ -1,16 +1,17 @@
 # سَبِيلي · Sabeeli
 
-**معرفة تُنير، وصحبة تُعين.** سَبِيلي تطبيق ويب يتيح لمن يثير الإسلام فضوله، وللمسلم الجديد، أن يسأل بلغته (نصاً أو بصورة) ويحصل على شرح من مصادر معتمدة يظهر مصدره مع كل عبارة، وأن يتصل مباشرة بداعية متاح بلغته، ويتابع تعلّمه في مجموعات يقودها دعاة ولقاءات حضورية.
+**معرفة تُنير، وصحبة تُعين.** سَبِيلي تطبيق ويب يتيح لمن يثير الإسلام فضوله، وللمسلم الجديد، أن يسأل بلغته (نصاً أو بصورة) ويحصل على شرح من مصادر معتمدة يظهر مصدره مع كل عبارة، وأن يتصل مباشرة بداعية متاح بلغته، ويتابع تعلّمه في مجموعات يقودها دعاة ولقاءات حضورية، ويشاهد مقاطع مرئية من موقع دار الإسلام بلغته.
 
 > مشروع في تحدي الذكاء الاصطناعي في خدمة المحتوى الإسلامي 2026 (المسار المفتوح). الفريق: Mushari Alothman و Eman Saheli.
 
-*Sabeeli is a web app for people curious about Islam and for new Muslims. They ask in their own language, by text or with a photo, and get an explanation grounded in approved sources that are shown with every statement. They can call an available da'i who speaks their language, and keep learning in da'i-led groups and in-person meetups.*
+*Sabeeli is a web app for people curious about Islam and for new Muslims. They ask in their own language, by text or with a photo, and get an explanation grounded in approved sources that are shown with every statement. They can call an available da'i who speaks their language, keep learning in da'i-led groups and in-person meetups, and watch IslamHouse videos in their own language.*
 
 ## What's inside
 
 | | Feature | Owner |
 |---|---|---|
 | اسأل | Cited answers from the approved package only. Quran and hadith text is shown from the reference, never generated. Content levels A-D; no personal fatwa. A photo or quoted verse is checked against the Mushaf, word by word | Mushari |
+| مرئيات | A video library from IslamHouse (listed in the scholarly package) in 107 languages, chosen separately from the interface language: topics, search (Arabic-aware: hamza, taa marbuta and diacritics don't block a match) and a player that streams straight from IslamHouse with a link back to the source. No re-hosting, no generated text | Mushari |
 | المجتمع | Da'i-led groups with the @سبيلي assistant, moderation, nicknames only; meetups at public venues with RSVP codes and calendar files | Mushari |
 | تحدّث | Direct voice call (WebRTC) with an available da'i in the seeker's language, in-call text chat, and a referral card the seeker edits and approves before it is shared | Eman |
 | لوحة الداعية | Da'i sign-in, the calls queue, the call room with the shared card, and the screens to lead groups and host meetups | Eman |
@@ -50,12 +51,15 @@ backend/app/
   features/auth/      Eman: seeker sessions, da'i login and accounts, demo accounts
   features/rag/       Mushari: corpus, retrieval, verse matching, answer pipeline, prompts
   features/community/ Mushari: groups, moderation, meetups
+  features/videos/    Mushari: IslamHouse video library (live API, cached index, search)
   features/calls/     Eman: call queue, WebRTC signalling, referral card and experiment
 frontend/src/
   core/ styles/ pages/ App.jsx   shared shell, design system, i18n (Arabic/English, RTL)
   features/rag/ features/community/      Mushari: Ask page, groups and meetups (seeker side)
+  features/videos/                       Mushari: the videos page (مرئيات)
   features/calls/ features/daai/          Eman: Talk page; the whole da'i console and its login
 tests/{auth,rag,community,calls}/   tests per owner
+tests/videos/         Mushari: videos (IslamHouse responses mocked, no network)
 data/corpus/          the approved corpus (JSONL)
 scripts/              corpus ingestion
 ```
@@ -67,4 +71,4 @@ Each person works only in their own folders. Shared code changes only by agreeme
 - **`STARTING_POINT.md`:** what existed before 4 October (the challenge judges only work done from 4 to 6 October).
 - **`THIRD_PARTY.md`:** sources, models, services and licences.
 - **`docs/RAG-PLAN.md`:** how the RAG system uses the approved sources, and how it is evaluated.
-- **Privacy:** seekers have no accounts, questions are deleted after 24 hours, the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**.
+- **Privacy:** seekers have no accounts, questions are deleted after 24 hours, the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**. Videos and thumbnails load straight from IslamHouse's servers, search words are sent in a POST body, and Sabeeli stores no searches and no viewing history.

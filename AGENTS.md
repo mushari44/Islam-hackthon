@@ -8,7 +8,7 @@ Two people build this project, and each has their own agent:
 
 | Person | Owns | Task list |
 |---|---|---|
-| **Mushari** | RAG (cited answers, photo reading, verse matching, evaluation) and Community (groups, meetups) | `tasks/mushari.md` |
+| **Mushari** | RAG (cited answers, photo reading, verse matching, evaluation) Community (groups, meetups) and Videos (the IslamHouse video library) | `tasks/mushari.md` |
 | **Eman** | Auth (seeker sessions, da'i login and accounts), the whole da'i-facing interface (console, calls, groups and meetups tabs), Calls (call requests, WebRTC room) and the referral card and its experiment | `tasks/eman.md` |
 
 At the start of a session, find out which person you are working for: from the branch name (`mushari/...` or `eman/...`), or from what the developer said. If you can't tell, **ask before editing anything**. Then read that person's task list and work on the first unticked task, unless the developer asks for something else.
@@ -19,6 +19,7 @@ At the start of a session, find out which person you are working for: from the b
 |---|---|---|
 | RAG | `backend/app/features/rag/`, `frontend/src/features/rag/`, `tests/rag/`, `eval/`, `scripts/`, `data/corpus/` | Mushari's agent |
 | Community | `backend/app/features/community/`, `frontend/src/features/community/` (seeker screens), `tests/community/` | Mushari's agent |
+| Videos | `backend/app/features/videos/`, `frontend/src/features/videos/`, `tests/videos/` | Mushari's agent |
 | Calls | `backend/app/features/calls/`, `frontend/src/features/calls/`, `tests/calls/` | Eman's agent |
 | Auth | `backend/app/features/auth/` (sessions, login, accounts, demo accounts), `tests/auth/` | Eman's agent |
 | Da'i interface | `frontend/src/features/daai/` (login screen, console, calls / groups / meetups tabs) | Eman's agent |
@@ -75,6 +76,7 @@ Then open a pull request into `main` on GitHub (`https://github.com/mushari44/Is
 - Religious content comes **only** from the approved corpus in `data/corpus/` (Mushaf text, At-Tafsir Al-Muyassar and the Rowwad translation from QuranEnc, HadeethEnc, the package glossary, the two Q&A encyclopedias from icadb, and «بينات», which each copy builds locally with `scripts/ingest_bayyinat.py`). Never add religious text from model memory.
 - **Only cited text reaches the user.** With `SABEELI_STRICT_GROUNDING=1` (the default), `pipeline.py` drops every model sentence that cites no approved passage (connectors of at most `SABEELI_MAX_UNCITED_WORDS` words are kept). An answer with no citations becomes the fixed "not found in the sources" message. Don't weaken this.
 - **Quran and hadith text is never generated.** The model refers to passages with `[[q:SURA:AYA]]` / `[[h:ID]]` markers, and the app renders the reference text. Keep `_guard_scripture` and `_clean_markers` in `pipeline.py` working.
+- **Videos come only from IslamHouse** (listed on page 9 of the scholarly package). They play from IslamHouse's own URLs (their CDN, or a privacy-mode YouTube embed when that is all they publish), every card links back to the item's IslamHouse page, and titles and descriptions are shown exactly as published. Never re-host the media, never generate or summarise video text with a model, and never cite a video in an answer (answers cite the approved corpus only).
 - **No personal fatwa.** Level D questions get general information and a referral. The `fatwa` notice must stay.
 - Use **synthetic data only**: no real seekers' chats, names or photos in the repo, tests, evals or prompts. Demo accounts are marked "(demo)".
 - Don't infer or store anything about a user's religion or other sensitive traits. Seekers stay anonymous.
@@ -91,7 +93,7 @@ cd frontend && npm install && npm run dev               # UI on :5173 (proxies /
 Tests (no API key needed; they run in sources-only mode and mock Claude):
 
 ```bash
-python -m pytest tests/rag tests/community     # Mushari
+python -m pytest tests/rag tests/community tests/videos   # Mushari
 python -m pytest tests/calls tests/auth        # Eman
 python -m pytest tests                         # everything, before any pull request
 ```

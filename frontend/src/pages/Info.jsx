@@ -24,6 +24,7 @@ register({
     "src.names": "أسماء السور من واجهة mp3quran.net العامة.",
     "src.icadb_note": "موسوعتا الأسئلة والأجوبة لغير المسلمين وللمسلمين، من قاعدة بيانات المحتوى الإسلامي (icadb) لجمعية خدمة المحتوى الإسلامي باللغات. الآيات داخل أجوبتهما تُعرض من نص المصحف.",
     "src.bayyinat_note": "كتاب «بينات: أسئلة وأجوبة عن الإسلام» (مركز أصول)، المرجع المعتمد في الحزمة للشبهات والأسئلة المتكررة. الآيات فيه تُعرض من نص المصحف.",
+    "src.v": "قسم «مرئيات»: مقاطع موقع دار الإسلام (IslamHouse) عبر واجهته البرمجية الرسمية، تُعرض من موقعهم كما نُشرت مع رابط لكل مقطع.",
     "src.later": "مقترح للإضافة: قاموس الجمهرة، والدرر السنية.",
     "src.license": "تتيح الجمعية محتوى منصاتها مجاناً للأفراد والجهات عبر واجهات برمجية عامة، بحسب بيانها في الحزمة العلمية.",
     "priv.title": "الخصوصية", "priv.lead": "صممنا سَبِيلي ليعمل دون أن نعرف من أنت.",
@@ -33,6 +34,7 @@ register({
     "priv.4": "المكالمات لا تُسجّل، ولا نطلب رقم هاتف. في المجموعات واللقاءات اسم مستعار فقط.",
     "priv.5": "لا نستنتج معتقدك أو أي صفة حساسة عنك، ولا نستخدم بياناتك لغير تقديم الخدمة.",
     "priv.6": "تُرسل الأسئلة إلى خدمة Claude لتوليد الإجابة، وفق سياسة Anthropic لبيانات الواجهات البرمجية.",
+    "priv.7": "المقاطع المرئية وصورها تُحمَّل من خوادم دار الإسلام مباشرة، كأي زيارة لموقعهم. ولا يحفظ سَبِيلي ما تبحث عنه ولا ما تشاهده.",
     "priv.delete": "احذف بياناتي الآن", "priv.deleted": "حُذفت بياناتك من الخادم وبدأت جلسة جديدة.",
     "more.title": "المزيد", "more.lang": "اللغة", "more.theme": "المظهر", "more.light": "فاتح", "more.dark": "داكن", "more.auto": "تلقائي",
   },
@@ -56,6 +58,7 @@ register({
     "src.names": "Surah names from the public mp3quran.net API.",
     "src.icadb_note": "The Q&A encyclopedias for non-Muslims and for Muslims, from the Islamic Content Service Association's content database (icadb), in Arabic. Verses inside their answers are shown from the Mushaf text.",
     "src.bayyinat_note": "The book “Bayyinat: Questions and Answers about Islam” (Osoul Center), the package's reference for doubts and recurring questions, in Arabic. Verses in it are shown from the Mushaf text.",
+    "src.v": "The Videos section: videos from IslamHouse through its official API, played from IslamHouse as published, each with a link to its page.",
     "src.later": "Proposed: the Jamhara dictionary and Dorar.",
     "src.license": "The association makes its platforms' content free for individuals and organisations through public APIs, per its statement in the package.",
     "priv.title": "Privacy", "priv.lead": "Sabeeli is designed to work without knowing who you are.",
@@ -65,6 +68,7 @@ register({
     "priv.4": "Calls aren't recorded and we never ask for a phone number. Groups and meetups use nicknames only.",
     "priv.5": "We don't infer your beliefs or any sensitive trait, and we use your data only to provide the service.",
     "priv.6": "Questions are sent to the Claude API to write answers, under Anthropic's API data policy.",
+    "priv.7": "Videos and their thumbnails load straight from IslamHouse's servers, like any visit to their site. Sabeeli doesn't save what you search for or what you watch.",
     "priv.delete": "Delete my data now", "priv.deleted": "Your data was deleted from the server and a new session started.",
     "more.title": "More", "more.lang": "Language", "more.theme": "Theme", "more.light": "Light", "more.dark": "Dark", "more.auto": "Auto",
   },
@@ -101,6 +105,7 @@ const SOURCES = [
   ["src.q", "https://quranenc.com/ar/browse/arabic_moyassar"], ["src.qen", "https://quranenc.com/en/browse/english_rwwad"],
   ["src.h", "https://hadeethenc.com"], ["src.icadb_note", "https://islamenc.com/ar/enc-cards/110"],
   ["src.bayyinat_note", "https://dawa.center/file/7937"], ["src.t", ""], ["src.names", "https://www.mp3quran.net/api"],
+  ["src.v", "https://islamhouse.com/"],
 ];
 
 export function Sources() {
@@ -134,7 +139,7 @@ export function Privacy() {
     <>
       <div className="page-head"><h1>{t("priv.title")}</h1><p>{t("priv.lead")}</p></div>
       <ul className="priv-list">
-        {["priv.1", "priv.2", "priv.3", "priv.4", "priv.5", "priv.6"].map((k) => <li key={k}><Icon name="shield" size={22} /><span>{t(k)}</span></li>)}
+        {["priv.1", "priv.2", "priv.3", "priv.4", "priv.5", "priv.6", "priv.7"].map((k) => <li key={k}><Icon name="shield" size={22} /><span>{t(k)}</span></li>)}
       </ul>
       <div className="section"><button type="button" className="btn btn-danger" onClick={wipe}><Icon name="trash" />{t("priv.delete")}</button></div>
     </>
