@@ -9,6 +9,7 @@ import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -54,6 +55,8 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Sabeeli", version="0.1.0", docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=lifespan)
+# The JS bundle is ~350 kB and answers carry their source cards: compressed, about a third of that on the wire.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.include_router(auth_routes.router)
 app.include_router(rag_routes.router)
@@ -85,8 +88,18 @@ NOT_BUILT = """<!doctype html><meta charset="utf-8"><title>Sabeeli</title>
 or use <code>npm run dev</code> there and open http://localhost:5173.</p>
 <p>API docs: <a href="/api/docs">/api/docs</a></p></body>"""
 
+class HashedAssets(StaticFiles):
+    """Vite puts a content hash in every asset's name, so a browser can keep them for good; index.html
+    (no-cache, below) points to the new names after each build."""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
 if (DIST / "assets").is_dir():
-    app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
+    app.mount("/assets", HashedAssets(directory=DIST / "assets"), name="assets")
 
 
 @app.get("/", include_in_schema=False)

@@ -263,8 +263,16 @@ export default function AskPage() {
   const endRef = useRef(null);
 
   useEffect(() => { saveOpen(conv, chat); }, [conv, chat]);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+  // The photo preview's object URL is released once it is replaced, sent or the page closes.
+  useEffect(() => () => { if (photo) URL.revokeObjectURL(photo.url); }, [photo]);
   useEffect(() => {
-    api.get("/api/conversations").then((r) => { setConvs(r.conversations); setSaved(r.saved); }).catch(() => setConvs([]));
+    let alive = true;   // an older reply (e.g. from before signing in) must not replace a newer list
+    api.get("/api/conversations")
+      .then((r) => { if (alive) { setConvs(r.conversations); setSaved(r.saved); } })
+      .catch(() => { if (alive) setConvs([]); });
+    return () => { alive = false; };
   }, [username, listKey]);
   // A chat opened in this tab before a reload, whose items weren't kept here: fetch it again.
   useEffect(() => {
@@ -318,6 +326,11 @@ export default function AskPage() {
     if (current) form.append("image", current.file);
     try {
       const answer = await api.form("/api/ask", form);
+      if (!mounted.current) {   // the seeker left the page while waiting: keep the answer for their return
+        const kept = loadOpen();
+        saveOpen(answer.conversation_id, [...kept.items, { role: "assistant", answer }]);
+        return;
+      }
       setConv(answer.conversation_id);
       setChat((c) => [...c, { role: "assistant", answer }]);
       setListKey((k) => k + 1);

@@ -83,6 +83,7 @@ class _Stats:
         self.idf = {t: math.log(1 + (n - c + 0.5) / (c + 0.5)) for t, c in df.items()}
         self.vectors = None          # numpy array (n, dim) once embedded
         self.embedding = False
+        self.failed = False          # embedding failed once: words only from then on, no endless retries
 
 
 def _stats(idx) -> _Stats:
@@ -98,9 +99,10 @@ def _stats(idx) -> _Stats:
 
 def _embed_in_background(st: _Stats, enc) -> None:
     """Embed every video of the index once; until it finishes, suggestions use words only."""
-    if st.vectors is not None or st.embedding:
-        return
-    st.embedding = True
+    with _lock:   # two simultaneous requests must not both start an embedding
+        if st.vectors is not None or st.embedding or st.failed:
+            return
+        st.embedding = True
 
     def run():
         t0 = time.perf_counter()
@@ -109,7 +111,8 @@ def _embed_in_background(st: _Stats, enc) -> None:
             st.vectors = np.asarray(enc.embed_documents([video_text(it) for it in st.items]), dtype="float32")
             log.info("videos: embedded %d videos for related suggestions in %.1fs", len(st.items), time.perf_counter() - t0)
         except Exception:  # noqa: BLE001 - words still work
-            log.exception("videos: embedding for related suggestions failed")
+            log.exception("videos: embedding for related suggestions failed; using words only")
+            st.failed = True
         finally:
             st.embedding = False
 
@@ -121,7 +124,7 @@ def pending(idx, encoder) -> bool:
     if encoder is None:
         return False
     st = _stats(idx)
-    if st.vectors is None:
+    if st.vectors is None and not st.failed:
         _embed_in_background(st, encoder)
         return True
     return False
@@ -205,7 +208,8 @@ def related(idx, question: str, hints: list[str] | None = None, k: int = 3, enco
         return []    # meaning is on the way: better nothing for a few seconds than word-only guesses
     with timing.step("video_words"):
         words = _word_ranking(st, q_toks, h_toks)
-    sims = _similarities(st, encoder, [question, " ".join(hints or [])]) if encoder is not None else None
+    sims = (_similarities(st, encoder, [question, " ".join(hints or [])])
+            if encoder is not None and st.vectors is not None else None)   # None: embedding failed, words only
     meaning_bar, coverage_bar = (REQUESTED_MEANING, REQUESTED_COVERAGE) if requested else (MEANING, COVERAGE)
     if sims is None:   # words only: keep strong matches
         words = [w for w in words if w[1] >= WORDS_ONLY_SCORE and w[2] >= WORDS_ONLY_COVERAGE]

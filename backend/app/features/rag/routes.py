@@ -65,6 +65,9 @@ def ask_question(question: str = Form(""), lang: str = Form("ar"), image: Upload
         raise HTTPException(400, "empty question")
     conv = _conversation(db, me.id, conversation_id)
     history = _history(db, me.id, conv.id) if conv else []
+    # End the read transaction before the model calls (seconds, up to SABEELI_LLM_TIMEOUT each), so this
+    # request doesn't hold a database connection while it waits.
+    db.commit()
     result = ask(AskContext(question=question, ui_lang="ar" if lang == "ar" else "en",
                             history=history, image=data, image_type=media_type))
     if conv is None:

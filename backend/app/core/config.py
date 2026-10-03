@@ -1,6 +1,7 @@
 """Runtime settings, read once from the environment and the project's own .env file."""
 from __future__ import annotations
 
+import logging
 import os
 import secrets
 from dataclasses import dataclass, field
@@ -24,6 +25,23 @@ def _list(name: str, default: str = "") -> list[str]:
     return [x.strip() for x in os.getenv(name, default).split(",") if x.strip()]
 
 
+# Values copied from examples or docs: anyone could sign a da'i (or reviewer) token with them.
+KNOWN_SECRETS = {"", "change-me", "changeme", "secret", "dev", "test"}
+
+
+def _secret_key() -> str:
+    """SECRET_KEY signs da'i tokens. A missing or published value gets a random key for this run instead
+    (da'is sign in again after a restart), with a warning, so a copied .env.example can't be used to
+    forge an admin token."""
+    key = os.getenv("SECRET_KEY", "").strip()
+    if key.lower() in KNOWN_SECRETS:
+        if key:
+            logging.getLogger("sabeeli").warning("SECRET_KEY is the example value; using a random key for this "
+                                                 "run. Set a long random SECRET_KEY in .env.")
+        return secrets.token_urlsafe(32)
+    return key
+
+
 DEFAULT_MODELS = {"openrouter": "google/gemma-4-31b-it", "anthropic": "claude-opus-5-5"}
 _PROVIDER = (os.getenv("SABEELI_LLM_PROVIDER", "").strip().lower()
              or ("openrouter" if os.getenv("OPENROUTER_API_KEY") else "anthropic"))
@@ -39,7 +57,7 @@ class Settings:
     frontend_dir: Path = ROOT / "frontend" / "dist"   # built by `npm run build` in frontend/
 
     database_url: str = os.getenv("DATABASE_URL", f"sqlite:///{(ROOT / 'data' / 'sabeeli.db').as_posix()}")
-    secret_key: str = os.getenv("SECRET_KEY") or secrets.token_urlsafe(32)
+    secret_key: str = field(default_factory=lambda: _secret_key())
 
     # The language model. Provider "openrouter" (default when OPENROUTER_API_KEY is set; Gemma 4 31B)
     # or "anthropic" (Claude). The app runs without a key in "sources-only" mode.

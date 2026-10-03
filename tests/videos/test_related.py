@@ -1,6 +1,8 @@
 """Related videos under an answer. Owner: Mushari. No network and no real model: a small fixture index
 and a fake encoder whose vectors are set by hand."""
-import numpy as np
+import pytest
+
+np = pytest.importorskip("numpy")   # optional (requirements-embeddings.txt); skipped without it
 
 from backend.app.features.videos import islamhouse, related
 

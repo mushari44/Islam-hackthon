@@ -107,7 +107,11 @@ export function Sheet({ title, wide, onClose, children }) {
   const panel = useRef(null);
   useEffect(() => {
     const prev = document.activeElement;
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      const open = document.querySelectorAll(".sheet");   // sheets stack: Escape closes only the top one
+      if (open[open.length - 1] === panel.current) onClose();
+    };
     document.addEventListener("keydown", onKey);
     const focusable = panel.current?.querySelector("input, textarea, select, button:not(.icon-btn)");
     (focusable || panel.current)?.focus();
