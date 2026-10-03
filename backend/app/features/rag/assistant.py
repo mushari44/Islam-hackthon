@@ -37,9 +37,9 @@ Fill every field:
 - asks_for_evidence: true if the user asks for a verse or hadith that proves something.
 - quoted_text: Arabic text the user quotes from the Quran or a hadith, copied exactly as they wrote it (keep their mistakes); "" if none.
 - quoted_kind: what the quoted text is presented as: "quran" (a verse), "hadith" (a saying of the Prophet ﷺ, or the user calls it a hadith), "unclear", or "none" when quoted_text is empty.
-- standalone_question: the question rewritten to be understandable without the earlier conversation, in the user's language.
-- queries_ar / queries_en: 2-4 short keyword searches each, in Arabic and in English, covering the concepts and the usual terms (e.g. Kaaba -> "الكعبة القبلة استقبال", "Ka'bah qiblah direction of prayer"). They search a Quran tafsir, a Quran translation, a hadith encyclopedia and Arabic question-and-answer encyclopedias.
-- terms: Islamic terms the answer will likely need (e.g. "التوحيد", "Tawhid").
+- standalone_question: only when there is earlier conversation, the question rewritten to be understandable without it, in the user's language; otherwise "" (keep the output short: it is read by a program).
+- queries_ar / queries_en: 2-3 short keyword searches each, in Arabic and in English, covering the concepts and the usual terms (e.g. Kaaba -> "الكعبة القبلة استقبال", "Ka'bah qiblah direction of prayer"). They search a Quran tafsir, a Quran translation, a hadith encyclopedia and Arabic question-and-answer encyclopedias.
+- terms: at most 3 Islamic terms the answer will likely need (e.g. "التوحيد", "Tawhid"); [] if none.
 - clarify: if the question is too vague to search, one short clarifying question in the user's language; otherwise ""."""
 
 ANALYZE_SCHEMA = {

@@ -49,6 +49,9 @@ class Settings:
     model: str = os.getenv("SABEELI_MODEL") or DEFAULT_MODELS[_PROVIDER]
     # Only OpenRouter providers that don't store or train on prompts (seekers' questions).
     openrouter_private: bool = _bool("SABEELI_OPENROUTER_PRIVATE", True)
+    # Among the allowed providers, prefer the fastest ("throughput"), the quickest to start ("latency"),
+    # or the cheapest ("price"); "" lets OpenRouter balance them.
+    openrouter_sort: str = os.getenv("SABEELI_OPENROUTER_SORT", "throughput")
     answer_effort: str = os.getenv("SABEELI_ANSWER_EFFORT", "medium")
     light_effort: str = os.getenv("SABEELI_LIGHT_EFFORT", "low")
     use_fallbacks: bool = _bool("SABEELI_FALLBACKS", True)

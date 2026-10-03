@@ -66,6 +66,8 @@ class OpenRouter:
         body = {"model": self.model, **body}
         if settings.openrouter_private:
             body["provider"] = {"data_collection": "deny"}
+        if settings.openrouter_sort:
+            body.setdefault("provider", {})["sort"] = settings.openrouter_sort
         try:
             r = self.http.post(URL, json=body)
         except httpx.HTTPError as exc:
