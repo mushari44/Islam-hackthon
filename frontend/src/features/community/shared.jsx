@@ -31,17 +31,21 @@ export function Rules() {
   return <ul className="rules">{["com.rule1", "com.rule2", "com.rule3", "com.rule4"].map((k) => <li key={k}>{t(k)}</li>)}</ul>;
 }
 
+const needsAudience = (audience) => audience === "women" || audience === "men";
+
 function JoinForm({ group, close, onJoined }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { account } = useAccount();
   const [nick, setNick] = useState(account ? account.username : "");
   const [accept, setAccept] = useState(false);
+  const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const needsConfirm = needsAudience(group.audience);
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      await api.post(`/api/groups/${group.id}/join`, { nickname: nick, accept_rules: accept });
+      await api.post(`/api/groups/${group.id}/join?ui=${lang}`, { nickname: nick, accept_rules: accept, confirm_audience: confirm });
       toast(t("com.joined"));
       close();
       onJoined?.();
@@ -58,8 +62,12 @@ function JoinForm({ group, close, onJoined }) {
         <span className="hint">{t("com.nick_hint")}</span>
       </div>
       <div><h3>{t("com.rules")}</h3><Rules /></div>
+      {needsConfirm && (
+        <label className="check"><input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
+          <span>{t("com.confirm_group_aud", { aud: t(audienceKey(group.audience)) })}</span></label>
+      )}
       <label className="check"><input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} /><span>{t("com.accept")}</span></label>
-      <div className="row"><button type="submit" className="btn btn-primary" disabled={busy || !accept || nick.trim().length < 2}>{t("com.join")}</button></div>
+      <div className="row"><button type="submit" className="btn btn-primary" disabled={busy || !accept || (needsConfirm && !confirm) || nick.trim().length < 2}>{t("com.join")}</button></div>
     </form>
   );
 }
@@ -68,13 +76,14 @@ export function openJoin(group, t, onJoined) {
   openSheet({ title: t("com.join_title", { title: group.title }), render: (close) => <JoinForm group={group} close={close} onJoined={onJoined} /> });
 }
 
-function RsvpForm({ meetup, close, onDone, account }) {
-  const { t } = useI18n();
+function RsvpForm({ meetup, onDone, account }) {
+  const { t, lang } = useI18n();
   const [nick, setNick] = useState(account ? account.username : "");
   const [confirm, setConfirm] = useState(false);
   const [code, setCode] = useState(null);
+  const [busy, setBusy] = useState(false);
   const forKids = meetup.age_group === "kids";
-  const needsConfirm = forKids || meetup.audience === "women" || meetup.audience === "men";
+  const needsConfirm = forKids || needsAudience(meetup.audience);
   const open = meetup.registration === "open";
   if (code && open) {
     return (
@@ -96,12 +105,14 @@ function RsvpForm({ meetup, close, onDone, account }) {
   }
   const submit = async (e) => {
     e.preventDefault();
+    setBusy(true);
     try {
-      const res = await api.post(`/api/meetups/${meetup.id}/rsvp`, { nickname: nick, confirm_audience: confirm });
+      const res = await api.post(`/api/meetups/${meetup.id}/rsvp?ui=${lang}`, { nickname: nick, confirm_audience: confirm });
       setCode(res.my_rsvp.code);
       onDone?.();
     } catch (err) {
       toast(errorText(err, t), "error");
+      setBusy(false);
     }
   };
   return (
@@ -115,12 +126,12 @@ function RsvpForm({ meetup, close, onDone, account }) {
         <label className="check"><input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
           <span>{forKids ? t("com.confirm_guardian") : t("com.confirm_aud", { aud: t(audienceKey(meetup.audience)) })}</span></label>
       )}
-      <div className="row"><button type="submit" className="btn btn-primary" disabled={nick.trim().length < 2 || (needsConfirm && !confirm)}>{t(open ? "com.join_event" : "com.register")}</button></div>
+      <div className="row"><button type="submit" className="btn btn-primary" disabled={busy || nick.trim().length < 2 || (needsConfirm && !confirm)}>{t(open ? "com.join_event" : "com.register")}</button></div>
     </form>
   );
 }
 
 export function openRsvp(meetup, t, onDone, account = null) {
   const title = t(meetup.registration === "open" ? "com.join_title_event" : "com.rsvp_title", { title: meetup.title });
-  openSheet({ title, render: (close) => <RsvpForm meetup={meetup} close={close} onDone={onDone} account={account} /> });
+  openSheet({ title, render: () => <RsvpForm meetup={meetup} onDone={onDone} account={account} /> });
 }

@@ -33,6 +33,10 @@ register({
     "gr.err.too_fast": "مهلاً، انتظر ثوانٍ قبل الرسالة التالية.", "gr.err.too_long": "الرسالة طويلة جداً.",
     "gr.redacted": "أخفينا روابط أو معلومات تواصل من رسالتك حفاظاً على الخصوصية.", "gr.not_member": "انضم إلى المجموعة لتقرأ رسائلها وتشارك.",
     "gr.rules": "القواعد", "gr.you": "أنت",
+    "com.confirm_group_aud": "أؤكد أن هذه المجموعة تناسبني ({aud})",
+    "err.please confirm the audience of this group": "يرجى تأكيد أن المجموعة تناسبك.",
+    "err.meetup already started": "بدأ اللقاء، ولم يعد الحجز متاحاً.",
+    "err.the meetup must start in the future": "اختر موعداً لم يأتِ بعد.",
     },
   en: {
     "com.title": "Community", "com.lead": "Keep learning with others in groups led by da'is, and attend meetups at public venues. No private messages between members, and nicknames only.",
@@ -65,5 +69,9 @@ register({
     "gr.err.too_fast": "Slow down a little before the next message.", "gr.err.too_long": "The message is too long.",
     "gr.redacted": "We hid links or contact details from your message to protect privacy.", "gr.not_member": "Join the group to read and take part.",
     "gr.rules": "Rules", "gr.you": "You",
+    "com.confirm_group_aud": "I confirm this group is for me ({aud})",
+    "err.please confirm the audience of this group": "Please confirm this group is for you.",
+    "err.meetup already started": "This meetup has started; booking is closed.",
+    "err.the meetup must start in the future": "Choose a time that hasn't passed yet.",
     },
 });

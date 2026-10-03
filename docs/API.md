@@ -54,22 +54,22 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 |---|---|---|---|---|
 | GET | `/api/groups` | seeker? | `?lang=&country=&ui=ar\|en` | `[Group]` (active groups only) |
 | GET | `/api/groups/{gid}` | seeker? | `?ui=` | Group. 404 if missing or inactive |
-| POST | `/api/groups/{gid}/join` | seeker | `{nickname: 2–40 chars, accept_rules: bool}` | Group with `membership`. 400 if the rules aren't accepted or the nickname is rejected, 409 if the nickname is taken. Joining again only changes the nickname |
+| POST | `/api/groups/{gid}/join` | seeker | `?ui=`; `{nickname: 2–40 chars, accept_rules: bool, confirm_audience?: bool}` (must be `true` for `women` / `men` groups) | Group with `membership`. 400 if the rules or the audience aren't confirmed, or the nickname is rejected (abusive, contact details, or posing as the assistant or a moderator), 409 if the nickname is taken. Joining again only changes the nickname; rejoining after leaving brings back the same membership, so a mute stays |
 | POST | `/api/groups/{gid}/leave` | seeker | – | `{ok: true}` |
-| GET | `/api/groups/{gid}/messages` | a member seeker, or the group's leader da'i | `?after=<last id>` (default 0) | `[GroupMessage]`, oldest first, at most 200. 403 if you are neither |
-| POST | `/api/groups/{gid}/messages` | seeker (member) | `{text: ≤ 2000, lang: ar\|en}` | GroupMessage plus `redacted: bool`. 403 `join the group first` / `muted`. 422 with detail `too_long` \| `too_fast` \| `abuse` \| `empty` (3 `abuse` strikes mute the member). A message mentioning `@سبيلي` / `@sabeeli` gets a bot reply posted later in the background; poll to see it |
-| GET | `/api/daai/groups` | daai | – | `[Group + needs_leader: int]` (the groups I lead) |
-| POST | `/api/daai/groups` | daai | `{title: 3–160, description?, lang, country?, city?, audience: all\|women\|men}` | Group |
-| POST | `/api/daai/groups/{gid}/messages` | daai (leader) | `{text}` | GroupMessage |
+| GET | `/api/groups/{gid}/messages` | a member seeker, or the group's leader da'i | `?after=<last id>` (default 0) | `[GroupMessage]`, oldest first, at most 200. With `after=0`, the newest 200 (re-fetch it to pick up deletions and resolved flags); otherwise the 200 after that id. 403 if you are neither |
+| POST | `/api/groups/{gid}/messages` | seeker (member) | `{text: ≤ 2000, lang: ar\|en}` | GroupMessage plus `redacted: bool`. 403 `join the group first` / `muted`. 422 with detail `too_long` \| `too_fast` \| `abuse` \| `empty` (3 `abuse` strikes mute the member). A message mentioning `@سبيلي` / `@sabeeli` gets a bot reply posted later in the background; poll to see it. If the assistant fails, the bot posts a short notice with `needs_leader: true` instead |
+| GET | `/api/daai/groups` | daai | `?ui=` | `[Group + needs_leader: int]` (the groups I lead) |
+| POST | `/api/daai/groups` | daai | `?ui=`; `{title: 3–160, description?: ≤ 2000, lang: 2–3 lowercase letters, country?: ≤ 64, city?: ≤ 64, audience: all\|women\|men}` | Group. 422 if a field is out of range |
+| POST | `/api/daai/groups/{gid}/messages` | daai (leader) | `{text}` | GroupMessage (author is the leader's name in the group's language) |
 | POST | `/api/daai/groups/{gid}/messages/{mid}/delete` | daai (leader) | – | `{ok: true}` (soft delete) |
 | POST | `/api/daai/groups/{gid}/messages/{mid}/resolve` | daai (leader) | – | `{ok: true}` (clears `needs_leader`) |
 | POST | `/api/daai/groups/{gid}/members/{member_id}/mute` | daai (leader) | `{muted: bool}` | `{ok: true, muted}` |
 | GET | `/api/meetups` | seeker? | `?country=&city=&lang=&ui=` | `[Meetup]`: status `open`, starting no earlier than 3 h ago, soonest first |
-| POST | `/api/meetups/{mid}/rsvp` | seeker | `{nickname: 2–40, confirm_audience?: bool}` (must be `true` for `women` / `men` meetups) | Meetup with `my_rsvp`. Safe to repeat. 400, 404, 409 `full` |
+| POST | `/api/meetups/{mid}/rsvp` | seeker | `?ui=`; `{nickname: 2–40, confirm_audience?: bool}` (must be `true` for `women` / `men` meetups) | Meetup with `my_rsvp`. Safe to repeat. 400 (audience, or nickname rejected as for groups), 404, 409 `full` / `meetup already started` |
 | POST | `/api/meetups/{mid}/cancel-rsvp` | seeker | – | `{ok: true}` |
-| GET | `/api/meetups/{mid}/ics` | none | – | `text/calendar` attachment (linked with a plain `<a href download>`) |
-| GET | `/api/daai/meetups` | daai | – | `[Meetup + attendees: [nickname]]` (meetups I host, in any status) |
-| POST | `/api/daai/meetups` | daai | `{title: 3–160, description?, lang, country?, city: 2–64, venue: 3–200, starts_at: ISO 8601 (no offset = UTC), duration_min: 15–480 (default 90), capacity: 2–500 (default 20), audience: all\|women\|men\|families, group_id?: int\|null, public_venue: true}` | Meetup. 400 if `public_venue` isn't true, the audience is bad, or the group isn't yours |
+| GET | `/api/meetups/{mid}/ics` | none | – | `text/calendar` attachment (linked with a plain `<a href download>`); `STATUS:CANCELLED` once the host cancels |
+| GET | `/api/daai/meetups` | daai | `?ui=` | `[Meetup + attendees: [nickname]]` (meetups I host, in any status) |
+| POST | `/api/daai/meetups` | daai | `?ui=`; `{title: 3–160, description?, lang: 2–3 lowercase letters, country?: ≤ 64, city: 2–64, venue: 3–200, starts_at: ISO 8601 (no offset = UTC), duration_min: 15–480 (default 90), capacity: 2–500 (default 20), audience: all\|women\|men\|families, group_id?: int\|null, public_venue: true}` | Meetup. 400 if `public_venue` isn't true, the time has passed, the audience is bad, or the group isn't yours |
 | POST | `/api/daai/meetups/{mid}/cancel` | daai (host) | – | `{ok: true}` |
 
 ## Videos — owner: Mushari
