@@ -27,6 +27,15 @@ from .config import settings
 log = logging.getLogger("sabeeli.openrouter")
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
+RETRY_WAIT = 0.4   # seconds before the one retry of a passing failure
+
+
+def _provider_error(r: httpx.Response) -> bool:
+    """A 200 reply that carries the upstream provider's error instead of an answer."""
+    try:
+        return bool(r.json().get("error"))
+    except ValueError:
+        return False
 
 
 class OpenRouter:
@@ -70,11 +79,27 @@ class OpenRouter:
             body["provider"] = {"data_collection": "deny"}
         if settings.openrouter_sort:
             body.setdefault("provider", {})["sort"] = settings.openrouter_sort
-        t0 = time.perf_counter()
-        try:
-            r = self.http.post(URL, json=body)
-        except httpx.HTTPError as exc:
-            raise LLMUnavailable("network error") from exc
+        # One quick retry for a passing failure (a dropped connection, rate limit, an overloaded provider):
+        # OpenRouter usually routes the retry to another provider, and the person gets a real answer instead
+        # of the sources-only fallback. A timeout is not retried: the person has already waited.
+        for attempt in (1, 2):
+            t0 = time.perf_counter()
+            try:
+                r = self.http.post(URL, json=body)
+            except httpx.TimeoutException as exc:
+                raise LLMUnavailable("timeout") from exc
+            except httpx.HTTPError as exc:
+                if attempt == 1:
+                    log.warning("OpenRouter network error, retrying once: %s", exc)
+                    time.sleep(RETRY_WAIT)
+                    continue
+                raise LLMUnavailable("network error") from exc
+            transient = r.status_code in (429, 500, 502, 503, 504) or (r.status_code == 200 and _provider_error(r))
+            if transient and attempt == 1:
+                log.warning("OpenRouter %s, retrying once: %s", r.status_code, r.text[:200])
+                time.sleep(RETRY_WAIT)
+                continue
+            break
         elapsed = time.perf_counter() - t0
         if r.status_code in (401, 403):
             raise LLMUnavailable("invalid OpenRouter API key")

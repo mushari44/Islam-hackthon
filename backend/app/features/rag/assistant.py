@@ -105,7 +105,9 @@ NUMBERED_RULES = """
 Citations: the search results are numbered [1], [2], ... End every sentence that says anything about Islam with
 the number(s) of the result(s) it relies on, in square brackets, for example [2] or [1][3]: the number, not the id.
 Use only results that answer the question, and ignore the others. A sentence without a result number is deleted
-before the user sees it, so cite every sentence that states a fact; a short connecting phrase needs none.
+before the user sees it, so cite every sentence that states a fact, starting with your first sentence, the one
+that answers the question directly; a short connecting phrase needs none. If the results don't answer the
+question, or only part of it, say so in one plain sentence without a number (the app shows its own notice there).
 Verse and hadith markers such as [[q:2:256]] (double brackets) go on their own line, without a number."""
 
 # One citation: a result number (2) or, as models also write, a result id (qa:36130, q:2:256, b:9).

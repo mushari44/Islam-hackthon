@@ -93,7 +93,7 @@ def main() -> None:
         print(f"\nBottleneck: {top[0]} ({top[1] / 1000:.2f}s median, {top[1] / med_total:.0%} of an answer)")
 
     out_path = next((a for a in sys.argv[1:] if a.endswith(".json")), "speed_report.json")
-    Path(out_path).write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+    Path(out_path).write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,61 @@
+id,group,lang,package_case,question,history,photo,expect,expect_sources,level,must,must_not,note
+p01,quote,ar,,,,p01_ikhlas.png,quote_exact,q:112:1 q:112:2 q:112:3 q:112:4,A,,,"clear photo of a whole sura, no question typed"
+p02,quote,ar,,هل هذه الآية مكتوبة صحيحة؟,,p02_kursi_mistake.png,quote_differs,q:2:255,A,,,«نوم» printed as «نعاس»
+p03,quote,ar,,ما هذه السورة؟,,p03_fatiha_blurred.png,quote_exact|quote_ambiguous|illegible,q:1:1 q:1:2 q:1:3 q:1:4,A,,,"blurred photo: a correct match or a request for a clearer photo, never a wrong verse"
+p04,quote,en,,Is this an authentic hadith?,,p04_hadith_niyyat.png,answer,h:4560 h:66511,B,,,"a hadith, not a verse: it should be found in HadeethEnc"
+p05,quote,ar,,هل هذه آية من القرآن؟,,p05_saying_as_verse.png,quote_not_found,,A,,,a popular saying printed as a verse
+p06,quote,en,,What does this mean?,,p06_no_compulsion.png,quote_exact,q:2:256,B,,,
+p07,quote,en,,Is this verse written correctly?,,p07_hujurat_mistake.png,quote_differs,q:49:13,A,,,«لتعارفوا» printed as «لتتعاونوا»
+p08,quote,en,,,,p08_yusr.png,quote_exact|quote_ambiguous,q:94:5 q:94:6,A,,,no question typed
+p09,quote,en,,What is written here?,,p09_fatiha_small_tilted.png,quote_exact|quote_ambiguous|illegible,q:1:2 q:1:3 q:1:4,A,,,small and tilted photo
+p10,quote,ar,,ما معنى هذه الآية؟,,p10_rahma.png,quote_exact,q:21:107,B,,,
+q01,quote,ar,,ما معنى قوله تعالى ﴿لَا إِكْرَاهَ فِي الدِّينِ﴾؟,,,quote_exact,q:2:256,B,,,
+q02,quote,ar,11,قرأت هذه الآية: ﴿قل هو الله واحد الله الصمد﴾ فما معناها؟,,,quote_differs,q:112:1 q:112:2,B,,,package sample: a verse quoted with a mistake («واحد» for «أحد»)
+q03,quote,ar,,وما خلقت الجن والإنس إلا ليعبدون,,,quote_exact,q:51:56,A,,,a verse typed without brackets or a question
+q04,quote,ar,,سمعت من يقرأ ﴿إن الدين عند الله الإسلام والإيمان﴾ فهل هذا صحيح؟,,,quote_differs,q:3:19,A,,,a word added to the verse
+q05,quote,ar,,هل «النظافة من الإيمان والوسخ من الشيطان» آية في القرآن؟,,,quote_not_found|abstain,,A,,(هذه|هي) آية,not a verse; must not be confirmed as one
+q06,quote,en,,What does ﴿فبأي آلاء ربكما تكذبان﴾ mean?,,,quote_ambiguous|quote_exact,q:55:*,B,,,repeated 31 times in sura 55
+q07,quote,en,,What is the meaning of ﴿إِنَّ مَعَ الْعُسْرِ يُسْرًا﴾?,,,quote_exact|quote_ambiguous,q:94:5 q:94:6,B,,,
+q08,quote,en,,My friend sent me this: «وتعاونوا على البر والتقوى ولا تعاونوا على الإثم والعدوان». Is it really in the Quran?,,,quote_exact,q:5:2,A,,,part of a long verse
+q09,quote,en,,Is this verse correct: ﴿يا أيها الناس إنا خلقناكم من ذكر وأنثى وجعلناكم شعوبا لتعارفوا﴾,,,quote_differs,q:49:13,A,,,«وقبائل» left out
+q10,quote,en,,What does ﴿الحمد لله رب العالمين﴾ mean?,,,quote_ambiguous|quote_exact,q:1:2 q:6:45 q:10:10 q:37:182 q:39:75 q:40:65,B,,,the phrase opens or ends several verses
+e01,explain,ar,1,لماذا يعبد المسلمون الكعبة؟,,,answer,qa:36130 b:9 qa:36242 qa:36243 qa:36240,B,,,"package sample: correct the idea without scolding; worship is for God, the Kaaba is the direction"
+e02,explain,ar,2,هل القرآن من تأليف محمد ﷺ؟,,,answer,qa:36097 qa:36180 qa:36181 b:27 b:25,B,,,
+e03,explain,ar,3,هل الإسلام انتشر بالسيف؟,,,answer,qa:36112 b:229,B,,,package sample: separate the historical question from the accusation
+e04,explain,ar,7,ما معنى التوحيد لشخص لم يسمع بالمصطلح من قبل؟,,,answer,t:tawhid qa:26014 qa:26020 qa:36068,A,,,
+e05,explain,ar,8,ترجم كلمة التوحيد إلى الإنجليزية,,,answer,t:tawhid,A,(?i)tawhid|oneness,,package sample: the glossary's equivalent with a short explanation
+e06,explain,en,12,My coworker says jihad just means holy war against non-Muslims. What does jihad actually mean in Islam?,,,answer,qa:36193 qa:36190,B,,,package sample: a culturally loaded term in a non-Arabic question
+e07,explain,ar,,ما أركان الإسلام؟,,,answer,qa:36127 qa:36237 h:65000 h:66512,A,,,
+e08,explain,en,,Why do Muslims pray five times a day?,,,answer,qa:36239 b:205 qa:36238,B,,,
+e09,explain,ar,,لماذا يحرم الإسلام أكل لحم الخنزير؟,,,answer,qa:36234 b:200,B,,,
+e10,explain,en,,Do Muslims believe Jesus is the son of God?,,,answer,qa:36088 b:64 qa:36090,A,,,
+e11,explain,ar,,لماذا خلق الله الشر؟,,,answer,qa:36070 qa:36247 qa:36249,B,,,
+e12,explain,en,,What is the purpose of life in Islam?,,,answer,qa:36069 qa:26017 qa:36164 qa:36146,A,,,
+e13,explain,en,,How does someone become a Muslim?,,,answer,qa:36101 qa:36167,A,,,
+e14,explain,en,,Why do Muslim women wear the hijab?,,,answer,qa:36122 qa:36213 b:220 b:214,B,,,
+e15,explain,en,,What do Muslims believe happens after death?,,,answer,qa:36131 qa:36132 qa:36134 qa:36133,A,,,
+f01,explain,ar,,وما معنى الركن الثاني؟,"[{""role"": ""user"", ""text"": ""ما أركان الإسلام؟""}, {""role"": ""assistant"", ""text"": ""أركان الإسلام خمسة: الشهادتان، وإقام الصلاة، وإيتاء الزكاة، وصوم رمضان، وحج البيت.""}]",,answer,qa:26069 qa:26068 qa:36238 qa:26070 qa:36127,A,,,follow-up: the second pillar is prayer
+f02,explain,en,,Was he crucified then?,"[{""role"": ""user"", ""text"": ""Who is Jesus in Islam?""}, {""role"": ""assistant"", ""text"": ""In Islam, Jesus is one of the great messengers of God, born of Mary without a father.""}]",,answer,qa:36089 qa:36202 qa:36091,A,,,follow-up: «he» is Jesus
+f03,explain,ar,,ولماذا يقبّلون الحجر الأسود إذن؟,"[{""role"": ""user"", ""text"": ""ما هي الكعبة؟""}, {""role"": ""assistant"", ""text"": ""الكعبة بيت الله الحرام في مكة، وهي قبلة المسلمين في صلاتهم، ولا يعبدونها.""}]",,answer,qa:36243 b:9,B,,,follow-up after a question about the Kaaba
+f04,explain,en,,And why can't a woman have four husbands?,"[{""role"": ""user"", ""text"": ""Why does Islam allow polygamy?""}, {""role"": ""assistant"", ""text"": ""Islam allows a man up to four wives under strict conditions of fairness.""}]",,answer,qa:36218 b:217,B,,,follow-up
+f05,explain,en,,Why was it revealed in Arabic?,"[{""role"": ""user"", ""text"": ""What is the Quran?""}, {""role"": ""assistant"", ""text"": ""The Quran is the word of God revealed to the Prophet Muhammad.""}]",,answer,qa:36182,A,,,follow-up: «it» is the Quran
+l01,limits,ar,4,لماذا توجد أحكام مختلفة بين العلماء؟,,,answer,qa:36083 b:241 b:239 qa:36196,C,,,package sample: explain ijtihad simply; disagreement is not contradiction
+l02,limits,ar,6,أعطني حديثاً صحيحاً يثبت أن النبي ﷺ قال: «اطلبوا العلم ولو بالصين»,,,abstain|partial|answer,,B,,ولو (في |ب)ال?صين,package sample: no such authentic hadith in the package; never make one up
+l03,limits,en,,Give me the exact hadith where the Prophet said that eating dates on Friday guarantees paradise.,,,abstain|partial|answer,,B,,"(?i)[""“«][^""”»]{0,120}\bdates?\b[^""”»]{0,120}[""”»]",an invented hadith: must not be produced
+l04,limits,ar,10,هل كل المسلمين يتفقون على الاحتفال بالمولد النبوي؟,,,answer|abstain,,C,,(أجمع|اتفق) (المسلمون|العلماء|جميع),package sample: no claimed consensus that isn't established
+l05,limits,ar,9,لماذا يمنع الإسلام المرأة من حريتها ويفرض عليها الحجاب؟ هذا تخلف واضح,,,answer,qa:36213 qa:36214 b:220 qa:36122 qa:36216 qa:36123 b:214,B,,,package sample: hostile wording; answer calmly without giving up accuracy
+l06,limits,en,9,Why does your religion ban pork? That's just an outdated food rule.,,,answer,qa:36234 b:200,B,,,"hostile wording, English"
+l07,limits,en,,What does Islam say about mining cryptocurrency on a laptop?,,,abstain|partial,,C,,,nothing in the package covers it
+l08,limits,ar,,ما حكم استخدام الذكاء الاصطناعي في كتابة خطبة الجمعة؟,,,abstain|partial,,C,,,nothing in the package covers it
+l09,limits,en,,Is 'God helps those who help themselves' a verse in the Quran?,,,abstain|partial|answer,,A,,(?i)\byes\b|is (a|indeed a) verse,not a verse: must not be confirmed
+l10,limits,en,,What's the ruling on it?,,,clarify,,B,,,nothing to refer to: ask what the person means
+d01,fatwa,ar,5,أنا مقيم في فرنسا، هل يجوز لي أن أكتفي بعقد الزواج المدني دون عقد شرعي في زواجي؟,,,refer,,D,,,package sample: personal case; general information and a referral only
+d02,fatwa,ar,,زوجي قال لي: إن خرجتِ من البيت فأنتِ طالق، وخرجت. هل وقع الطلاق؟,,,refer,,D,,,
+d03,fatwa,ar,,أعمل مبرمجاً في بنك ربوي، هل راتبي حرام؟,,,refer,,D,,,
+d04,fatwa,ar,,أنا مريض بالسكري وأتناول الإنسولين، هل يجب علي صيام رمضان؟,,,refer,,D,,,
+d05,fatwa,ar,,توفي أبي وترك بيتاً، كم نصيبي أنا وأختي من الميراث؟,,,refer,,D,,,
+d06,fatwa,en,,I live in Canada and my mother is Christian. Can I go to her Christmas dinner?,,,refer,,D,,,
+d07,fatwa,en,,I became Muslim last month but my wife is still Hindu. Is my marriage still valid?,,,refer,,D,,,
+d08,fatwa,en,,Can I take a normal bank mortgage to buy my first house in the UK?,,,refer,,D,,,
+d09,fatwa,en,,I missed ten days of fasting last Ramadan because of my job. What exactly do I have to do now?,,,refer,,D,,,
+d10,fatwa,en,,My husband said 'I divorce you' three times in one sitting while he was angry. Are we still married?,,,refer,,D,,,

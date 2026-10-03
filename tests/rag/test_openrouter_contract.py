@@ -136,3 +136,33 @@ def test_a_line_introducing_a_verse_stays(monkeypatch):
     text = "".join(s["text"] for s in out["segments"])
     assert "states this principle" in text and "[[q:2:256]]" in text
     assert "history" not in text
+
+
+def test_a_passing_failure_is_retried_once_and_a_bad_key_is_not(monkeypatch):
+    monkeypatch.setattr(openrouter, "RETRY_WAIT", 0)
+    replies = [httpx.Response(503, text="overloaded"), httpx.Response(200, json=_reply("fine"))]
+    seen = []
+
+    def flaky(request):
+        seen.append(1)
+        return replies.pop(0)
+    text, _ = _client(flaky).chat("system", "hello")
+    assert text == "fine" and len(seen) == 2
+
+    seen.clear()
+
+    def bad_key(request):
+        seen.append(1)
+        return httpx.Response(401, text="no")
+    with pytest.raises(claude_mod.LLMUnavailable):
+        _client(bad_key).chat("system", "hello")
+    assert len(seen) == 1
+
+    seen.clear()
+
+    def always_down(request):
+        seen.append(1)
+        return httpx.Response(502, text="bad gateway")
+    with pytest.raises(claude_mod.LLMUnavailable):
+        _client(always_down).chat("system", "hello")
+    assert len(seen) == 2
