@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from ...core.db import SESSION_PURGERS, get_db, iso, utcnow
+from ...core.db import SESSION_MERGERS, SESSION_PURGERS, get_db, iso, utcnow
 from . import mailer
 from .deps import admin, daai, seeker, seeker_device
 from .models import Daai, SeekerAccount, SeekerSession
@@ -205,6 +205,18 @@ def signup(body: SignupIn, device: SeekerSession = Depends(seeker_device), db: S
     return {"account": account_view(acc), "recovery_code": code}
 
 
+def _join(db: Session, device: SeekerSession, acc: SeekerAccount) -> None:
+    """Signs this browser in to the account. What it did before signing in (Ask chats, calls, RSVPs) moves
+    to the account, like at sign-up, so nothing is left behind on this one device. Only an anonymous
+    browser's own data moves: never another account's (a browser already signed in, or an account's home)."""
+    anonymous = device.account_id is None and not db.scalars(
+        select(SeekerAccount.id).where(SeekerAccount.session_id == device.id)).first()
+    if anonymous and device.id != acc.session_id:
+        for merge in SESSION_MERGERS:
+            merge(db, device.id, acc.session_id)
+    device.account_id = acc.id
+
+
 @router.post("/account/signin")
 def signin(body: SigninIn, device: SeekerSession = Depends(seeker_device), db: Session = Depends(get_db)):
     key = _key(body.username)
@@ -215,7 +227,7 @@ def signin(body: SigninIn, device: SeekerSession = Depends(seeker_device), db: S
         _failed(key)
         raise HTTPException(403, "wrong username or password")
     _failures.pop(key, None)
-    device.account_id = acc.id
+    _join(db, device, acc)
     db.commit()
     return {"account": account_view(acc)}
 
@@ -245,7 +257,7 @@ def recover(body: RecoverIn, device: SeekerSession = Depends(seeker_device), db:
         raise HTTPException(403, "wrong username or recovery code")
     code = _recovery_code()
     acc.password_hash, acc.recovery_hash = hash_password(body.new_password), hash_password(code)
-    device.account_id = acc.id
+    _join(db, device, acc)
     db.commit()
     return {"account": account_view(acc), "recovery_code": code}
 
@@ -354,7 +366,7 @@ def reset(body: ResetIn, device: SeekerSession = Depends(seeker_device), db: Ses
         raise HTTPException(403, "wrong or expired code")
     acc.password_hash = hash_password(body.new_password)
     acc.reset_hash, acc.reset_expires = "", None
-    device.account_id = acc.id
+    _join(db, device, acc)
     db.commit()
     return {"account": account_view(acc)}
 

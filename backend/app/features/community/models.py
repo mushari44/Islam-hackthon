@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, delete, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
-from ...core.db import Base, on_session_delete, utcnow
+from ...core.db import Base, on_session_delete, on_session_merge, utcnow
 
 
 class Group(Base):
@@ -92,3 +92,18 @@ def _purge_session(db: Session, sid: str) -> None:
     # Group posts stay readable for others, but are no longer linked to the browser.
     for m in db.scalars(select(GroupMember).where(GroupMember.session_id == sid)).all():
         m.session_id, m.left = "deleted", True
+
+
+@on_session_merge
+def _merge_session(db: Session, from_sid: str, to_sid: str) -> None:
+    """Group memberships and RSVPs made before signing in move to the account, unless the account already
+    has its own in that group or meetup (then the account's is kept)."""
+    groups = set(db.scalars(select(GroupMember.group_id).where(GroupMember.session_id == to_sid,
+                                                               GroupMember.left.is_(False))).all())
+    for m in db.scalars(select(GroupMember).where(GroupMember.session_id == from_sid)).all():
+        if m.group_id not in groups:
+            m.session_id = to_sid
+    meetups = set(db.scalars(select(RSVP.meetup_id).where(RSVP.session_id == to_sid, RSVP.cancelled.is_(False))).all())
+    for r in db.scalars(select(RSVP).where(RSVP.session_id == from_sid)).all():
+        if r.meetup_id not in meetups:
+            r.session_id = to_sid

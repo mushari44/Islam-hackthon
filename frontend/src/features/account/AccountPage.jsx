@@ -290,7 +290,7 @@ function SavedChats() {
   const { t, fmtNum } = useI18n();
   const [count, setCount] = useState(null);
   const [sure, setSure] = useState(false);
-  useEffect(() => { api.get("/api/ask/history?limit=200").then((h) => setCount(h.turns.length)).catch(() => setCount(0)); }, []);
+  useEffect(() => { api.get("/api/conversations").then((r) => setCount(r.conversations.length)).catch(() => setCount(0)); }, []);
   const clear = async () => {
     try {
       await api.del("/api/ask/history");

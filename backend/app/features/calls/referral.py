@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from ...core.claude import LLMUnavailable, get_claude
 from ...core.db import Setting, get_db
 from ..auth.public import SeekerSession, seeker
-from ..rag.public import conversation_transcript, last_question, source_exists
+from ..rag.public import conversation_transcript, last_question, owns_conversation, source_exists
 from .models import Referral
 
 router = APIRouter(prefix="/api")
@@ -68,18 +68,18 @@ def next_arm(db: Session) -> str:
     return arms[counter % 3]
 
 
-def template_card(db: Session, sid: str, lang: str) -> dict:
-    question, sources = last_question(db, sid)
+def template_card(db: Session, sid: str, lang: str, conversation_id: int | None = None) -> dict:
+    question, sources = last_question(db, sid, conversation_id)
     explained = [{"point": "ما شرحه المساعد في آخر إجابة" if lang == "ar" else "What the assistant explained last",
                   "sources": sources[:6]}] if sources else []
     return {**EMPTY_CARD, "question": question, "explained": explained,
             "language": "العربية" if lang == "ar" else "English"}
 
 
-def model_card(db: Session, sid: str, lang: str) -> dict:
-    transcript = conversation_transcript(db, sid)
+def model_card(db: Session, sid: str, lang: str, conversation_id: int | None = None) -> dict:
+    transcript = conversation_transcript(db, sid, conversation_id=conversation_id)
     if not transcript:
-        return template_card(db, sid, lang)
+        return template_card(db, sid, lang, conversation_id)
     prompt = (f"Seeker's language: {'Arabic' if lang == 'ar' else 'English'}\n\n"
               f"Conversation (assistant turns list the source ids they cited):\n{transcript}")
     return get_claude().json(REFERRAL_SYSTEM, prompt, REFERRAL_SCHEMA, max_tokens=2000)
@@ -87,25 +87,27 @@ def model_card(db: Session, sid: str, lang: str) -> dict:
 
 class DraftIn(BaseModel):
     lang: str = "ar"
+    conversation_id: int | None = None   # the Ask chat the seeker pressed "Talk to a da'i" in
 
 
 @router.post("/referral/draft")
 def draft(body: DraftIn, me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
     lang = "ar" if body.lang == "ar" else "en"
+    conv = body.conversation_id if owns_conversation(db, me.id, body.conversation_id) else None
     arm = next_arm(db)
     mode = arm
     if arm == "model":
         try:
-            card = model_card(db, me.id, lang)
+            card = model_card(db, me.id, lang, conv)
         except LLMUnavailable:
-            card, mode = template_card(db, me.id, lang), "template"
+            card, mode = template_card(db, me.id, lang, conv), "template"
     elif arm == "template":
-        card = template_card(db, me.id, lang)
+        card = template_card(db, me.id, lang, conv)
     else:
         card = dict(EMPTY_CARD)
     for item in card.get("explained", []):
         item["sources"] = [s for s in item.get("sources", []) if source_exists(s)][:6]
-    ref = Referral(session_id=me.id, mode=mode, proposed=card, final={}, lang=lang)
+    ref = Referral(session_id=me.id, mode=mode, proposed=card, final={}, lang=lang, conversation_id=conv)
     db.add(ref)
     db.commit()
     return {"id": ref.id, "mode": mode, "card": card}

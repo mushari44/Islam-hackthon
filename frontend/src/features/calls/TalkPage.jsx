@@ -53,7 +53,7 @@ function Choose({ query, initialDaai, initialLang, onRequested }) {
   const { t, lang: uiLang, fmtNum, langName } = useI18n();
   const [lang, setLang] = useState(initialLang || query.lang || uiLang);
   const [gender, setGender] = useState("");
-  const [daai, setDaai] = useState(initialDaai || null);
+  const [daai, setDaai] = useState(initialDaai || (query.daai ? Number(query.daai) : null));
   const [availability, setAvailability] = useState({});
   const [busy, setBusy] = useState(false);
   usePolling(async () => setAvailability((await api.pGet("/api/availability")).languages || {}), 8000);

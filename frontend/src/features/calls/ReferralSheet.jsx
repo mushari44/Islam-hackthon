@@ -16,7 +16,7 @@ function SourceChip({ id }) {
   return <span className="badge">{title}</span>;
 }
 
-export default function ReferralSheet({ lang, close }) {
+export default function ReferralSheet({ lang, conversationId, close }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(null);
   const [card, setCard] = useState(null);
@@ -25,7 +25,7 @@ export default function ReferralSheet({ lang, close }) {
 
   useEffect(() => {
     let alive = true;
-    api.post("/api/referral/draft", { lang })
+    api.post("/api/referral/draft", { lang, conversation_id: conversationId || null })
       .then((d) => { if (alive) { setDraft(d); setCard({ ...d.card, explained: (d.card.explained || []).map((e) => ({ ...e })) }); } })
       .catch((err) => { toast(errorText(err, t), "error"); close(); });
     return () => { alive = false; };

@@ -130,6 +130,25 @@ def _call_view(call: CallRequest, db: Session) -> dict:
             "daai_pref": call.daai_pref, "queue_position": waiting_ahead, "created_at": iso(call.created_at)}
 
 
+@router.get("/calls/conversations")
+def calls_by_conversation(me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
+    """Which da'i this seeker talked to about each Ask conversation (newest call first), so the chat list
+    can show it and offer to call the same da'i again. Declared before /calls/{cid}."""
+    rows = db.execute(select(Referral.conversation_id, CallRequest)
+                      .join(CallRequest, CallRequest.referral_id == Referral.id)
+                      .where(CallRequest.session_id == me.id, Referral.conversation_id.is_not(None),
+                             CallRequest.daai_id.is_not(None), CallRequest.accepted_at.is_not(None))
+                      .order_by(CallRequest.accepted_at.desc())).all()
+    out = []
+    for conv_id, call in rows:
+        d = db.get(Daai, call.daai_id)
+        if d:
+            out.append({"conversation_id": conv_id, "call_id": call.id, "at": iso(call.accepted_at), "lang": call.lang,
+                        "daai": {"id": d.id, "name": d.display_name, "name_en": d.display_name_en,
+                                 "callable": _callable(d)}})
+    return out
+
+
 @router.get("/calls/{cid}")
 def call_status(cid: int, me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
     call = db.get(CallRequest, cid)

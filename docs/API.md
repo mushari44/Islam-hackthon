@@ -27,6 +27,7 @@ Other backend features use auth only through `backend/app/features/auth/public.p
 | POST | `/api/daai/login` | none | `{username, password}` | `{token, me: Profile}`. 401 on wrong credentials |
 | GET | `/api/account` | seeker | – | `{account: Account\|null}` (null when this browser isn't signed in) |
 | POST | `/api/account/signout` | seeker | – | `{ok: true}`. On the browser that created the account, the token then answers 401 everywhere (its session is the account's home), so the client starts a fresh anonymous session and the next person on that device can't see the account's data |
+| POST | `/api/account/signin` | seeker | `{username, password}` | `{account: Account}`. From an anonymous browser, what it did before signing in (Ask conversations, calls and referrals, group memberships and RSVPs) moves to the account (`SESSION_MERGERS`), like at sign-up; a browser already signed in to another account brings nothing over. 403 wrong username or password, 429 after 5 failures in 10 minutes |
 | POST | `/api/account/signup` | seeker | `{username, password, email?, lang?, country?, city?, age_band?, gender?}` | `{account: Account, recovery_code}`. Only `username` and `password` are required. Defaults: `lang` `"ar"`, and `""` (not given) for the rest. The web app no longer shows `recovery_code` (older accounts can still use theirs with `/api/account/recover`); a forgotten password is reset by email, which needs `SMTP_HOST`. 409 `username taken` / `email taken`, 422 on bad input |
 | POST | `/api/account/profile` | seeker (signed in) | `{country?, city?, lang?, email?, age_band?, gender?}` | `{account: Account}`. `lang` is `ar`\|`en`; `country` a 2-letter code; `age_band` one of `"" u18 18_24 25_34 35_44 45_54 55p`; `gender` `""`\|`m`\|`f`. `""` removes a value, 422 otherwise. A new `country` without `city` clears the city |
 | GET | `/api/daai/me` | daai | – | Profile |
@@ -45,15 +46,19 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 
 | Method | Path | Auth | Body / params | Returns |
 |---|---|---|---|---|
-| POST | `/api/ask` | seeker | multipart: `question` (text; may be empty if `image` is sent), `lang` (`ar`, anything else means `en`; default `ar`), `image?` (JPEG/PNG/WebP/GIF, max 5 MB) | Answer. 400 `empty question`, 413 image too large, 415 unsupported image type |
-| GET | `/api/ask/history` | seeker | `?limit=` (1–200, default 50) | `{saved: bool, turns: [{turn_id, question, had_image, created_at, helpful, answer: Answer}]}`, oldest first. `answer` has no `trace`; `cards` are rebuilt from `sources`. `saved` is true when the session belongs to a seeker account: those turns are kept until cleared or the account is deleted, while anonymous turns are deleted after `RETENTION_HOURS` (24) |
-| DELETE | `/api/ask/history` | seeker | – | `{ok: true}`. Deletes this seeker's turns (on every device, when signed in) |
+| POST | `/api/ask` | seeker | multipart: `question` (text; may be empty if `image` is sent), `lang` (`ar`, anything else means `en`; default `ar`), `image?` (JPEG/PNG/WebP/GIF, max 5 MB), `conversation_id?` (int) | Answer, with `conversation_id`. Without `conversation_id` (or with one that isn't yours) a new conversation starts; the model only sees the last turns of the conversation the question is asked in. 400 `empty question`, 413 image too large, 415 unsupported image type |
+| GET | `/api/conversations` | seeker | – | `{saved: bool, conversations: [{id, title, created_at, updated_at, turns}]}`, most recently used first. `title` is the first question (shortened). Turns saved before conversations existed are gathered into one conversation the first time this is read |
+| GET | `/api/conversations/{id}` | seeker (owner) | – | `{id, title, created_at, updated_at, turns: [SavedTurn]}`, oldest first. 404 if it isn't yours |
+| DELETE | `/api/conversations/{id}` | seeker (owner) | – | `{ok: true}`. Deletes the conversation and its turns (on every device, when signed in). 404 if it isn't yours |
+| GET | `/api/ask/history` | seeker | `?limit=` (1–200, default 50) | `{saved: bool, turns: [SavedTurn]}`: the latest turns across all conversations, oldest first. SavedTurn = `{turn_id, conversation_id, question, had_image, created_at, helpful, answer: Answer}`; `answer` has no `trace`, and its `cards` are rebuilt from `sources`. `saved` is true when the session belongs to a seeker account: those turns are kept until cleared or the account is deleted, while anonymous turns are deleted after `RETENTION_HOURS` (24) |
+| DELETE | `/api/ask/history` | seeker | – | `{ok: true}`. Deletes all of this seeker's conversations and turns (on every device, when signed in) |
 | POST | `/api/ask/{turn_id}/feedback` | seeker (owner of the turn) | `{helpful: bool, reason?: string ≤ 64}` | `{ok: true}`. 404 if the turn isn't yours |
 | GET | `/api/sources/{id}` | none | `id` = `q:2:256`, `h:2962`, `t:tawhid`, `qa:36065`, `b:12`; `?lang=ar\|en` (default `ar`) | Source card. 404 for an unknown id |
 | GET | `/api/corpus` | none | – | `{quran_verses, hadiths, terms, qa, bayyinat, semantic_search}` (`bayyinat` is 0 until the copy has run `scripts/ingest_bayyinat.py`; `semantic_search` is a status string such as `on (intfloat/multilingual-e5-large, cuda, dense 70% + BM25 30%)`, `loading` or `off`) |
 
 **Python interface (not HTTP).** Calls and Community import only from `features/rag/public.py`:
-`conversation_transcript(db, session_id)`, `last_question(db, session_id) -> (question, source_ids)`, `source_exists(id)`,
+`conversation_transcript(db, session_id, conversation_id=None)`, `last_question(db, session_id, conversation_id=None) -> (question, source_ids)`
+(with a conversation id: only that conversation's turns), `owns_conversation(db, session_id, conversation_id) -> bool`, `source_exists(id)`,
 `source_card(id, lang) -> card | None`, `answer_in_group(question, lang) -> Answer` (no `turn_id`). These signatures are part of the contract too.
 
 ## Community — owner: Mushari
@@ -104,8 +109,9 @@ Search: every word must appear in the title, description, presenters or topic; t
 | GET | `/api/availability` | none | – | `{languages: {<lang>: {total, m, f}}}`. Counts da'is with role `daai` who are `available` and were seen in the last 90 s |
 | GET | `/api/daais` | none | `?lang=<code>&ui=ar\|en` | `[{id, name, gender, languages, country, city, bio, online}]`: da'is (not reviewers) a seeker can ask for by name, online first. `lang` keeps only those who speak it |
 | GET | `/api/calls` | seeker | – | `[{daai: {id, name, name_en, gender, languages, online}, last_call_at, lang}]`: the da'is this seeker has talked to, newest first, once each (for "call again") |
+| GET | `/api/calls/conversations` | seeker | – | `[{conversation_id, call_id, at, lang, daai: {id, name, name_en, callable}}]`, newest call first: the da'i this seeker talked to about each Ask conversation (calls whose referral was drafted from that conversation). `callable` is false for a disabled da'i |
 | GET | `/api/rtc-config` | none | – | `{iceServers: [{urls, username?, credential?}], iceTransportPolicy: "all"\|"relay"}`. Pass it straight to `RTCPeerConnection` |
-| POST | `/api/referral/draft` | seeker | `{lang: ar\|en}` | `{id, mode: "model"\|"template"\|"none", card: ReferralCard}`. The experiment arm rotates when the experiment is on; `model` falls back to `template` without AI |
+| POST | `/api/referral/draft` | seeker | `{lang: ar\|en, conversation_id?: int\|null}` | `{id, mode: "model"\|"template"\|"none", card: ReferralCard}`. With `conversation_id` (yours) the card is drafted from that Ask conversation and the referral is linked to it; otherwise from your latest turns. The experiment arm rotates when the experiment is on; `model` falls back to `template` without AI |
 | POST | `/api/referral/{rid}/confirm` | seeker (owner) | `{consent: bool, card: ReferralCard}` | `{ok: true, consented}`. The card is cleaned (lengths capped, unknown source ids dropped). The da'i sees nothing unless `consent` is true |
 | POST | `/api/calls` | seeker | `{lang, gender_pref: ""\|"m"\|"f", referral_id?: int\|null, daai_id?: int\|null}` | `{id, status: "waiting"}`. Cancels your earlier waiting request. With `daai_id` only that da'i sees and can accept the request. 400 for an unsupported language or preference (or a chosen da'i who doesn't speak it or doesn't match it), 404 if the referral isn't yours or the da'i doesn't exist |
 | GET | `/api/calls/{cid}` | seeker (owner) | – | CallStatus. Also turns `waiting` into `expired` after `CALL_WAIT_SECONDS` (default 600) |
@@ -152,6 +158,7 @@ Call status values: `waiting` → `accepted` → `ended`, or `cancelled` / `expi
 ```json
 {
   "turn_id": 42,
+  "conversation_id": 7,
   "kind": "answer",
   "mode": "ai",
   "lang": "en",

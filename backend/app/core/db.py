@@ -58,8 +58,9 @@ def add_missing_columns() -> list[str]:
     """Adds columns that models gained since the database was created.
 
     create_all() makes new tables but never changes existing ones, so a new column would otherwise
-    break every copy of the app until its database is deleted. Only additive changes are handled:
-    renames, drops and type changes still need a manual step. Returns "table.column" for each one added.
+    break every copy of the app until its database is deleted. Only additive changes are handled (new
+    columns and their indexes): renames, drops and type changes still need a manual step. Returns
+    "table.column" for each column added.
     """
     added = []
     insp = inspect(engine)
@@ -82,6 +83,8 @@ def add_missing_columns() -> list[str]:
                     ddl += " DEFAULT '" + default.replace("'", "''") + "'"
                 conn.execute(text(ddl))
                 added.append(f"{table.name}.{col.name}")
+            for index in table.indexes:   # e.g. the index on a column added above
+                index.create(conn, checkfirst=True)
     return added
 
 
@@ -100,4 +103,14 @@ SESSION_PURGERS: list[Callable[[Session, str], None]] = []
 
 def on_session_delete(fn: Callable[[Session, str], None]) -> Callable[[Session, str], None]:
     SESSION_PURGERS.append(fn)
+    return fn
+
+
+# When a browser signs in to an account, what it did before signing in (chats, calls, RSVPs) moves to the
+# account, so it isn't left behind on that one device. Each feature registers how: fn(db, from_sid, to_sid).
+SESSION_MERGERS: list[Callable[[Session, str, str], None]] = []
+
+
+def on_session_merge(fn: Callable[[Session, str, str], None]) -> Callable[[Session, str, str], None]:
+    SESSION_MERGERS.append(fn)
     return fn

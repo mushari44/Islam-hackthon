@@ -4,24 +4,30 @@ import "./rag.css";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, errorText, openSheet, toast } from "../../core/ui.jsx";
+import { Icon, Notice, errorText, openSheet, toast } from "../../core/ui.jsx";
 import { useAccount } from "../account/public.js";
-import { startReferral } from "../calls/public.jsx";
+import { startReferral, useConversationCalls } from "../calls/public.jsx";
 import { RelatedVideos } from "../videos/public.js";
 import { Answer, LevelBadge } from "./Answer.jsx";
 
+// The chat open in this tab: {conv, items}. `conv` is the server's conversation id (null until the first
+// answer); every chat is also saved on the server, so the list below can reopen it.
 const STORE = "sabeeli.chat";
 const MAX_IMAGE = 5 * 1024 * 1024;
 
-function loadChat() {
-  try { return JSON.parse(sessionStorage.getItem(STORE)) || []; } catch { return []; }
+function loadOpen() {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(STORE));
+    if (Array.isArray(v)) return { conv: null, items: v };   // stored before conversations existed
+    return v && Array.isArray(v.items) ? { conv: v.conv || null, items: v.items } : { conv: null, items: [] };
+  } catch { return { conv: null, items: [] }; }
 }
-function saveChat(items) {
-  try { sessionStorage.setItem(STORE, JSON.stringify(items.slice(-20))); } catch { /* storage full */ }
+function saveOpen(conv, items) {
+  try { sessionStorage.setItem(STORE, JSON.stringify({ conv, items: items.slice(-20) })); } catch { /* storage full */ }
 }
 
-/** Saved turns from the server (GET /api/ask/history) as chat items. Restored answers skip related videos,
- * which are looked up afresh only for a live answer. */
+/** Saved turns from the server (GET /api/conversations/{id}) as chat items. Restored answers skip related
+ * videos, which are looked up afresh only for a live answer. */
 function fromHistory(turns) {
   return turns.flatMap((x) => [
     { role: "user", text: x.question, hadImage: x.had_image },
@@ -142,7 +148,7 @@ const showVideos = (ans) => VIDEO_KINDS.has(ans.kind) && ans.level !== "D";
 // Replies that carry no content of their own: a content-level badge on them would mean nothing.
 const NO_LEVEL_KINDS = new Set(["greeting", "thanks", "clarify", "off_topic", "request_human", "empty"]);
 
-function BotMessage({ ans, question }) {
+function BotMessage({ ans, question, conv }) {
   const { t, lang } = useI18n();
   const analysis = (ans.trace && ans.trace.analysis) || {};
   const hints = [...(analysis.queries_ar || []), ...(analysis.queries_en || [])];
@@ -166,7 +172,7 @@ function BotMessage({ ans, question }) {
                 <Icon name="layers" />{t("ask.how")}
               </button>
             )}
-            <button type="button" className={`btn btn-sm ${ans.suggest_daai ? "btn-accent" : ""}`} onClick={() => startReferral({ lang, t })}>
+            <button type="button" className={`btn btn-sm ${ans.suggest_daai ? "btn-accent" : ""}`} onClick={() => startReferral({ lang, t, conversationId: ans.conversation_id || conv })}>
               <Icon name="talk" />{t("ask.talk")}
             </button>
           </div>
@@ -189,11 +195,66 @@ function UserMessage({ item }) {
   );
 }
 
+/** The seeker's chats, newest first: open one, delete one, see which da'i they talked to about it. */
+function ChatList({ convs, current, calls, saved, onOpen, onDelete, inSheet = false }) {
+  const { t, lang, fmtDate } = useI18n();
+  const [sure, setSure] = useState(null);
+  if (!convs) return null;
+  return (
+    <div className={inSheet ? "stack chat-list" : "card stack chat-list"}>
+      {!inSheet && <h3>{t("ask.chats")}</h3>}
+      {convs.length === 0 && <p className="small muted">{t("ask.chats_none")}</p>}
+      {convs.length > 0 && (
+        <ul className="chat-items">
+          {convs.map((c) => {
+            const daai = calls[c.id] && calls[c.id][0].daai;
+            return (
+              <li key={c.id} className={c.id === current ? "current" : ""}>
+                <button type="button" className="chat-open" aria-current={c.id === current ? "true" : undefined} onClick={() => onOpen(c.id)}>
+                  <span className="chat-title" dir="auto">{c.title || t("ask.photo_attached")}</span>
+                  <span className="small faint">{fmtDate(c.updated_at, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</span>
+                  {daai && <span className="badge badge-mint">{t("ask.talked_with", { name: lang === "ar" ? daai.name : daai.name_en || daai.name })}</span>}
+                </button>
+                {sure === c.id ? (
+                  <button type="button" className="btn btn-sm btn-danger" onClick={() => { setSure(null); onDelete(c.id); }}>{t("ask.delete_sure")}</button>
+                ) : (
+                  <button type="button" className="icon-btn" aria-label={t("ask.delete_chat")} title={t("ask.delete_chat")} onClick={() => setSure(c.id)}><Icon name="trash" /></button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="small faint">{saved ? <><Icon name="lock" size={14} /> {t("ask.saved_note")}</> : <>{t("ask.anon_note")} <a href="#/account">{t("ask.sign_in")}</a></>}</p>
+    </div>
+  );
+}
+
+/** Shown above an opened chat the seeker already took to a da'i: who it was, and a way to call them again. */
+function TalkedNote({ calls }) {
+  const { t, lang } = useI18n();
+  if (!calls || !calls.length) return null;
+  const { daai, lang: callLang } = calls[0];
+  const name = lang === "ar" ? daai.name : daai.name_en || daai.name;
+  return (
+    <Notice kind="mint" icon="talk">
+      <span>{t("ask.talked_note", { name })}</span>{" "}
+      {daai.callable && <a href={`#/talk?daai=${daai.id}&lang=${callLang}`}>{t("ask.call_again", { name })}</a>}
+    </Notice>
+  );
+}
+
 export default function AskPage() {
   const { t, lang } = useI18n();
-  const [chat, setChat] = useState(loadChat);
+  const [open] = useState(loadOpen);
+  const [conv, setConv] = useState(open.conv);
+  const [chat, setChat] = useState(open.items);
+  const [convs, setConvs] = useState(null);
+  const [saved, setSaved] = useState(false);
+  const [listKey, setListKey] = useState(0);      // bump to reload the chat list
   const { account } = useAccount();
   const username = account && account.username;
+  const calls = useConversationCalls(`${username}:${listKey}`);
   const [text, setText] = useState("");
   const [photo, setPhoto] = useState(null);       // {file, url}
   const [busy, setBusy] = useState(false);
@@ -201,12 +262,37 @@ export default function AskPage() {
   const fileRef = useRef(null);
   const endRef = useRef(null);
 
-  useEffect(() => { saveChat(chat); }, [chat]);
-  // Signed in: the chat is saved to the account, so bring it back on any device.
+  useEffect(() => { saveOpen(conv, chat); }, [conv, chat]);
   useEffect(() => {
-    if (!username) return;
-    api.get("/api/ask/history").then((h) => { if (h.turns.length) setChat(fromHistory(h.turns)); }).catch(() => {});
-  }, [username]);
+    api.get("/api/conversations").then((r) => { setConvs(r.conversations); setSaved(r.saved); }).catch(() => setConvs([]));
+  }, [username, listKey]);
+  // A chat opened in this tab before a reload, whose items weren't kept here: fetch it again.
+  useEffect(() => {
+    if (open.conv && !open.items.length) openChat(open.conv, true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openChat = async (id, quiet = false) => {
+    if (busy) return;
+    try {
+      const c = await api.get(`/api/conversations/${id}`);
+      setConv(c.id);
+      setChat(fromHistory(c.turns));
+      setTimeout(() => endRef.current?.scrollIntoView({ block: "end" }), 50);
+    } catch (err) {
+      if (!quiet) toast(errorText(err, t), "error");   // e.g. an anonymous chat older than 24 hours
+      if (id === conv) newChat();
+      setListKey((k) => k + 1);
+    }
+  };
+  const newChat = () => { setConv(null); setChat([]); setText(""); setPhoto(null); inputRef.current?.focus(); };
+  const deleteChat = async (id) => {
+    try {
+      await api.del(`/api/conversations/${id}`);
+      if (id === conv) newChat();
+      toast(t("ask.chat_deleted"), "success");
+    } catch (err) { toast(errorText(err, t), "error"); }
+    setListKey((k) => k + 1);
+  };
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => {
     const el = inputRef.current;
@@ -228,10 +314,13 @@ export default function AskPage() {
     const form = new FormData();
     form.append("question", q);
     form.append("lang", lang);
+    if (conv) form.append("conversation_id", String(conv));
     if (current) form.append("image", current.file);
     try {
       const answer = await api.form("/api/ask", form);
+      setConv(answer.conversation_id);
       setChat((c) => [...c, { role: "assistant", answer }]);
+      setListKey((k) => k + 1);
     } catch (err) {
       toast(errorText(err, t), "error");
       setChat((c) => c.slice(0, -1));
@@ -253,15 +342,25 @@ export default function AskPage() {
   return (
     <>
       <div className="page-head row spread">
-        <div><h1>{t("ask.title")}</h1><p>{t("ask.lead")}</p>
-          {username && <p className="small faint"><Icon name="lock" size={14} /> {t("ask.saved_note")}</p>}</div>
-        {chat.length > 0 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChat([])}><Icon name="plus" />{t("ask.clear")}</button>}
+        <div><h1>{t("ask.title")}</h1><p>{t("ask.lead")}</p></div>
+        <div className="row">
+          {/* on a phone the list sits below the chat, so it also opens from here */}
+          {convs && convs.length > 0 && (
+            <button type="button" className="btn btn-sm btn-ghost chats-btn" disabled={busy} onClick={() => openSheet({
+              title: t("ask.chats"),
+              render: (close) => <ChatList inSheet convs={convs} current={conv} calls={calls} saved={saved}
+                onOpen={(id) => { close(); openChat(id); }} onDelete={(id) => { close(); deleteChat(id); }} />,
+            })}><Icon name="chat" />{t("ask.chats")}</button>
+          )}
+          {chat.length > 0 && <button type="button" className="btn btn-sm" disabled={busy} onClick={newChat}><Icon name="plus" />{t("ask.clear")}</button>}
+        </div>
       </div>
       <div className="ask-layout">
         <section className="ask-main">
+          {conv && <TalkedNote calls={calls[conv]} />}
           <div className="thread" aria-live="polite">
             {chat.map((item, i) => (item.role === "user" ? <UserMessage key={i} item={item} />
-              : <BotMessage key={i} ans={item.answer} question={(chat[i - 1] && chat[i - 1].text) || ""} />))}
+              : <BotMessage key={i} ans={item.answer} conv={conv} question={(chat[i - 1] && chat[i - 1].text) || ""} />))}
             {busy && (
               <div className="msg msg-bot pending">
                 <div className="msg-avatar"><Icon name="sparkle" size={20} /></div>
@@ -289,7 +388,8 @@ export default function AskPage() {
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={onFile} />
           </form>
         </section>
-        <aside className="ask-side">
+        <aside className="ask-side stack">
+          <ChatList convs={convs} current={conv} calls={calls} saved={saved} onOpen={openChat} onDelete={deleteChat} />
           <div className="card stack">
             <p className="small muted">{t("ask.side_cta")}</p>
             <a className="btn btn-accent" href="#/talk"><Icon name="talk" />{t("nav.talk")}</a>

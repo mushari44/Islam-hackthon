@@ -9,29 +9,36 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from .corpus import get_corpus
-from .models import recent_turns
+from .models import Conversation, recent_turns
 from .pipeline import AskContext, ask, plain_text
 
 
 SMALL_TALK = {"greeting", "thanks", "off_topic", "empty"}
 
 
-def _question_turns(db: Session, session_id: str, limit: int):
-    return [t for t in recent_turns(db, session_id, limit) if t.kind not in SMALL_TALK]
+def _question_turns(db: Session, session_id: str, limit: int, conversation_id: int | None = None):
+    turns = recent_turns(db, session_id, limit, conversation_id=conversation_id)
+    return [t for t in turns if t.kind not in SMALL_TALK]
 
 
-def conversation_transcript(db: Session, session_id: str, limit: int = 6) -> str:
-    """The seeker's recent questions and answers, with the source ids each answer cited."""
+def conversation_transcript(db: Session, session_id: str, limit: int = 6, conversation_id: int | None = None) -> str:
+    """The seeker's recent questions and answers, with the source ids each answer cited. With
+    `conversation_id`, only that chat's (the one the seeker pressed "Talk to a da'i" in)."""
     return "\n".join(f"User: {t.question}\nSabeeli: {plain_text(t.answer)[:900]}"
-                     for t in _question_turns(db, session_id, limit))
+                     for t in _question_turns(db, session_id, limit, conversation_id))
 
 
-def last_question(db: Session, session_id: str) -> tuple[str, list[str]]:
+def last_question(db: Session, session_id: str, conversation_id: int | None = None) -> tuple[str, list[str]]:
     """The latest real question (not small talk) and the sources its answer used."""
-    turns = _question_turns(db, session_id, limit=6)
+    turns = _question_turns(db, session_id, 6, conversation_id)
     if not turns:
         return "", []
     return turns[-1].question, list(turns[-1].answer.get("sources") or [])
+
+
+def owns_conversation(db: Session, session_id: str, conversation_id: int | None) -> bool:
+    conv = db.get(Conversation, conversation_id) if conversation_id else None
+    return bool(conv and conv.session_id == session_id)
 
 
 def source_exists(pid: str) -> bool:

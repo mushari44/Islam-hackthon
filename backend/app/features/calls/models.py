@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, delete, select
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, delete, select, update
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
-from ...core.db import Base, on_session_delete, utcnow
+from ...core.db import Base, on_session_delete, on_session_merge, utcnow
 
 
 class Referral(Base):
@@ -21,6 +21,9 @@ class Referral(Base):
     consented: Mapped[bool] = mapped_column(Boolean, default=False)
     edited: Mapped[bool] = mapped_column(Boolean, default=False)
     lang: Mapped[str] = mapped_column(String(8), default="ar")
+    # The Ask conversation the card was drafted from (rag's Conversation.id), so the seeker's chat list can
+    # show which da'i they talked to about it. NULL when the call started from the Talk page.
+    conversation_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
 
 
 class CallRequest(Base):
@@ -63,3 +66,9 @@ def _purge_session(db: Session, sid: str) -> None:
         db.execute(delete(CallMessage).where(CallMessage.call_id.in_(calls)))
         db.execute(delete(CallRequest).where(CallRequest.id.in_(calls)))
     db.execute(delete(Referral).where(Referral.session_id == sid))
+
+
+@on_session_merge
+def _merge_session(db: Session, from_sid: str, to_sid: str) -> None:
+    db.execute(update(CallRequest).where(CallRequest.session_id == from_sid).values(session_id=to_sid))
+    db.execute(update(Referral).where(Referral.session_id == from_sid).values(session_id=to_sid))
