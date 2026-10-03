@@ -72,6 +72,18 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 | POST | `/api/daai/meetups` | daai | `{title: 3–160, description?, lang, country?, city: 2–64, venue: 3–200, starts_at: ISO 8601 (no offset = UTC), duration_min: 15–480 (default 90), capacity: 2–500 (default 20), audience: all\|women\|men\|families, group_id?: int\|null, public_venue: true}` | Meetup. 400 if `public_venue` isn't true, the audience is bad, or the group isn't yours |
 | POST | `/api/daai/meetups/{mid}/cancel` | daai (host) | – | `{ok: true}` |
 
+## Videos — owner: Mushari
+
+`backend/app/features/videos/routes.py`, backed by `islamhouse.py`. Public (no auth). Data comes live from the IslamHouse API v3 (listed on page 9 of the scholarly package). Arabic and English are indexed in the background at startup; any other language is indexed on its first request (15–35 s), at most 3 languages at a time (a language waiting for its turn stays `loading`). After that everything is served from memory for 6 hours. Once the language list has loaded, a `lang` that isn't in it falls back to `ar`. If IslamHouse can't be reached, the state is `unavailable` and the server waits 60 s before trying again; the language list does the same and keeps serving its last good copy. The API key can be overridden with `SABEELI_ISLAMHOUSE_KEY`.
+
+| Method | Path | Auth | Body / params | Returns |
+|---|---|---|---|---|
+| GET | `/api/videos` | none | `lang` (an IslamHouse language code, e.g. `ar`, `en`, `ur`, `fr`, `zh`; default `ar`), `page` (default 1), `per_page` (1–48, default 12), `topic?` (a topic id from `topics`) | `{state, items: [Video], page, pages, total, topics: [{id, title, count}], source: {name, url}}`. `state` is `loading` while the index is built (the client polls every 2 s; `items` is empty), `ready`, or `unavailable` when IslamHouse can't be reached |
+| POST | `/api/videos/search` | none | JSON `{lang, q, topic?, page?, per_page?}` (`q` max 100 chars) | Same as `GET /api/videos`, filtered by the search words. A POST body so search words never reach access logs; searches are not stored |
+| GET | `/api/videos/languages` | none | – | `[{code, name, count}]`: every language with videos, native name, largest first (107 languages today). 503 `unavailable` |
+
+Search: every word must appear in the title, description, presenters or topic; title matches rank first, then the newest. Arabic text is compared through `core/textnorm.normalize_ar` (hamza, taa marbuta, diacritics) and a leading «ال» is ignored; other scripts are case- and accent-folded. IslamHouse's API has no search endpoint, so this runs on the cached index.
+
 ## Calls — owner: Eman
 
 `backend/app/features/calls/routes.py`, `referral.py`. Supported call languages: `ar en fr ur id tr es de bn ru zh sw ha so fa`.
@@ -243,6 +255,19 @@ Limits after cleaning: `question`, `context` and `unclear` ≤ 600 chars, `langu
 `audience` is `all` | `women` | `men` | `families`, `status` is `open` | `cancelled`, and `my_rsvp` is `null` when you haven't booked.
 
 ---
+
+### Video
+
+```json
+{"id": 2844735, "title": "صفة الحج", "description": "تطبيق عملي يوضح كيفية الحج خطوة بخطوة.",
+ "thumbnail": "https://d1.islamhouse.com/data/ar/ih_videos/pic/pic_index/2844735.jpg", "authors": ["..."], "lang": "ar", "added": 1780566879,
+ "parts": [{"kind": "mp4", "url": "https://d1.islamhouse.com/data/ar/ih_videos/mp4/single/ar_Description_of_the_Hajj.mp4", "label": "صفة الحج", "size": "194.11 MB"}],
+ "page_url": "https://islamhouse.com/ar/videos/2844735/", "topic": "صفة الحج", "topic_id": 1234}
+```
+
+- `parts` has one entry per file (a series has several). `kind` is `mp4` (play with `<video>`) or `youtube` (an embed URL on `youtube-nocookie.com`). When an item has both, only the MP4s are kept; items with neither are dropped (IslamHouse lists some PDFs as videos).
+- `description` is plain text (HTML stripped) and may be empty. `thumbnail` may 404 on IslamHouse's side; the page then shows a placeholder.
+- `topic` is the most specific IslamHouse category the video was found under; `topic_id` is its top-level topic (an id from `topics`).
 
 ## Changing the contract
 
