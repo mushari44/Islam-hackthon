@@ -1,5 +1,5 @@
 // Seeker account page: sign in, sign up, recover, and "my account". Owner: Eman.
-// Accounts are optional and hold a username and password only (see features/auth on the backend).
+// Accounts are optional: a username and password, plus an optional email, place and age band (see features/auth on the backend).
 import "./strings.js";
 import "./account.css";
 import { useEffect, useState } from "react";
@@ -179,6 +179,33 @@ function Place({ account }) {
   );
 }
 
+// Optional age bands; keep in step with AGE_BANDS in backend/app/features/auth/routes.py.
+const AGE_BANDS = ["u18", "18_24", "25_34", "35_44", "45_54", "55p"];
+
+function AgeCard({ account }) {
+  const { t } = useI18n();
+  const [band, setBand] = useState(account.age_band || "");
+  const save = async (e) => {
+    e.preventDefault();
+    try { setAccount((await api.post("/api/account/profile", { age_band: band })).account); toast(t("acc.saved"), "success"); }
+    catch (err) { toast(accError(err, t), "error"); }
+  };
+  return (
+    <form className="card stack" onSubmit={save}>
+      <h3>{t("acc.age")}</h3>
+      <p className="small muted">{t("acc.age_lead")}</p>
+      <div className="row email-row">
+        <select id="acc-age" className="select" aria-label={t("acc.age")} value={band} onChange={(e) => setBand(e.target.value)}>
+          <option value="">{t("acc.age_none")}</option>
+          {AGE_BANDS.map((b) => <option key={b} value={b}>{t(`acc.age.${b}`)}</option>)}
+        </select>
+        <button type="submit" className="btn btn-primary" disabled={band === (account.age_band || "")}><Icon name="check" />{t("acc.save")}</button>
+      </div>
+      {band === "u18" && <p className="small muted">{t("acc.age_minor")}</p>}
+    </form>
+  );
+}
+
 function Activity() {
   const { t, lang, fmtDate } = useI18n();
   const [data, setData] = useState(null);
@@ -295,6 +322,7 @@ export default function AccountPage() {
       <div className="stack">
         <Activity />
         <Place account={account} />
+        <AgeCard account={account} />
         <EmailCard account={account} />
         <Security />
       </div>

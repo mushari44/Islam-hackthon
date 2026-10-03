@@ -7,7 +7,7 @@ Interactive docs from the running server: `/api/docs` (OpenAPI JSON at `/api/ope
 - **Format:** JSON in and out unless noted (`/api/ask` takes multipart form data, `/api/meetups/{id}/ics` returns `text/calendar`).
 - **Auth** (`frontend/src/core/api.js` adds these headers):
   - **seeker:** an anonymous token from `POST /api/session`, sent as the `X-Seeker: <token>` header. The frontend keeps it in localStorage. On a 401 it forgets the token, makes a new session and retries once.
-  - **daai:** a signed token from `POST /api/daai/login`, sent as `Authorization: Bearer <token>`. The frontend keeps it in sessionStorage.
+  - **daai:** a signed token from `POST /api/daai/login`, sent as `Authorization: Bearer <token>`. The frontend keeps it in sessionStorage. Login answers 403 `account disabled` for a disabled account and 429 `too many attempts` after 5 wrong passwords in 10 minutes. A token stops working when the account is disabled or its password is reset.
   - **admin:** a da'i token whose profile has `role: "admin"`.
   - **none:** public. **seeker?** means the header is optional and only adds personal fields (`membership`, `my_rsvp`).
 - **Errors:** `{"detail": "<message>"}` with the status code: 400 bad input, 401 `no session` / `unknown session` / `login required`, 403 forbidden, 404 not found (also used for "not yours"), 409 conflict, 413/415 image upload, 422 moderation, 500 `server error`. FastAPI's own validation errors are also 422, but their `detail` is an **array** of `{loc, msg, type}`.
@@ -25,8 +25,14 @@ Other backend features use auth only through `backend/app/features/auth/public.p
 | POST | `/api/session` | none | – | `{token}` (new anonymous seeker token) |
 | DELETE | `/api/me` | seeker | – | `{ok: true}`. Deletes everything tied to the session in every feature (`SESSION_PURGERS`), then the session itself |
 | POST | `/api/daai/login` | none | `{username, password}` | `{token, me: Profile}`. 401 on wrong credentials |
+| GET | `/api/account` | seeker | – | `{account: Account\|null}` (null when this browser isn't signed in) |
+| POST | `/api/account/profile` | seeker (signed in) | `{country?, city?, lang?, email?, age_band?}` | `{account: Account}`. `age_band` is one of `"" u18 18_24 25_34 35_44 45_54 55p` (`""` removes it), 422 otherwise. A new `country` without `city` clears the city |
 | GET | `/api/daai/me` | daai | – | Profile |
 | POST | `/api/daai/availability` | daai | `{available: bool}` | Profile |
+| POST | `/api/daai/profile` | daai | `{name?, name_en?, languages?, bio?, bio_en?, gender?: "m"\|"f", country?: "XX"\|"", city?}` | Profile. Fields left out stay as they are; a new `country` without `city` clears the city. 422 on bad input |
+| GET | `/api/daai/admin/daais` | admin | – | `[Profile]` (every da'i and reviewer, including disabled ones) |
+| POST | `/api/daai/admin/daais` | admin | `{username, password, name, name_en?, languages?, gender?, country?, city?, bio?, bio_en?, role?: "daai"\|"admin"}` | Profile. 409 `username taken`, 422 on bad input |
+| POST | `/api/daai/admin/daais/{id}` | admin | any `/api/daai/profile` field, plus `{active?: bool, password?: string}` | Profile. Disabling also turns `available` off; a new password signs the da'i out everywhere. 400 when disabling yourself |
 | GET | `/api/health` | none | – | `{ok, ai: bool, model: string\|null, corpus: {quran_verses, hadiths, terms, qa, bayyinat}}` |
 
 Every authenticated da'i request updates `last_seen`. That is what makes a da'i count as "online" for `/api/availability` (see Calls).
@@ -92,15 +98,17 @@ Search: every word must appear in the title, description, presenters or topic; t
 | Method | Path | Auth | Body / params | Returns |
 |---|---|---|---|---|
 | GET | `/api/availability` | none | – | `{languages: {<lang>: {total, m, f}}}`. Counts da'is with role `daai` who are `available` and were seen in the last 90 s |
+| GET | `/api/daais` | none | `?lang=<code>&ui=ar\|en` | `[{id, name, gender, languages, country, city, bio, online}]`: da'is (not reviewers) a seeker can ask for by name, online first. `lang` keeps only those who speak it |
+| GET | `/api/calls` | seeker | – | `[{daai: {id, name, name_en, gender, languages, online}, last_call_at, lang}]`: the da'is this seeker has talked to, newest first, once each (for "call again") |
 | GET | `/api/rtc-config` | none | – | `{iceServers: [{urls, username?, credential?}], iceTransportPolicy: "all"\|"relay"}`. Pass it straight to `RTCPeerConnection` |
 | POST | `/api/referral/draft` | seeker | `{lang: ar\|en}` | `{id, mode: "model"\|"template"\|"none", card: ReferralCard}`. The experiment arm rotates when the experiment is on; `model` falls back to `template` without AI |
 | POST | `/api/referral/{rid}/confirm` | seeker (owner) | `{consent: bool, card: ReferralCard}` | `{ok: true, consented}`. The card is cleaned (lengths capped, unknown source ids dropped). The da'i sees nothing unless `consent` is true |
-| POST | `/api/calls` | seeker | `{lang, gender_pref: ""\|"m"\|"f", referral_id?: int\|null}` | `{id, status: "waiting"}`. Cancels your earlier waiting request. 400 for an unsupported language or preference, 404 if the referral isn't yours |
+| POST | `/api/calls` | seeker | `{lang, gender_pref: ""\|"m"\|"f", referral_id?: int\|null, daai_id?: int\|null}` | `{id, status: "waiting"}`. Cancels your earlier waiting request. With `daai_id` only that da'i sees and can accept the request. 400 for an unsupported language or preference (or a chosen da'i who doesn't speak it or doesn't match it), 404 if the referral isn't yours or the da'i doesn't exist |
 | GET | `/api/calls/{cid}` | seeker (owner) | – | CallStatus. Also turns `waiting` into `expired` after `CALL_WAIT_SECONDS` (default 600) |
 | POST | `/api/calls/{cid}/cancel` | seeker (owner) | – | CallStatus. `waiting` becomes `cancelled`, `accepted` becomes `ended` (the da'i gets no WebSocket notice) |
 | POST | `/api/calls/{cid}/rate` | seeker (owner) | `{rating: int}` (clamped to 1–5) | `{ok: true}` |
 | GET | `/api/calls/{cid}/messages` | seeker (owner) | – | `[{id, sender: "seeker"\|"daai", text, at}]` (in-call chat history) |
-| GET | `/api/daai/requests` | daai | – | `{waiting: [{id, lang, waiting_seconds, has_card}], active: [{id, lang}]}`. Lists only requests that match my languages and the requested gender |
+| GET | `/api/daai/requests` | daai | – | `{waiting: [{id, lang, waiting_seconds, has_card, for_you}], active: [{id, lang}]}`. Lists only requests that match my languages and the requested gender, and that weren't made for another da'i by name. `for_you` requests come first |
 | POST | `/api/daai/requests/{cid}/accept` | daai | – | DaaiCall. 404 if it doesn't match me, 409 `already taken or no longer waiting` |
 | GET | `/api/daai/calls/{cid}` | daai (assigned) | – | DaaiCall |
 | POST | `/api/daai/calls/{cid}/understood` | daai (assigned) | – | `{ok: true}` |
@@ -211,11 +219,11 @@ Limits after cleaning: `question`, `context` and `unclear` ≤ 600 chars, `langu
 ### CallStatus (seeker) and DaaiCall (da'i)
 
 ```json
-{"id": 7, "status": "accepted", "lang": "en", "daai": {"name": "…", "name_en": "…", "gender": "m"},
- "queue_position": 0, "created_at": "2026-10-04T18:00:00Z"}
+{"id": 7, "status": "accepted", "lang": "en", "daai": {"id": 2, "name": "…", "name_en": "…", "gender": "m"},
+ "daai_pref": null, "queue_position": 0, "created_at": "2026-10-04T18:00:00Z"}
 ```
 
-`daai` is `null` until the call is accepted. `queue_position` counts the waiting requests in the same language that are ahead of you.
+`daai` is `null` until the call is accepted. `daai_pref` is the id of the da'i asked for by name, or `null`. `queue_position` counts the waiting requests in the same language that are ahead of you.
 
 ```json
 {"id": 7, "status": "accepted", "lang": "en", "card": "ReferralCard or null", "card_sources": {"q:2:256": "source card"},
@@ -226,10 +234,18 @@ Limits after cleaning: `question`, `context` and `unclear` ≤ 600 chars, `langu
 
 ```json
 {"id": 1, "username": "…", "name": "…", "name_en": "…", "gender": "m", "languages": ["ar", "en"], "role": "daai",
- "available": true, "bio": "…", "bio_en": "…", "is_demo": true}
+ "available": true, "bio": "…", "bio_en": "…", "country": "SA", "city": "…", "active": true, "is_demo": true}
 ```
 
-`role` is `daai` | `admin`.
+`role` is `daai` | `admin`. Group `leader` and meetup `host` objects (`{id, name, gender, languages}`) now also carry `country` and `city`.
+
+### Account (seeker)
+
+```json
+{"username": "…", "email": "", "country": "SA", "city": "…", "lang": "ar", "age_band": "25_34", "created_at": "…Z"}
+```
+
+Every field after `username` is optional and may be empty. There is no birth date, real name or phone number.
 
 ### Group
 

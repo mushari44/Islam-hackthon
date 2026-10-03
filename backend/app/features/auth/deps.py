@@ -49,7 +49,10 @@ def daai_from_token(token: str, db: Session) -> Daai | None:
     body = unsign(token or "")
     if not body or body.get("kind") != "daai":
         return None
-    return db.get(Daai, body.get("id"))
+    user = db.get(Daai, body.get("id"))
+    if not user or user.active is False or body.get("v", 0) != (user.token_version or 0):
+        return None
+    return user
 
 
 def daai(authorization: str = Header(default=""), db: Session = Depends(get_db)) -> Daai:

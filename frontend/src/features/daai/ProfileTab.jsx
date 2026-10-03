@@ -1,16 +1,49 @@
-// Da'i console, "My profile" tab: a da'i keeps their name, languages and bio current. Owner: Eman.
-// Seekers are matched with a da'i by language, so the languages here decide who can reach this da'i.
+// Da'i console, "My profile" tab: a da'i keeps their name, languages, gender, place and bio current. Owner: Eman.
+// Seekers are matched with a da'i by language and gender, so these fields decide who can reach this da'i.
 import "./daai.css";
 import { useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, toast } from "../../core/ui.jsx";
+import { COUNTRIES, countryName } from "../community/public.js";
 
 // Languages a da'i can offer for now. Keep in step with DAAI_LANGUAGES in features/auth/routes.py.
-const LANGUAGES = ["ar", "en"];
+export const LANGUAGES = ["ar", "en"];
+export const ORDERED_COUNTRIES = ["SA", ...COUNTRIES.filter((c) => c !== "SA")];
 
 function fromProfile(me) {
-  return { name: me.name || "", name_en: me.name_en || "", languages: me.languages || [], bio: me.bio || "", bio_en: me.bio_en || "" };
+  return { name: me.name || "", name_en: me.name_en || "", languages: me.languages || [], bio: me.bio || "", bio_en: me.bio_en || "",
+    gender: me.gender || "m", country: me.country || "", city: me.city || "" };
+}
+
+/** Gender, country and city fields, shared with the reviewer's "add a da'i" form. */
+export function PlaceFields({ f, setF, idPrefix = "p", genderLabel = "dp.gender" }) {
+  const { t, lang } = useI18n();
+  return (
+    <>
+      <div className="field">
+        <span className="field-label">{t(genderLabel)}</span>
+        <div className="tabs" role="radiogroup" aria-label={t(genderLabel)}>
+          {[["m", "dp.gender_m"], ["f", "dp.gender_f"]].map(([v, k]) => (
+            <button key={v} type="button" role="radio" aria-checked={f.gender === v} aria-selected={f.gender === v} onClick={() => setF({ ...f, gender: v })}>{t(k)}</button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-2">
+        <div className="field">
+          <label htmlFor={`${idPrefix}-country`}>{t("dp.country")}</label>
+          <select id={`${idPrefix}-country`} className="select" value={f.country} onChange={(e) => setF({ ...f, country: e.target.value, city: "" })}>
+            <option value="">—</option>
+            {ORDERED_COUNTRIES.map((c) => <option key={c} value={c}>{countryName(c, lang)}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor={`${idPrefix}-city`}>{t("dp.city")}</label>
+          <input id={`${idPrefix}-city`} className="input" maxLength={64} disabled={!f.country} value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} />
+        </div>
+      </div>
+    </>
+  );
 }
 
 export function titledName(me, lang, t) {
@@ -47,7 +80,8 @@ function ProfileTab({ me, onMe }) {
     }
   };
 
-  const preview = { ...me, name: f.name || me.name, name_en: f.name_en, languages: f.languages, bio: f.bio, bio_en: f.bio_en };
+  const preview = { ...me, ...f, name: f.name || me.name };
+  const place = [preview.city, countryName(preview.country, lang)].filter(Boolean).join(lang === "ar" ? "، " : ", ");
   const bio = lang === "ar" ? preview.bio : preview.bio_en || preview.bio;
 
   return (
@@ -77,6 +111,8 @@ function ProfileTab({ me, onMe }) {
           <span className="faint">{t("dp.langs_hint")}</span>
         </div>
 
+        <PlaceFields f={f} setF={setF} />
+
         <div className="field">
           <label htmlFor="p-bio">{t("dp.bio")}</label>
           <textarea id="p-bio" className="textarea" rows={3} maxLength={600} value={f.bio} onChange={set("bio")} />
@@ -102,6 +138,7 @@ function ProfileTab({ me, onMe }) {
           <div>
             <strong>{titledName(preview, lang, t)}</strong>
             <div className="row profile-langs">{preview.languages.map((l) => <span key={l} className="badge badge-mint">{langName(l)}</span>)}</div>
+            {place && <div className="faint small">{place}</div>}
           </div>
         </div>
         {bio ? <p>{bio}</p> : <p className="faint">{t("dp.no_bio")}</p>}

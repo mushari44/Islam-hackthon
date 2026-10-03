@@ -1,4 +1,4 @@
-// Da'i console: login, availability and the tabs (calls, call log, groups, meetups, profile). Owner: Eman.
+// Da'i console: login, availability and the tabs (calls, call log, groups, meetups, profile, and da'i accounts for the reviewer). Owner: Eman.
 import "./strings.js";
 import { useEffect, useState } from "react";
 import { api, daaiAuth } from "../../core/api.js";
@@ -8,8 +8,10 @@ import { callsTab } from "./CallsTab.jsx";
 import { groupsTab, meetupsTab } from "./CommunityTabs.jsx";
 import { profileTab, titledName } from "./ProfileTab.jsx";
 import { historyTab } from "./HistoryTab.jsx";
+import { adminTab } from "./AdminTab.jsx";
 
-const TABS = [callsTab, historyTab, groupsTab, meetupsTab, profileTab];
+const TABS = [callsTab, historyTab, groupsTab, meetupsTab, profileTab, adminTab];
+const tabsFor = (me) => TABS.filter((x) => !x.adminOnly || me?.role === "admin");
 
 
 function Login({ onLogin }) {
@@ -23,7 +25,8 @@ function Login({ onLogin }) {
       daaiAuth.set(res.token);
       onLogin(res.me);
     } catch (err) {
-      toast(err.status === 401 ? t("dai.bad") : errorText(err, t), "error");
+      const key = { 401: "dai.bad", 403: "dai.disabled", 429: "dai.too_many" }[err.status];
+      toast(key ? t(key) : errorText(err, t), "error");
     }
   };
   return (
@@ -58,7 +61,8 @@ export default function DaaiConsole({ query }) {
   const setAvailable = async (e) => {
     try { setMe(await api.dPost("/api/daai/availability", { available: e.target.checked })); } catch (err) { toast(errorText(err, t), "error"); }
   };
-  const Panel = tab.component;
+  const shown = tabsFor(me).includes(tab) ? tab : TABS[0];
+  const Panel = shown.component;
   return (
     <>
       <div className="page-head row spread">
@@ -72,9 +76,9 @@ export default function DaaiConsole({ query }) {
         </div>
       </div>
       <div className="tabs" role="tablist">
-        {TABS.map((x) => <button key={x.key} type="button" role="tab" aria-selected={x === tab} onClick={() => setTab(x)}>{t(x.labelKey)}</button>)}
+        {tabsFor(me).map((x) => <button key={x.key} type="button" role="tab" aria-selected={x === shown} onClick={() => setTab(x)}>{t(x.labelKey)}</button>)}
       </div>
-      <div className="section daai-panel"><Panel me={me} onMe={setMe} key={tab.key} /></div>
+      <div className="section daai-panel"><Panel me={me} onMe={setMe} key={shown.key} /></div>
     </>
   );
 }

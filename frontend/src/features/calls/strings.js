@@ -28,6 +28,10 @@ register({
     "talk.rated": "شكراً لتقييمك.", "talk.rate_n": "التقييم {n} من 5", "talk.refused": "تعذر الدخول إلى المكالمة.", "talk.back_ask": "عودة إلى الأسئلة", "talk.again": "اتصال جديد",
     "talk.safety": "إن شعرت بعدم الارتياح في أي لحظة، أنهِ المكالمة. لا تشارك معلومات شخصية لا تريد مشاركتها.",
     "talk.you": "أنت", "talk.daai": "الداعية", "talk.seeker": "السائل",
+    "talk.who": "مع من تريد أن تتحدث؟", "talk.anyone": "أول داعية متاح", "talk.anyone_hint": "أسرع طريقة للاتصال.",
+    "talk.online": "متاح الآن", "talk.offline": "غير متاح الآن", "talk.before": "تحدثت معه من قبل",
+    "talk.offline_note": "هذا الداعية غير متاح الآن. سيصله طلبك إن عاد خلال وقت الانتظار، أو اختر «أول داعية متاح».",
+    "talk.waiting_named": "ننتظر أن يقبل الداعية الذي اخترته…", "talk.again_same": "اتصل بـ{name} مرة أخرى",
     },
   en: {
     "ref.title": "Before we connect you with a da'i",
@@ -55,5 +59,9 @@ register({
     "talk.rated": "Thank you for rating.", "talk.rate_n": "Rate {n} out of 5", "talk.refused": "Couldn't join the call.", "talk.back_ask": "Back to questions", "talk.again": "New call",
     "talk.safety": "If you feel uncomfortable at any point, end the call. Don't share personal details you'd rather keep private.",
     "talk.you": "You", "talk.daai": "Da'i", "talk.seeker": "Seeker",
+    "talk.who": "Who would you like to talk to?", "talk.anyone": "First available da'i", "talk.anyone_hint": "The quickest way to connect.",
+    "talk.online": "Available now", "talk.offline": "Not available now", "talk.before": "You talked before",
+    "talk.offline_note": "This da'i isn't available right now. Your request reaches them if they come back while you wait, or choose \"First available da'i\".",
+    "talk.waiting_named": "Waiting for the da'i you chose to accept…", "talk.again_same": "Call {name} again",
     },
 });

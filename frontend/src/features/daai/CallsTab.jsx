@@ -44,6 +44,7 @@ function Queue({ onActive }) {
         <div className="queue-item" key={r.id}>
           <div><strong>{langName(r.lang)}</strong> <span className="faint">{t("dc.waiting", { s: secs(r.waiting_seconds, fmtNum, t) })}</span></div>
           <span className={`badge ${r.has_card ? "badge-mint" : ""}`}>{r.has_card ? t("dc.card") : t("dc.no_card")}</span>
+          {r.for_you && <span className="badge badge-purple">{t("dc.for_you")}</span>}
           <button type="button" className="btn btn-primary btn-sm" onClick={() => accept(r.id)}><Icon name="talk" />{t("dc.accept")}</button>
         </div>
       ))}

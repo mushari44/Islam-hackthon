@@ -31,16 +31,23 @@ class Daai(Base):
     bio_en: Mapped[str] = mapped_column(Text, default="")
     role: Mapped[str] = mapped_column(String(16), default="daai")   # daai | admin
     available: Mapped[bool] = mapped_column(Boolean, default=False)
+    country: Mapped[str] = mapped_column(String(2), default="")       # where the da'i is based, shown to seekers
+    city: Mapped[str] = mapped_column(String(64), default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)      # the reviewer can disable an account
+    token_version: Mapped[int] = mapped_column(Integer, default=0)   # bumped on a password reset: old tokens stop working
     last_seen: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
 
     def public(self, lang: str = "ar") -> dict:
         return {"id": self.id, "name": self.display_name if lang == "ar" else (self.display_name_en or self.display_name),
-                "gender": self.gender, "languages": self.languages or []}
+                "gender": self.gender, "languages": self.languages or [], "country": self.country or "",
+                "city": self.city or ""}
 
 
 class SeekerAccount(Base):
-    """Optional seeker account: a username and a password, and an optional email for password resets. No real name or phone."""
+    """Optional seeker account: a username and a password, and an optional email for password resets.
+
+    The seeker may also add a country, city and age band. No real name, phone or birth date."""
     __tablename__ = "seeker_account"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(32))
@@ -54,6 +61,8 @@ class SeekerAccount(Base):
     country: Mapped[str] = mapped_column(String(2), default="")         # optional, for nearby groups and events
     city: Mapped[str] = mapped_column(String(64), default="")
     lang: Mapped[str] = mapped_column(String(8), default="ar")
+    # Optional age band (never a birth date), so meetups and groups for an age can be suggested.
+    age_band: Mapped[str] = mapped_column(String(8), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

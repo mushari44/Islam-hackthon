@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from ...core.db import SESSION_PURGERS, get_db, iso, utcnow
 from . import mailer
-from .deps import daai, seeker, seeker_device
+from .deps import admin, daai, seeker, seeker_device
 from .models import Daai, SeekerAccount, SeekerSession
 from .security import hash_password, new_seeker_token, seeker_id, sign, verify_password
 
@@ -56,6 +56,9 @@ EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
 RESET_TTL = timedelta(minutes=15)
 _failures: dict[str, list[float]] = {}     # username_key -> recent failed sign-in times
 MAX_FAILURES, FAILURE_WINDOW = 5, 600
+# Optional age bands a seeker may give. A band, never a birth date, so the account still can't identify anyone.
+AGE_BANDS = ("", "u18", "18_24", "25_34", "35_44", "45_54", "55p")
+COUNTRY = re.compile(r"^[A-Z]{2}$")
 
 
 def _key(username: str) -> str:
@@ -80,7 +83,7 @@ def _recovery_code() -> str:
 
 def account_view(acc: SeekerAccount) -> dict:
     return {"username": acc.username, "email": acc.email, "country": acc.country, "city": acc.city, "lang": acc.lang,
-            "created_at": iso(acc.created_at)}
+            "age_band": acc.age_band or "", "created_at": iso(acc.created_at)}
 
 
 def _clean_email(v: str | None) -> str | None:
@@ -213,11 +216,19 @@ class AccountIn(BaseModel):
     city: str | None = Field(default=None, max_length=64)
     lang: str | None = None
     email: str | None = Field(default=None, max_length=254)   # "" removes it
+    age_band: str | None = None                               # one of AGE_BANDS; "" removes it
 
     @field_validator("email")
     @classmethod
     def valid_email(cls, v: str | None) -> str | None:
         return _clean_email(v)
+
+    @field_validator("age_band")
+    @classmethod
+    def valid_age_band(cls, v: str | None) -> str | None:
+        if v is not None and v not in AGE_BANDS:
+            raise ValueError(f"age_band must be one of {AGE_BANDS}")
+        return v
 
 
 @router.post("/account/profile")
@@ -237,6 +248,8 @@ def account_profile(body: AccountIn, device: SeekerSession = Depends(seeker_devi
         if _email_taken(db, body.email, other_than=acc.id):
             raise HTTPException(409, "email taken")
         acc.email = body.email
+    if body.age_band is not None:
+        acc.age_band = body.age_band
     db.commit()
     return {"account": account_view(acc)}
 
@@ -332,16 +345,24 @@ class LoginIn(BaseModel):
 
 @router.post("/daai/login")
 def login(body: LoginIn, db: Session = Depends(get_db)):
+    key = "daai:" + _key(body.username)
+    if _too_many(key):
+        raise HTTPException(429, "too many attempts")
     user = db.query(Daai).filter(Daai.username == body.username.strip().lower()).first()
     if not user or not verify_password(body.password, user.password_hash):
+        _failed(key)
         raise HTTPException(401, "wrong username or password")
-    return {"token": sign({"kind": "daai", "id": user.id}), "me": profile(user)}
+    if not user.active:
+        raise HTTPException(403, "account disabled")
+    _failures.pop(key, None)
+    return {"token": sign({"kind": "daai", "id": user.id, "v": user.token_version or 0}), "me": profile(user)}
 
 
 def profile(user: Daai) -> dict:
     return {"id": user.id, "username": user.username, "name": user.display_name, "name_en": user.display_name_en,
             "gender": user.gender, "languages": user.languages or [], "role": user.role,
-            "available": user.available, "bio": user.bio, "bio_en": user.bio_en, "is_demo": user.is_demo}
+            "available": user.available, "bio": user.bio, "bio_en": user.bio_en, "country": user.country or "",
+            "city": user.city or "", "active": user.active is not False, "is_demo": user.is_demo}
 
 
 @router.get("/daai/me")
@@ -371,6 +392,26 @@ class ProfileIn(BaseModel):
     languages: list[str] | None = None
     bio: str | None = Field(default=None, max_length=600)
     bio_en: str | None = Field(default=None, max_length=600)
+    gender: str | None = None                                  # m | f: seekers may ask for a da'i of their gender
+    country: str | None = Field(default=None, max_length=2)    # ISO code, "" for none
+    city: str | None = Field(default=None, max_length=64)
+
+    @field_validator("gender")
+    @classmethod
+    def known_gender(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("m", "f"):
+            raise ValueError("gender must be m or f")
+        return v
+
+    @field_validator("country")
+    @classmethod
+    def country_code(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip().upper()
+        if v and not COUNTRY.match(v):
+            raise ValueError("country must be a 2-letter code")
+        return v
 
     @field_validator("name")
     @classmethod
@@ -395,16 +436,93 @@ class ProfileIn(BaseModel):
 
 # API field name -> column name
 _PROFILE_COLUMNS = {"name": "display_name", "name_en": "display_name_en", "languages": "languages",
-                    "bio": "bio", "bio_en": "bio_en"}
+                    "bio": "bio", "bio_en": "bio_en", "gender": "gender", "country": "country", "city": "city"}
 
 
 @router.post("/daai/profile")
 def update_me(body: ProfileIn, user: Daai = Depends(daai), db: Session = Depends(get_db)):
-    """Lets a da'i keep their name, languages and bio current, because seekers are matched by language."""
+    """Lets a da'i keep their name, languages, gender, place and bio current, because seekers are matched on them."""
+    _apply_profile(user, body)
+    db.commit()
+    return profile(user)
+
+
+def _apply_profile(user: Daai, body: ProfileIn) -> None:
+    moved = body.country is not None and body.city is None and body.country != (user.country or "")
     for key, value in body.model_dump(exclude_unset=True).items():
         if value is None:
             continue
         setattr(user, _PROFILE_COLUMNS[key], value.strip() if isinstance(value, str) else value)
+    if moved:
+        user.city = ""   # a city from the old country no longer applies
+
+
+# ---------------------------------------------------------------------------
+# Da'i accounts, managed by the reviewer (role admin): add, edit, disable and reset passwords.
+# ---------------------------------------------------------------------------
+
+DAAI_USERNAME = re.compile(r"^[a-z0-9_.]{3,32}$")
+
+
+class NewDaaiIn(ProfileIn):
+    username: str = Field(max_length=32)
+    password: str = Field(min_length=8, max_length=200)
+    name: str = Field(max_length=120)
+    languages: list[str] = Field(default_factory=lambda: ["ar"])
+    role: str = "daai"
+
+    @field_validator("username")
+    @classmethod
+    def valid_username(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not DAAI_USERNAME.match(v):
+            raise ValueError("username: 3-32 lower-case letters, digits, _ or .")
+        return v
+
+    @field_validator("role")
+    @classmethod
+    def valid_role(cls, v: str) -> str:
+        if v not in ("daai", "admin"):
+            raise ValueError("role must be daai or admin")
+        return v
+
+
+class EditDaaiIn(ProfileIn):
+    active: bool | None = None
+    password: str | None = Field(default=None, min_length=8, max_length=200)   # a new password for the da'i
+
+
+@router.get("/daai/admin/daais")
+def list_daais(_: Daai = Depends(admin), db: Session = Depends(get_db)):
+    return [profile(d) for d in db.scalars(select(Daai).order_by(Daai.id)).all()]
+
+
+@router.post("/daai/admin/daais")
+def add_daai(body: NewDaaiIn, _: Daai = Depends(admin), db: Session = Depends(get_db)):
+    if db.scalars(select(Daai).where(Daai.username == body.username)).first():
+        raise HTTPException(409, "username taken")
+    user = create_daai(db, body.username, body.password, display_name=body.name.strip(), role=body.role,
+                       languages=body.languages)
+    _apply_profile(user, ProfileIn(**body.model_dump(exclude={"username", "password", "role"}, exclude_unset=True)))
+    db.commit()
+    return profile(user)
+
+
+@router.post("/daai/admin/daais/{did}")
+def edit_daai(did: int, body: EditDaaiIn, me: Daai = Depends(admin), db: Session = Depends(get_db)):
+    user = db.get(Daai, did)
+    if not user:
+        raise HTTPException(404, "not found")
+    if body.active is False and user.id == me.id:
+        raise HTTPException(400, "you can't disable your own account")
+    _apply_profile(user, ProfileIn(**body.model_dump(exclude={"active", "password"}, exclude_unset=True)))
+    if body.active is not None:
+        user.active = body.active
+        if not body.active:
+            user.available = False
+    if body.password:
+        user.password_hash = hash_password(body.password)
+        user.token_version = (user.token_version or 0) + 1   # signs the da'i out everywhere
     db.commit()
     return profile(user)
 

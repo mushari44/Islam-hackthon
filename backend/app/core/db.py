@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, String, create_engine, event
+from sqlalchemy import JSON, String, create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from .config import settings
@@ -51,6 +51,38 @@ SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 def init_db() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(engine)
+    add_missing_columns()
+
+
+def add_missing_columns() -> list[str]:
+    """Adds columns that models gained since the database was created.
+
+    create_all() makes new tables but never changes existing ones, so a new column would otherwise
+    break every copy of the app until its database is deleted. Only additive changes are handled:
+    renames, drops and type changes still need a manual step. Returns "table.column" for each one added.
+    """
+    added = []
+    insp = inspect(engine)
+    tables = set(insp.get_table_names())
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if table.name not in tables:
+                continue
+            have = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name in have:
+                    continue
+                ddl = f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col.type.compile(engine.dialect)}'
+                default = col.default.arg if col.default is not None and not callable(col.default.arg) else None
+                if isinstance(default, bool):
+                    ddl += f" DEFAULT {int(default) if engine.dialect.name == 'sqlite' else str(default).upper()}"
+                elif isinstance(default, (int, float)):
+                    ddl += f" DEFAULT {default}"
+                elif isinstance(default, str):
+                    ddl += " DEFAULT '" + default.replace("'", "''") + "'"
+                conn.execute(text(ddl))
+                added.append(f"{table.name}.{col.name}")
+    return added
 
 
 def get_db():

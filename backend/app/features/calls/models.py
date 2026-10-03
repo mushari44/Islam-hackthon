@@ -31,6 +31,8 @@ class CallRequest(Base):
     lang: Mapped[str] = mapped_column(String(8))
     gender_pref: Mapped[str] = mapped_column(String(1), default="")   # "", m, f
     referral_id: Mapped[int | None] = mapped_column(ForeignKey("referral.id", ondelete="SET NULL"), nullable=True)
+    # Set when the seeker asked for one da'i by name (from the directory or "call again"): only that da'i sees it.
+    daai_pref: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="waiting")  # waiting|accepted|ended|cancelled|expired
     daai_id: Mapped[int | None] = mapped_column(ForeignKey("daai.id"), nullable=True)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
