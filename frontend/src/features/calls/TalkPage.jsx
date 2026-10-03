@@ -9,7 +9,7 @@ import { Icon, Notice, errorText, toast, usePolling } from "../../core/ui.jsx";
 import CallPanel, { Clock, useClock } from "./CallPanel.jsx";
 
 const ACTIVE = "sabeeli.call";
-const LANGS = ["ar", "en", "fr", "ur"];
+const LANGS = ["ar", "en"];   // the languages we support for now
 const remember = (id) => { try { id ? sessionStorage.setItem(ACTIVE, String(id)) : sessionStorage.removeItem(ACTIVE); } catch { /* ignore */ } };
 const recall = () => { try { return Number(sessionStorage.getItem(ACTIVE)) || null; } catch { return null; } };
 

@@ -24,6 +24,9 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 | Google public STUN server (`stun.l.google.com:19302`) | WebRTC connectivity for calls | Configurable with `STUN_URLS`. Add the TURN provider here when it is chosen |
 | YouTube embeds (`youtube-nocookie.com`, privacy-enhanced mode) | Playing IslamHouse videos that IslamHouse publishes only as a YouTube embed | Today every such item also has an MP4 on IslamHouse, which is preferred, so the embed is a fallback only |
 | Google Fonts: Readex Pro, Amiri Quran | Interface and verse typography | SIL Open Font License |
+| TURN relay (e.g. Metered Open Relay, free tier) | Relays call audio when two networks block a direct connection | Optional, set with `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`. Audio is relayed, never recorded |
+| SMTP email (any provider, e.g. Gmail with an app password) | Emails a seeker's 6-digit password reset code | Optional, set with `SMTP_*`. Python standard library `smtplib`, no extra package |
+| Render (free web service) | Hosting the demo from the `Dockerfile` / `render.yaml` | Optional; any Docker host works |
 | `intfloat/multilingual-e5-large` (Microsoft, via Hugging Face) | Optional semantic search: embeds every corpus passage and each search query, locally | MIT. Runs on the machine (no data leaves it); downloaded once, about 2.2 GB. Off unless `scripts/build_embeddings.py` has been run |
 
 ## Software

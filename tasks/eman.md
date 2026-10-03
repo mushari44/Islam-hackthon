@@ -70,6 +70,8 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] A waiting request stays in the da'i queue for 10 minutes even after the seeker closes the tab (found while testing). Add a heartbeat: the waiting screen already polls every 2 seconds, so expire requests not polled for about 20 seconds.
 - [ ] WebSocket tokens travel in the URL. Consider a short-lived one-time ticket from `POST /api/calls/{id}/ticket` instead.
 
+- [ ] Da'i console (`features/daai/CommunityTabs.jsx`): pass `?ui=${lang}` to `GET/POST /api/daai/groups` and `GET/POST /api/daai/meetups`, so leader and host names follow the interface language (the community API accepts `ui` since the 3 October community review; see `docs/API.md`). Also add the two new error messages to the meetup form if you want them translated there: `the meetup must start in the future` (a key is already registered by the community strings).
+
 ## Day 3: 6 October (polish and publish)
 
 - [ ] Waiting screen: an estimated wait, and a clear message when no da'i speaks the chosen language right now (suggest groups instead).

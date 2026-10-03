@@ -12,7 +12,7 @@ import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ...core.db import SessionLocal, iso, utcnow
-from ..auth.public import daai_from_token, seeker_id
+from ..auth.public import daai_from_token, seeker_key
 from .models import CallMessage, CallRequest
 
 ws_router = APIRouter()
@@ -67,7 +67,7 @@ def _authorize(cid: int, role: str, token: str) -> CallRequest | None:
         call = db.get(CallRequest, cid)
         if not call or call.status != "accepted":
             return None
-        if role == "seeker" and call.session_id == seeker_id(token):
+        if role == "seeker" and call.session_id == seeker_key(db, token):
             return call
         if role == "daai":
             d = daai_from_token(token, db)
