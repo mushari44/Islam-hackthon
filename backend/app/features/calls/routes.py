@@ -331,8 +331,9 @@ def daai_call_log(month: str = "", me: Daai = Depends(daai), db: Session = Depen
                        .order_by(CallRequest.accepted_at.desc())).all()
     months = sorted({c.accepted_at.strftime("%Y-%m") for c in db.scalars(answered).all()} | {now.strftime("%Y-%m")},
                     reverse=True)
-    modes = {r.id: r.mode for r in db.scalars(select(Referral).where(
+    refs = {r.id: r for r in db.scalars(select(Referral).where(
         Referral.id.in_([c.referral_id for c in calls if c.referral_id])))} if calls else {}
+    modes = {rid: r.mode for rid, r in refs.items()}
 
     def secs(a, b):
         return int((b - a).total_seconds()) if a and b else None
@@ -342,7 +343,8 @@ def daai_call_log(month: str = "", me: Daai = Depends(daai), db: Session = Depen
               "seconds_to_understand": secs(c.accepted_at, c.understood_at),
               "referral_mode": modes.get(c.referral_id, "direct") if c.referral_id else "direct",
               "reexplain_needed": c.reexplain_needed, "card_accurate": c.card_accurate,
-              "seeker_rating": c.seeker_rating, "note": c.daai_note} for c in calls]
+              "seeker_rating": c.seeker_rating, "note": c.daai_note,
+              "has_chat": bool(c.referral_id in refs and refs[c.referral_id].share_chat)} for c in calls]
     rated = [i for i in items if i["reexplain_needed"] is not None]
     stars = [i["seeker_rating"] for i in items if i["seeker_rating"]]
     return {"month": f"{year:04d}-{mon:02d}", "months": months, "calls": items,

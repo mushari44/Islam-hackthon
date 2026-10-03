@@ -123,6 +123,7 @@ Search: every word must appear in the title, description, presenters or topic; t
 | GET | `/api/daai/calls/{cid}` | daai (assigned) | – | DaaiCall |
 | POST | `/api/daai/calls/{cid}/understood` | daai (assigned) | – | `{ok: true}` |
 | POST | `/api/daai/calls/{cid}/end` | daai (assigned) | `{reexplain_needed?: bool\|null, card_accurate?: bool\|null, note?: string}` (note cut to 500 chars) | `{ok: true}`. Ends the call if it is accepted and stores the feedback |
+| GET | `/api/daai/calls` | daai | `?month=YYYY-MM` (default this month) | `{month, months, calls: [{id, lang, accepted_at, ended_at, duration_seconds, seconds_to_understand, referral_mode, reexplain_needed, card_accurate, seeker_rating, note, has_chat}], summary: {calls, minutes, no_reexplain, rated, avg_rating}}`: the calls I answered that month, newest first. `has_chat` means the seeker shared an Ask chat; `GET /api/daai/calls/{cid}` returns it (`chat`, null once they delete it). 400 for a bad month |
 | GET | `/api/daai/experiment` | daai | – | `{enabled, arms: {<model\|template\|none\|direct>: {calls, no_reexplain_rate, card_accurate_rate, median_seconds_to_understand}}, waiting_now}` |
 | POST | `/api/daai/experiment` | admin | `{enabled: bool}` | `{enabled}`. 403 `admin only` |
 

@@ -4,7 +4,7 @@ import "./strings.js";
 import { useEffect, useState } from "react";
 import { api, daaiAuth } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { Icon, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
 import { CallPanel } from "../calls/public.jsx";
 import { Answer, SourceCard } from "../rag/public.js";
 
@@ -53,26 +53,44 @@ function Queue({ onActive }) {
   );
 }
 
-/** The seeker's chat with Sabeeli, shared with their OK: their questions and the cited answers as they saw them. */
+/** Every message of the chat the seeker shared with their OK: their questions and the cited answers as they saw them. */
+function ChatTranscript({ turns }) {
+  const { t } = useI18n();
+  return (
+    <div className="stack shared-chat">
+      <p className="small muted">{t("dc.chat_hint")}</p>
+      {turns.map((x, i) => (
+        <div className="shared-turn stack" key={i}>
+          <div className="shared-q">
+            <span className="faint small">{t("dc.seeker_asked")}</span>
+            {x.had_image && <p className="faint small">{t("dc.photo")}</p>}
+            {x.question && <p dir="auto">{x.question}</p>}
+          </div>
+          <Answer answer={x.answer} compact />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Opens the whole shared conversation in a wide sheet (the call screen and the call log both use it). */
+export function openSharedChat(turns, t) {
+  return openSheet({ title: t("dc.chat_title"), wide: true, render: () => <ChatTranscript turns={turns} /> });
+}
+
+/** On the call screen: the questions at a glance, and the whole conversation with its answers on demand. */
 function SharedChat({ turns }) {
   const { t, fmtNum } = useI18n();
   return (
-    <details className="shared-chat" open>
-      <summary><strong>{t("dc.chat_title")}</strong> <span className="faint">{t("dc.chat_count", { n: fmtNum(turns.length) })}</span></summary>
-      <p className="small muted">{t("dc.chat_hint")}</p>
-      <div className="stack">
-        {turns.map((x, i) => (
-          <div className="shared-turn stack" key={i}>
-            <div className="shared-q">
-              <span className="faint small">{t("dc.seeker_asked")}</span>
-              {x.had_image && <p className="faint small">{t("dc.photo")}</p>}
-              {x.question && <p dir="auto">{x.question}</p>}
-            </div>
-            <Answer answer={x.answer} compact />
-          </div>
-        ))}
+    <div className="shared-chat stack">
+      <div className="row spread">
+        <strong>{t("dc.chat_title")} <span className="faint">{t("dc.chat_count", { n: fmtNum(turns.length) })}</span></strong>
+        <button type="button" className="btn btn-sm" onClick={() => openSharedChat(turns, t)}><Icon name="chat" />{t("dc.chat_show")}</button>
       </div>
-    </details>
+      <ol className="shared-questions">
+        {turns.map((x, i) => <li key={i} dir="auto">{x.question || t("dc.photo")}</li>)}
+      </ol>
+    </div>
   );
 }
 

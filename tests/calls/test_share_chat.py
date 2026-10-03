@@ -40,10 +40,14 @@ def test_shared_chat_reaches_the_daai(client, seeker, daai_login):
     assert all(set(x) == {"question", "had_image", "created_at", "answer"} for x in view["chat"])
     assert "segments" in view["chat"][0]["answer"] and "trace" not in view["chat"][0]["answer"]
 
+    # the call log offers the conversation again after the call
+    client.post(f"/api/daai/calls/{call['id']}/end", json={}, headers=d)
+    logged = next(c for c in client.get("/api/daai/calls", headers=d).json()["calls"] if c["id"] == call["id"])
+    assert logged["has_chat"] is True
+    assert len(client.get(f"/api/daai/calls/{call['id']}", headers=d).json()["chat"]) == 2
     # deleting the chat takes it away from the da'i too
     client.delete(f"/api/conversations/{c1}", headers=h)
     assert client.get(f"/api/daai/calls/{call['id']}", headers=d).json()["chat"] is None
-    client.post(f"/api/daai/calls/{call['id']}/end", json={}, headers=d)
 
 
 def test_nothing_is_shared_without_the_seekers_ok(client, seeker, daai_login):
@@ -57,6 +61,8 @@ def test_nothing_is_shared_without_the_seekers_ok(client, seeker, daai_login):
     item, view = take(client, d, call["id"])
     assert item["has_chat"] is False and view["chat"] is None and view["card"]
     client.post(f"/api/daai/calls/{call['id']}/end", json={}, headers=d)
+    logged = next(c for c in client.get("/api/daai/calls", headers=d).json()["calls"] if c["id"] == call["id"])
+    assert logged["has_chat"] is False
 
     # another seeker's chat id can't be shared
     other = {"X-Seeker": client.post("/api/session").json()["token"]}
