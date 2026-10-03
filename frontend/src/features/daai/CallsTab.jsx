@@ -4,9 +4,9 @@ import "./strings.js";
 import { useEffect, useState } from "react";
 import { api, daaiAuth } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { Icon, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
 import { CallPanel } from "../calls/public.jsx";
-import { SourceCard } from "../rag/public.js";
+import { Answer, SourceCard } from "../rag/public.js";
 
 // Arabic counts change form with the number (1, 2, 3-10, 11+), so pick the right string.
 function callCount(n, t, fmtNum) {
@@ -44,10 +44,53 @@ function Queue({ onActive }) {
         <div className="queue-item" key={r.id}>
           <div><strong>{langName(r.lang)}</strong> <span className="faint">{t("dc.waiting", { s: secs(r.waiting_seconds, fmtNum, t) })}</span></div>
           <span className={`badge ${r.has_card ? "badge-mint" : ""}`}>{r.has_card ? t("dc.card") : t("dc.no_card")}</span>
+          {r.has_chat && <span className="badge badge-mint">{t("dc.chat_badge")}</span>}
+          {r.for_you && <span className="badge badge-purple">{t("dc.for_you")}</span>}
           <button type="button" className="btn btn-primary btn-sm" onClick={() => accept(r.id)}><Icon name="talk" />{t("dc.accept")}</button>
         </div>
       ))}
     </section>
+  );
+}
+
+/** Every message of the chat the seeker shared with their OK: their questions and the cited answers as they saw them. */
+function ChatTranscript({ turns }) {
+  const { t } = useI18n();
+  return (
+    <div className="stack shared-chat">
+      <p className="small muted">{t("dc.chat_hint")}</p>
+      {turns.map((x, i) => (
+        <div className="shared-turn stack" key={i}>
+          <div className="shared-q">
+            <span className="faint small">{t("dc.seeker_asked")}</span>
+            {x.had_image && <p className="faint small">{t("dc.photo")}</p>}
+            {x.question && <p dir="auto">{x.question}</p>}
+          </div>
+          <Answer answer={x.answer} compact />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Opens the whole shared conversation in a wide sheet (the call screen and the call log both use it). */
+export function openSharedChat(turns, t) {
+  return openSheet({ title: t("dc.chat_title"), wide: true, render: () => <ChatTranscript turns={turns} /> });
+}
+
+/** On the call screen: the questions at a glance, and the whole conversation with its answers on demand. */
+function SharedChat({ turns }) {
+  const { t, fmtNum } = useI18n();
+  return (
+    <div className="shared-chat stack">
+      <div className="row spread">
+        <strong>{t("dc.chat_title")} <span className="faint">{t("dc.chat_count", { n: fmtNum(turns.length) })}</span></strong>
+        <button type="button" className="btn btn-sm" onClick={() => openSharedChat(turns, t)}><Icon name="chat" />{t("dc.chat_show")}</button>
+      </div>
+      <ol className="shared-questions">
+        {turns.map((x, i) => <li key={i} dir="auto">{x.question || t("dc.photo")}</li>)}
+      </ol>
+    </div>
   );
 }
 
@@ -62,7 +105,7 @@ function CardView({ call }) {
     <section className="card stack">
       <h3>{t("dc.card_title")}</h3>
       <div className="row"><span className="badge">{langName(call.lang)}</span><span className="badge badge-purple">{t(`dc.arm.${call.referral_mode}`)}</span></div>
-      {!card ? <p className="muted">{t("dc.no_card_long")}</p> : (
+      {!card ? (!call.chat && <p className="muted">{t("dc.no_card_long")}</p>) : (
         <div className="stack">
           {card.question && <div><div className="faint">{t("dc.question")}</div><p dir="auto">{card.question}</p></div>}
           {card.context && <div><div className="faint">{t("dc.context")}</div><p dir="auto">{card.context}</p></div>}
@@ -76,6 +119,7 @@ function CardView({ call }) {
           {card.unclear && <div><div className="faint">{t("dc.unclear")}</div><p dir="auto">{card.unclear}</p></div>}
         </div>
       )}
+      {call.chat && <SharedChat turns={call.chat} />}
       <div className="row">
         <button type="button" className="btn btn-accent" disabled={understood} onClick={mark}>
           <Icon name="check" />{understood ? t("dc.understood_done") : t("dc.understood")}

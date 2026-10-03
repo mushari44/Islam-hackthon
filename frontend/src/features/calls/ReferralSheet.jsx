@@ -16,16 +16,17 @@ function SourceChip({ id }) {
   return <span className="badge">{title}</span>;
 }
 
-export default function ReferralSheet({ lang, close }) {
-  const { t } = useI18n();
+export default function ReferralSheet({ lang, conversationId, close }) {
+  const { t, fmtNum } = useI18n();
   const [draft, setDraft] = useState(null);
   const [card, setCard] = useState(null);
   const [consent, setConsent] = useState(false);
+  const [shareChat, setShareChat] = useState(false);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    api.post("/api/referral/draft", { lang })
+    api.post("/api/referral/draft", { lang, conversation_id: conversationId || null })
       .then((d) => { if (alive) { setDraft(d); setCard({ ...d.card, explained: (d.card.explained || []).map((e) => ({ ...e })) }); } })
       .catch((err) => { toast(errorText(err, t), "error"); close(); });
     return () => { alive = false; };
@@ -36,7 +37,7 @@ export default function ReferralSheet({ lang, close }) {
   const finish = async (withCard) => {
     setSending(true);
     try {
-      await api.post(`/api/referral/${draft.id}/confirm`, { consent: withCard, card: withCard ? card : {} });
+      await api.post(`/api/referral/${draft.id}/confirm`, { consent: withCard, card: withCard ? card : {}, share_chat: shareChat });
     } catch (err) {
       toast(errorText(err, t), "error");
       setSending(false);
@@ -44,13 +45,23 @@ export default function ReferralSheet({ lang, close }) {
     }
     close();
     // keep the referral id even without consent: it records the experiment arm (the da'i sees no card)
-    navigate(`/talk?ref=${draft.id}&lang=${lang}${withCard ? "&card=1" : ""}`);
+    navigate(`/talk?ref=${draft.id}&lang=${lang}${withCard ? "&card=1" : ""}${shareChat ? "&chat=1" : ""}`);
   };
+
+  // Separate from the summary: the da'i sees this chat's questions and answers exactly as they are now.
+  const chatOption = draft.chat_turns > 0 && (
+    <div className="share-chat stack">
+      <label className="check"><input type="checkbox" checked={shareChat} onChange={(e) => setShareChat(e.target.checked)} />
+        <span>{t("ref.share_chat", { n: fmtNum(draft.chat_turns) })}</span></label>
+      <p className="small muted">{t("ref.share_chat_hint")}</p>
+    </div>
+  );
 
   if (draft.mode === "none") {
     return (
       <div className="stack">
         <p>{t("ref.none")}</p>
+        {chatOption}
         <div className="row"><button type="button" className="btn btn-primary" onClick={() => finish(false)}><Icon name="talk" />{t("ref.skip")}</button></div>
       </div>
     );
@@ -89,6 +100,7 @@ export default function ReferralSheet({ lang, close }) {
         <textarea id="ref-u" className="textarea" rows={2} dir="auto" value={card.unclear || ""} onChange={set("unclear")} /></div>
       <Notice icon="lock"><span className="small">{t("ref.private")}</span></Notice>
       <label className="check"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>{t("ref.consent")}</span></label>
+      {chatOption}
       <div className="row">
         <button type="button" className="btn btn-primary" disabled={!consent || sending} onClick={() => finish(true)}><Icon name="talk" />{t("ref.share")}</button>
         <button type="button" className="btn btn-ghost" disabled={sending} onClick={() => finish(false)}>{t("ref.skip")}</button>

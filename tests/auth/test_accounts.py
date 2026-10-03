@@ -123,3 +123,19 @@ def test_forgot_password_by_email(client, monkeypatch):
 def test_forgot_without_mail_uses_recovery_code(client, monkeypatch):
     monkeypatch.delenv("SMTP_HOST", raising=False)
     assert client.post("/api/account/forgot", json={"login": "anyone"}).json() == {"via": "recovery"}
+
+
+def test_signing_out_on_the_sign_up_device_hides_the_account(client):
+    """The browser that made the account files its data under the account; after sign-out its token stops
+    working, so the next person on that device starts fresh instead of seeing the account's chats."""
+    home, _ = new_device(client)
+    client.post("/api/account/signup", json={"username": "shared_pc", "password": "long-pass-1"}, headers=home)
+    client.post("/api/ask", data={"question": "سؤال خاص", "lang": "ar"}, headers=home)
+    assert client.post("/api/account/signout", headers=home).status_code == 200
+    assert client.get("/api/ask/history", headers=home).status_code == 401
+    assert client.get("/api/account", headers=home).status_code == 401
+    fresh, _ = new_device(client)
+    assert client.get("/api/ask/history", headers=fresh).json()["turns"] == []
+    back = client.post("/api/account/signin", json={"username": "shared_pc", "password": "long-pass-1"}, headers=fresh)
+    assert back.status_code == 200
+    assert [t["question"] for t in client.get("/api/ask/history", headers=fresh).json()["turns"]] == ["سؤال خاص"]

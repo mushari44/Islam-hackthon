@@ -1,11 +1,13 @@
 // Da'i console, "Call log" tab: every call the da'i answered in a month, with dates, and the numbers
 // the referral experiment needs.
-// Owner: Eman. Numbers only: call audio is never recorded, and nothing here identifies the seeker.
+// Owner: Eman. Numbers only: call audio is never recorded, and nothing here identifies the seeker. The one exception
+// is the Ask chat a seeker chose to share with this da'i, which opens on demand (and is gone once they delete it).
 import "./daai.css";
 import { useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, Spinner, usePolling } from "../../core/ui.jsx";
+import { Icon, Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { openSharedChat } from "./CallsTab.jsx";
 
 function duration(n, t, fmtNum) {
   if (n == null) return "—";
@@ -31,6 +33,13 @@ function Stat({ icon, value, label }) {
 
 function HistoryTab() {
   const { t, langName, fmtNum, fmtDate, fmtTime } = useI18n();
+  const showChat = async (id) => {
+    try {
+      const call = await api.dGet(`/api/daai/calls/${id}`);
+      if (call.chat) openSharedChat(call.chat, t);
+      else toast(t("dl.chat_gone"), "info");   // the seeker deleted that chat
+    } catch (err) { toast(errorText(err, t), "error"); }
+  };
   const [month, setMonth] = useState("");
   const [data, setData] = useState(null);
   usePolling(async () => setData(await api.dGet(`/api/daai/calls${month ? `?month=${month}` : ""}`)), 20000, [month]);
@@ -67,7 +76,7 @@ function HistoryTab() {
                 <tr>
                   <th>{t("dl.when")}</th><th>{t("dl.lang")}</th><th>{t("dl.length")}</th><th>{t("dl.arm")}</th>
                   <th>{t("dl.understood")}</th><th>{t("dl.reexplain")}</th><th>{t("dl.accurate")}</th>
-                  <th>{t("dl.stars")}</th><th>{t("dl.note")}</th>
+                  <th>{t("dl.stars")}</th><th>{t("dl.chat")}</th><th>{t("dl.note")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -81,6 +90,7 @@ function HistoryTab() {
                     <td><YesNo value={c.reexplain_needed} good={false} /></td>
                     <td>{c.referral_mode === "direct" || c.referral_mode === "none" ? <span className="faint">—</span> : <YesNo value={c.card_accurate} good={true} />}</td>
                     <td>{c.seeker_rating ? fmtNum(c.seeker_rating) : <span className="faint">—</span>}</td>
+                    <td>{c.has_chat ? <button type="button" className="btn btn-sm btn-ghost" onClick={() => showChat(c.id)}><Icon name="chat" />{t("dl.chat_show")}</button> : <span className="faint">—</span>}</td>
                     <td className="log-note">{c.note || <span className="faint">—</span>}</td>
                   </tr>
                 ))}

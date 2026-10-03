@@ -25,3 +25,19 @@
 .log-table tbody tr:last-child td { border-block-end: 0; }
 .log-note { white-space: normal; min-width: 180px; max-width: 280px; }
 @media (max-width: 760px) { .log-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Da'i accounts (reviewer) */
+.admin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.admin-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding-block: 12px; border-block-end: 1px solid var(--border); }
+.admin-row:last-child { border-block-end: 0; }
+.admin-who { gap: 2px; }
+.admin-reset { flex-basis: 100%; }
+.admin-reset .input { max-width: 260px; }
+
+/* the seeker's shared Ask chat: questions under the referral card, the whole conversation in a sheet */
+.shared-chat { border-top: 1px solid var(--border); padding-top: 12px; }
+.sheet .shared-chat { border-top: 0; padding-top: 0; }
+.shared-questions { margin: 0; padding-inline-start: 22px; display: flex; flex-direction: column; gap: 4px; }
+.shared-turn { padding-block: 10px; border-bottom: 1px dashed var(--border); }
+.shared-q { background: var(--surface-2); border-radius: 12px; padding: 8px 12px; }
+.shared-q p { margin: 2px 0 0; }

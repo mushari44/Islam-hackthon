@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from ...core.config import settings
 from ...core.db import Setting, get_db, iso, utcnow
 from ..auth.public import Daai, SeekerSession, admin, daai, seeker
-from ..rag.public import source_card
+from ..rag.public import shared_conversation, source_card
 from .models import CallMessage, CallRequest, Referral
 
 router = APIRouter(prefix="/api")
@@ -45,6 +45,25 @@ def availability(db: Session = Depends(get_db)):
     return {"languages": counts}
 
 
+def _directory_entry(d: Daai, lang: str, online: set[int]) -> dict:
+    return {**d.public(lang), "bio": d.bio if lang == "ar" else (d.bio_en or d.bio), "online": d.id in online}
+
+
+def _callable(d: Daai | None) -> bool:
+    return bool(d and d.role == "daai" and d.active is not False)
+
+
+@router.get("/daais")
+def daai_directory(lang: str = "", ui: str = "ar", db: Session = Depends(get_db)):
+    """Da'is a seeker can ask for by name, online first. `lang` keeps only those who speak it."""
+    online = {d.id for d in online_daais(db)}
+    ui = "ar" if ui == "ar" else "en"
+    people = [d for d in db.scalars(select(Daai).order_by(Daai.id)).all()
+              if _callable(d) and (not lang or lang in (d.languages or []))]
+    people.sort(key=lambda d: d.id not in online)
+    return [_directory_entry(d, ui, online) for d in people]
+
+
 @router.get("/rtc-config")
 def rtc_config():
     servers = [{"urls": settings.stun_urls}] if settings.stun_urls else []
@@ -59,6 +78,7 @@ class CallIn(BaseModel):
     lang: str
     gender_pref: str = ""
     referral_id: int | None = None
+    daai_id: int | None = None   # ask for this da'i only
 
 
 def _expire(db: Session, call: CallRequest) -> None:
@@ -77,11 +97,20 @@ def request_call(body: CallIn, me: SeekerSession = Depends(seeker), db: Session 
         ref = db.get(Referral, body.referral_id)
         if not ref or ref.session_id != me.id:
             raise HTTPException(404, "referral not found")
+    if body.daai_id is not None:
+        wanted = db.get(Daai, body.daai_id)
+        if not _callable(wanted):
+            raise HTTPException(404, "da'i not found")
+        if body.lang not in (wanted.languages or []):
+            raise HTTPException(400, "this da'i doesn't speak that language")
+        if body.gender_pref and body.gender_pref != wanted.gender:
+            raise HTTPException(400, "bad gender preference")
     # One open request per seeker.
     for old in db.scalars(select(CallRequest).where(CallRequest.session_id == me.id,
                                                     CallRequest.status.in_(("waiting",)))).all():
         old.status = "cancelled"
-    call = CallRequest(session_id=me.id, lang=body.lang, gender_pref=body.gender_pref, referral_id=body.referral_id)
+    call = CallRequest(session_id=me.id, lang=body.lang, gender_pref=body.gender_pref, referral_id=body.referral_id,
+                       daai_pref=body.daai_id)
     db.add(call)
     db.commit()
     return {"id": call.id, "status": call.status}
@@ -91,11 +120,33 @@ def _call_view(call: CallRequest, db: Session) -> dict:
     d = db.get(Daai, call.daai_id) if call.daai_id else None
     waiting_ahead = 0
     if call.status == "waiting":
+        # A request for a named da'i only queues behind requests for the same da'i, and the general queue
+        # doesn't count requests that only one other da'i can take.
+        same_queue = (CallRequest.daai_pref == call.daai_pref) if call.daai_pref else CallRequest.daai_pref.is_(None)
         waiting_ahead = len(db.scalars(select(CallRequest.id).where(
-            CallRequest.status == "waiting", CallRequest.lang == call.lang, CallRequest.id < call.id)).all())
+            CallRequest.status == "waiting", CallRequest.lang == call.lang, CallRequest.id < call.id, same_queue)).all())
     return {"id": call.id, "status": call.status, "lang": call.lang,
-            "daai": {"name": d.display_name, "name_en": d.display_name_en, "gender": d.gender} if d else None,
-            "queue_position": waiting_ahead, "created_at": iso(call.created_at)}
+            "daai": {"id": d.id, "name": d.display_name, "name_en": d.display_name_en, "gender": d.gender} if d else None,
+            "daai_pref": call.daai_pref, "queue_position": waiting_ahead, "created_at": iso(call.created_at)}
+
+
+@router.get("/calls/conversations")
+def calls_by_conversation(me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
+    """Which da'i this seeker talked to about each Ask conversation (newest call first), so the chat list
+    can show it and offer to call the same da'i again. Declared before /calls/{cid}."""
+    rows = db.execute(select(Referral.conversation_id, CallRequest)
+                      .join(CallRequest, CallRequest.referral_id == Referral.id)
+                      .where(CallRequest.session_id == me.id, Referral.conversation_id.is_not(None),
+                             CallRequest.daai_id.is_not(None), CallRequest.accepted_at.is_not(None))
+                      .order_by(CallRequest.accepted_at.desc())).all()
+    out = []
+    for conv_id, call in rows:
+        d = db.get(Daai, call.daai_id)
+        if d:
+            out.append({"conversation_id": conv_id, "call_id": call.id, "at": iso(call.accepted_at), "lang": call.lang,
+                        "daai": {"id": d.id, "name": d.display_name, "name_en": d.display_name_en,
+                                 "callable": _callable(d)}})
+    return out
 
 
 @router.get("/calls/{cid}")
@@ -105,6 +156,25 @@ def call_status(cid: int, me: SeekerSession = Depends(seeker), db: Session = Dep
         raise HTTPException(404, "not found")
     _expire(db, call)
     return _call_view(call, db)
+
+
+@router.get("/calls")
+def my_calls(me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
+    """The da'is this seeker has talked to (newest first, one entry each), so they can call the same one again."""
+    calls = db.scalars(select(CallRequest).where(CallRequest.session_id == me.id, CallRequest.daai_id.is_not(None),
+                                                 CallRequest.accepted_at.is_not(None))
+                       .order_by(CallRequest.accepted_at.desc())).all()
+    online = {d.id for d in online_daais(db)}
+    out, seen = [], set()
+    for c in calls:
+        d = db.get(Daai, c.daai_id)
+        if c.daai_id in seen or not _callable(d):
+            continue
+        seen.add(c.daai_id)
+        out.append({"daai": {"id": d.id, "name": d.display_name, "name_en": d.display_name_en, "gender": d.gender,
+                             "languages": d.languages or [], "online": d.id in online},
+                    "last_call_at": iso(c.accepted_at), "lang": c.lang})
+    return out
 
 
 @router.post("/calls/{cid}/cancel")
@@ -158,9 +228,13 @@ def daai_requests(me: Daai = Depends(daai), db: Session = Depends(get_db)):
             continue
         if c.gender_pref and c.gender_pref != me.gender:
             continue
+        if c.daai_pref and c.daai_pref != me.id:
+            continue
         ref = db.get(Referral, c.referral_id) if c.referral_id else None
         out.append({"id": c.id, "lang": c.lang, "waiting_seconds": int((utcnow() - c.created_at).total_seconds()),
-                    "has_card": bool(ref and ref.consented and ref.final)})
+                    "has_card": bool(ref and ref.consented and ref.final), "has_chat": bool(ref and ref.share_chat),
+                    "for_you": c.daai_pref == me.id})
+    out.sort(key=lambda r: not r["for_you"])   # requests made for this da'i by name come first
     mine = db.scalars(select(CallRequest).where(CallRequest.daai_id == me.id, CallRequest.status == "accepted")).all()
     return {"waiting": out, "active": [{"id": c.id, "lang": c.lang} for c in mine]}
 
@@ -168,7 +242,8 @@ def daai_requests(me: Daai = Depends(daai), db: Session = Depends(get_db)):
 @router.post("/daai/requests/{cid}/accept")
 def accept_request(cid: int, me: Daai = Depends(daai), db: Session = Depends(get_db)):
     call = db.get(CallRequest, cid)
-    if not call or call.lang not in (me.languages or []) or (call.gender_pref and call.gender_pref != me.gender):
+    if not call or call.lang not in (me.languages or []) or (call.gender_pref and call.gender_pref != me.gender) \
+            or (call.daai_pref and call.daai_pref != me.id):
         raise HTTPException(404, "not found")
     # Atomic: only one da'i can take a waiting request.
     res = db.execute(update(CallRequest).where(CallRequest.id == cid, CallRequest.status == "waiting")
@@ -195,8 +270,11 @@ def daai_call(cid: int, me: Daai = Depends(daai), db: Session = Depends(get_db))
             c = source_card(sid, "ar" if call.lang == "ar" else "en")
             if c:
                 sources[sid] = c
+    # Only with the seeker's explicit OK, and only what the chat held when they agreed; gone if they deleted it.
+    chat = shared_conversation(db, ref.session_id, ref.conversation_id, ref.chat_upto) \
+        if ref and ref.share_chat and ref.conversation_id and ref.chat_upto else []
     return {"id": call.id, "status": call.status, "lang": call.lang, "card": card, "card_sources": sources,
-            "referral_mode": ref.mode if ref else "direct",
+            "chat": chat or None, "referral_mode": ref.mode if ref else "direct",
             "accepted_at": iso(call.accepted_at),
             "understood": bool(call.understood_at)}
 
@@ -253,8 +331,9 @@ def daai_call_log(month: str = "", me: Daai = Depends(daai), db: Session = Depen
                        .order_by(CallRequest.accepted_at.desc())).all()
     months = sorted({c.accepted_at.strftime("%Y-%m") for c in db.scalars(answered).all()} | {now.strftime("%Y-%m")},
                     reverse=True)
-    modes = {r.id: r.mode for r in db.scalars(select(Referral).where(
+    refs = {r.id: r for r in db.scalars(select(Referral).where(
         Referral.id.in_([c.referral_id for c in calls if c.referral_id])))} if calls else {}
+    modes = {rid: r.mode for rid, r in refs.items()}
 
     def secs(a, b):
         return int((b - a).total_seconds()) if a and b else None
@@ -264,7 +343,8 @@ def daai_call_log(month: str = "", me: Daai = Depends(daai), db: Session = Depen
               "seconds_to_understand": secs(c.accepted_at, c.understood_at),
               "referral_mode": modes.get(c.referral_id, "direct") if c.referral_id else "direct",
               "reexplain_needed": c.reexplain_needed, "card_accurate": c.card_accurate,
-              "seeker_rating": c.seeker_rating, "note": c.daai_note} for c in calls]
+              "seeker_rating": c.seeker_rating, "note": c.daai_note,
+              "has_chat": bool(c.referral_id in refs and refs[c.referral_id].share_chat)} for c in calls]
     rated = [i for i in items if i["reexplain_needed"] is not None]
     stars = [i["seeker_rating"] for i in items if i["seeker_rating"]]
     return {"month": f"{year:04d}-{mon:02d}", "months": months, "calls": items,

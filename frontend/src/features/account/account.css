@@ -1,9 +1,5 @@
 /* Seeker account. Owner: Eman. */
 .account-card { max-width: 520px; }
-.recovery-code {
-  font-size: 1.6rem; font-weight: 700; letter-spacing: .14em; margin: 0; padding: 14px 18px; text-align: center;
-  border-radius: var(--radius-sm); background: var(--bg-soft); border: 1px dashed var(--border-strong); user-select: all;
-}
 .account-head { display: flex; align-items: center; gap: 16px; }
 .account-head h1 { margin: 0; }
 .account-head p { margin: 0; }
@@ -25,3 +21,7 @@
 /* the three tabs share the card width, so none scrolls out of view on a phone */
 .account-card .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; overflow: visible; }
 .account-card .tabs button { white-space: normal; padding: 8px 6px; line-height: 1.3; font-size: .9rem; }
+
+/* Optional "About me" fields in the sign-up form */
+.about-fields { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin: 0; min-inline-size: 0; }
+.about-fields legend { font-weight: 600; padding-inline: 6px; }
