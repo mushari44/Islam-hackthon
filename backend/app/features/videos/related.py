@@ -29,7 +29,8 @@ log = logging.getLogger("sabeeli.videos")
 
 TITLE, TOPIC, DESC = 3.0, 2.0, 1.0
 DESC_CHARS = 300          # the start of a description says what the video is about; the rest is often boilerplate
-MIN_SCORE = 4.0           # roughly: one rare word in the title, or several common ones
+MIN_SCORE = 8.0           # a rare word in the title, or several in title and topic ("الرسول" alone suggested a
+                          # video on insults to the Prophet for «من هو النبي محمد؟»)
 # Which videos are close enough to suggest. Precision first: no video is better than an unrelated one.
 # Checked by hand on 30 questions against the real ar/en lists: a video on the question scores >= 0.85
 # in meaning AND shares most of the question's words in its title or topic; meaning alone let in

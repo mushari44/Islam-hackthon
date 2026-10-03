@@ -268,7 +268,7 @@ def _guard_scripture(text: str, allowed: set[str], trace: dict) -> str:
 
     def quote(m: re.Match) -> str:
         span = m.group(1)
-        if not has_arabic(span) or len(span.split()) < 5:
+        if not has_arabic(span) or len(span.split()) < 3:   # short hadith quotes too («لا نكاح إلا بولي»)
             return m.group(0)
         marker = verse_marker(span)
         if marker:
@@ -507,9 +507,12 @@ def ask(ctx: AskContext) -> dict:
             # Only the approved package may speak: drop any model sentence that cites no passage
             # (short connecting phrases such as "and" or "in short" are kept).
             kept, removed = [], []
-            for s in segments:
+            for k, s in enumerate(segments):
                 words = len(MARKER_RE.sub("", s["text"]).split())
-                if not s["cites"] and not MARKER_RE.search(s["text"]) and words > settings.max_uncited_words:
+                # a line that introduces the verse or hadith shown right after it («...قوله تعالى:») stays
+                intro = s["text"].rstrip().endswith(":") and any(
+                    MARKER_RE.search(nxt["text"]) for nxt in segments[k + 1:k + 3])
+                if not s["cites"] and not MARKER_RE.search(s["text"]) and words > settings.max_uncited_words and not intro:
                     removed.append(s["text"].strip()[:200])
                 else:
                     kept.append(s)

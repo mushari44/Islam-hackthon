@@ -95,18 +95,22 @@ Rules:
 6. Tone: gentle and respectful. Never rebuke the asker. If the question is hostile, stay calm, identify the real question, and answer with wisdom and accuracy without giving up the facts.
 7. Explain the core idea before details. For someone new, explain a concept in plain words first, then give the term.
 8. Write in the requested answer language. For Islamic terms use the approved equivalents from the glossary results when present (e.g. keep "Tawhid" and explain it) rather than a loose translation.
-9. Keep it short: usually 80-180 words, a few short paragraphs, no headings. Do not speculate about the user's own faith, background or other personal traits.
+9. Keep it short: usually 80-180 words, a few short paragraphs, no headings. Do not speculate about the user's own faith, background or other personal traits, and never guess their gender or age: address them neutrally (in Arabic, no يا ابنتي / يا بني / يا أختي / يا أخي and no feminine-only forms), and don't open with a greeting.
 10. If the user quoted a verse and the app reports differences from the reference text, point this out gently and show the correct verse with its marker."""
 
 
 NUMBERED_RULES = """
 Citations: the search results are numbered [1], [2], ... End every sentence that says anything about Islam with
-the number(s) of the result(s) it relies on, in square brackets, for example [2] or [1][3]. Use only those numbers.
-A sentence without a result number is deleted before the user sees it, so cite every sentence that states a fact;
-a short connecting phrase needs none. Verse and hadith markers such as [[q:2:256]] go on their own line, without a number."""
+the number(s) of the result(s) it relies on, in square brackets, for example [2] or [1][3]: the number, not the id.
+Use only results that answer the question, and ignore the others. A sentence without a result number is deleted
+before the user sees it, so cite every sentence that states a fact; a short connecting phrase needs none.
+Verse and hadith markers such as [[q:2:256]] (double brackets) go on their own line, without a number."""
 
-CITE_RE = re.compile(r"\s*\[(\d{1,2}(?:\s*[,،]\s*\d{1,2})*)\]")
-SENTENCE_RE = re.compile(r"[^.!?؟\n]+(?:[.!?؟]+|$)(?:[ \t]*\[\d{1,2}(?:\s*[,،]\s*\d{1,2})*\])*[ \t]*|\n+", re.M)
+# One citation: a result number (2) or, as models also write, a result id (qa:36130, q:2:256, b:9).
+_REF = r"(?:\d{1,2}|(?:qa|q|h|t|b):[\w:]+)"
+# [2], [1, 3], [qa:36130], [b:9، qa:36130] - but never the double-bracket markers [[q:2:256]]
+CITE_RE = re.compile(rf"[ \t]*(?<!\[)\[({_REF}(?:\s*[,،]\s*{_REF})*)\](?!\])")
+SENTENCE_RE = re.compile(rf"[^.!?؟\n]+(?:[.!?؟]+|$)(?:[ \t]*(?<!\[)\[{_REF}(?:\s*[,،]\s*{_REF})*\](?!\]))*[ \t]*|\n+", re.M)
 
 
 def numbered_sources(results: list[dict]) -> str:
@@ -118,18 +122,22 @@ def numbered_sources(results: list[dict]) -> str:
     return "Search results:\n\n" + "\n\n".join(out)
 
 
-def parse_numbered(text: str, n_results: int) -> list[dict]:
-    """Model text with [n] markers -> segments with citations (same shape as Claude's), one per sentence."""
+def parse_numbered(text: str, ids: list[str] | int) -> list[dict]:
+    """Model text with [n] (or [result-id]) citations -> segments with citations, one per sentence, in the
+    same shape as Claude's. ids: the result ids in order (or just their count). A number or id that isn't
+    one of the results cites nothing, so its sentence is dropped like any uncited one."""
+    ids = list(ids) if not isinstance(ids, int) else [str(i) for i in range(ids)]
+    position = {pid: i for i, pid in enumerate(ids)}
     segments = []
     for m in SENTENCE_RE.finditer(text):
         chunk = m.group(0)
         if not chunk:
             continue
-        cites = []
-        for g in CITE_RE.findall(chunk):
-            for num in re.split(r"\s*[,،]\s*", g):
-                i = int(num) - 1
-                if 0 <= i < n_results and i not in [c["index"] for c in cites]:
+        cites: list[dict] = []
+        for group in CITE_RE.findall(chunk):
+            for ref in re.split(r"\s*[,،]\s*", group):
+                i = int(ref) - 1 if ref.isdigit() else position.get(ref, -1)
+                if 0 <= i < len(ids) and i not in [c["index"] for c in cites]:
                     cites.append({"index": i, "cited_text": "", "start": None, "end": None})
         segments.append({"text": CITE_RE.sub("", chunk), "citations": cites})
     return segments
@@ -138,7 +146,7 @@ def parse_numbered(text: str, n_results: int) -> list[dict]:
 def _answer_numbered(llm, results: list[dict], brief: list[str]) -> "AnswerResult":
     text, data = llm.chat(ANSWER_SYSTEM + "\n" + NUMBERED_RULES,
                           numbered_sources(results) + "\n\n" + "\n".join(brief), max_tokens=2500)
-    return AnswerResult(segments=parse_numbered(text, len(results)),
+    return AnswerResult(segments=parse_numbered(text, [r["id"] for r in results]),
                         stop_reason=((data.get("choices") or [{}])[0].get("finish_reason") or ""),
                         usage=llm.usage(data), model=data.get("model") or llm.model)
 

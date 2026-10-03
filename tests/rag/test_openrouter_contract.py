@@ -111,3 +111,28 @@ def test_parse_numbered_keeps_every_line():
     assert "".join(s["text"] for s in segs).replace(" ", "") == \
         "Faithisachoice.Itisstatedclearly.\n[[q:2:256]]\nUncitedline"
     assert assistant.parse_numbered("Bad number [9].", 3)[0]["citations"] == []
+
+
+def test_ids_count_as_citations_too():
+    ids = ["b:9", "qa:36130", "q:4:129"]
+    segs = assistant.parse_numbered("They circle it in obedience to God [b:9, qa:36130]. Fairness is required "
+                                    "[[q:4:3]][q:4:129]. Unknown [qa:99999].", ids)
+    assert [ids[c["index"]] for c in segs[0]["citations"]] == ["b:9", "qa:36130"]
+    assert [ids[c["index"]] for c in segs[1]["citations"]] == ["q:4:129"] and "[[q:4:3]]" in segs[1]["text"]
+    assert segs[2]["citations"] == []
+
+
+def test_a_line_introducing_a_verse_stays(monkeypatch):
+    def handler(request):
+        body = json.loads(request.content)
+        if "response_format" in body:
+            return httpx.Response(200, json=_reply(json.dumps(ANALYSIS)))
+        return httpx.Response(200, json=_reply(
+            "Islam does not force anyone to believe [1].\nThe Quran states this principle very clearly in the verse:\n"
+            "[[q:2:256]]\nEveryone in history has always agreed with this view without any exception at all."))
+
+    monkeypatch.setattr(pipeline, "get_claude", lambda: _client(handler))
+    out = pipeline.ask(pipeline.AskContext(question="Is there compulsion in religion?", ui_lang="en"))
+    text = "".join(s["text"] for s in out["segments"])
+    assert "states this principle" in text and "[[q:2:256]]" in text
+    assert "history" not in text
