@@ -67,19 +67,19 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 
 | Method | Path | Auth | Body / params | Returns |
 |---|---|---|---|---|
-| GET | `/api/groups` | seeker? | `?lang=&country=&ui=ar\|en` | `[Group]` (active groups only) |
+| GET | `/api/groups` | seeker? | `?lang=&country=&city=&audience=women\|men&age=youth\|adults\|seniors&ui=ar\|en` | `[Group]` (active groups only). `audience` keeps the groups that person can join (their own and `all`); `age` keeps that age group and `all` |
 | GET | `/api/groups/{gid}` | seeker? | `?ui=` | Group. 404 if missing or inactive |
 | POST | `/api/groups/{gid}/join` | seeker | `?ui=`; `{nickname: 2–40 chars, accept_rules: bool, confirm_audience?: bool}` (must be `true` for `women` / `men` groups) | Group with `membership`. 400 if the rules or the audience aren't confirmed, or the nickname is rejected (abusive, contact details, or posing as the assistant or a moderator), 409 if the nickname is taken. Joining again only changes the nickname; rejoining after leaving brings back the same membership, so a mute stays |
 | POST | `/api/groups/{gid}/leave` | seeker | – | `{ok: true}` |
 | GET | `/api/groups/{gid}/messages` | a member seeker, or the group's leader da'i | `?after=<last id>` (default 0) | `[GroupMessage]`, oldest first, at most 200. With `after=0`, the newest 200 (re-fetch it to pick up deletions and resolved flags); otherwise the 200 after that id. 403 if you are neither |
 | POST | `/api/groups/{gid}/messages` | seeker (member) | `{text: ≤ 2000, lang: ar\|en}` | GroupMessage plus `redacted: bool`. 403 `join the group first` / `muted`. 422 with detail `too_long` \| `too_fast` \| `abuse` \| `empty` (3 `abuse` strikes mute the member). A message mentioning `@سبيلي` / `@sabeeli` gets a bot reply posted later in the background; poll to see it. If the assistant fails, the bot posts a short notice with `needs_leader: true` instead |
 | GET | `/api/daai/groups` | daai | `?ui=` | `[Group + needs_leader: int]` (the groups I lead) |
-| POST | `/api/daai/groups` | daai | `?ui=`; `{title: 3–160, description?: ≤ 2000, lang: 2–3 lowercase letters, country?: ≤ 64, city?: ≤ 64, audience: all\|women\|men}` | Group. 422 if a field is out of range |
+| POST | `/api/daai/groups` | daai | `?ui=`; `{title: 3–160, description?: ≤ 2000, lang: 2–3 lowercase letters, country?: ≤ 64, city?: ≤ 64, audience: all\|women\|men, age_group?: all\|youth\|adults\|seniors (default all)}` | Group. 400 for a bad audience or age group, 422 if a field is out of range |
 | POST | `/api/daai/groups/{gid}/messages` | daai (leader) | `{text}` | GroupMessage (author is the leader's name in the group's language) |
 | POST | `/api/daai/groups/{gid}/messages/{mid}/delete` | daai (leader) | – | `{ok: true}` (soft delete) |
 | POST | `/api/daai/groups/{gid}/messages/{mid}/resolve` | daai (leader) | – | `{ok: true}` (clears `needs_leader`) |
 | POST | `/api/daai/groups/{gid}/members/{member_id}/mute` | daai (leader) | `{muted: bool}` | `{ok: true, muted}` |
-| GET | `/api/meetups` | seeker? | `?country=&city=&lang=&ui=` | `[Meetup]`: status `open`, starting no earlier than 3 h ago, soonest first |
+| GET | `/api/meetups` | seeker? | `?country=&city=&lang=&registration=&age=&series=&audience=women\|men&ui=` | `[Meetup]`: status `open`, starting no earlier than 3 h ago, soonest first. `age` keeps that age group and `all`; `audience` keeps what that person can attend (their own, `all` and `families`) |
 | POST | `/api/meetups/{mid}/rsvp` | seeker | `?ui=`; `{nickname: 2–40, confirm_audience?: bool}` (must be `true` for `women` / `men` meetups) | Meetup with `my_rsvp`. Safe to repeat. 400 (audience, or nickname rejected as for groups), 404, 409 `full` / `meetup already started` |
 | POST | `/api/meetups/{mid}/cancel-rsvp` | seeker | – | `{ok: true}` |
 | GET | `/api/meetups/{mid}/ics` | none | – | `text/calendar` attachment (linked with a plain `<a href download>`); `STATUS:CANCELLED` once the host cancels |
@@ -265,12 +265,12 @@ Every field after `username` is optional. Defaults: `lang` `"ar"`; `email`, `cou
 ### Group
 
 ```json
-{"id": 3, "title": "…", "description": "…", "lang": "en", "country": "", "city": "…", "audience": "all", "active": true,
+{"id": 3, "title": "…", "description": "…", "lang": "en", "country": "", "city": "…", "audience": "all", "age_group": "all", "active": true,
  "members": 12, "leader": {"id": 1, "name": "…", "gender": "m", "languages": ["en"]}, "is_demo": true,
  "membership": {"id": 55, "nickname": "…", "muted": false}}
 ```
 
-`membership` is `null` when the caller isn't a member (or sent no seeker token). `leader.name` follows `ui` (Arabic or English name).
+`age_group` is `all` | `youth` | `adults` | `seniors` (there are no children's groups). `membership` is `null` when the caller isn't a member (or sent no seeker token). `leader.name` follows `ui` (Arabic or English name).
 
 ### GroupMessage
 

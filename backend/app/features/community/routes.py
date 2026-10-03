@@ -67,7 +67,7 @@ def _member_counts(db: Session, gids: list[int]) -> dict[int, int]:
 def _group_view(db: Session, g: Group, lang: str, me: GroupMember | None = None, members: int | None = None) -> dict:
     leader = db.get(Daai, g.leader_id)
     return {"id": g.id, "title": g.title, "description": g.description, "lang": g.lang, "country": g.country,
-            "city": g.city, "audience": g.audience, "active": g.active,
+            "city": g.city, "audience": g.audience, "age_group": g.age_group, "active": g.active,
             "members": _member_count(db, g.id) if members is None else members,
             "leader": leader.public(_ui(lang)) if leader else None, "is_demo": g.is_demo,
             "membership": {"id": me.id, "nickname": me.nickname, "muted": me.muted} if me else None}
@@ -122,7 +122,7 @@ def _bot_reply(group_id: int, question: str, reply_to: int, lang: str) -> None:
 # ---------------------------------------------------------------------------
 
 @router.get("/groups")
-def list_groups(lang: str = "", country: str = "", city: str = "", ui: str = "ar",
+def list_groups(lang: str = "", country: str = "", city: str = "", audience: str = "", age: str = "", ui: str = "ar",
                 me: SeekerSession | None = Depends(optional_seeker), db: Session = Depends(get_db)):
     q = select(Group).where(Group.active.is_(True))
     if lang:
@@ -131,6 +131,10 @@ def list_groups(lang: str = "", country: str = "", city: str = "", ui: str = "ar
         q = q.where(Group.country == country)
     if city:
         q = q.where(Group.city == city)
+    if audience in ("women", "men"):   # groups this person can join: their own and mixed ones
+        q = q.where(Group.audience.in_([audience, "all"]))
+    if age:
+        q = q.where(Group.age_group.in_([age, "all"]))
     groups = db.scalars(q.order_by(Group.id)).all()
     counts = _member_counts(db, [g.id for g in groups])
     mine: dict[int, GroupMember] = {}
@@ -270,6 +274,7 @@ class GroupIn(BaseModel):
     country: str = Field(default="", max_length=64)
     city: str = Field(default="", max_length=64)
     audience: str = "all"
+    age_group: str = "all"
 
 
 @router.get("/daai/groups")
@@ -288,8 +293,11 @@ def my_groups(ui: str = "ar", lead: Daai = Depends(daai), db: Session = Depends(
 def create_group(body: GroupIn, ui: str = "ar", lead: Daai = Depends(daai), db: Session = Depends(get_db)):
     if body.audience not in ("all", "women", "men"):
         raise HTTPException(400, "bad audience")
+    if body.age_group not in GROUP_AGE_GROUPS:
+        raise HTTPException(400, "bad age group")
     g = Group(title=body.title.strip(), description=body.description.strip(), lang=body.lang,
-              country=body.country.strip(), city=body.city.strip(), audience=body.audience, leader_id=lead.id)
+              country=body.country.strip(), city=body.city.strip(), audience=body.audience,
+              age_group=body.age_group, leader_id=lead.id)
     db.add(g)
     db.commit()
     return _group_view(db, g, ui)
@@ -386,7 +394,7 @@ def _meetup_view(db: Session, m: Meetup, lang: str, sid: str | None = None, goin
 
 @router.get("/meetups")
 def list_meetups(country: str = "", city: str = "", lang: str = "", ui: str = "ar",
-                 registration: str = "", age: str = "", series: str = "",
+                 registration: str = "", age: str = "", series: str = "", audience: str = "",
                  me: SeekerSession | None = Depends(optional_seeker), db: Session = Depends(get_db)):
     q = select(Meetup).where(Meetup.status == "open", Meetup.starts_at >= utcnow() - timedelta(hours=3))
     if country:
@@ -399,6 +407,8 @@ def list_meetups(country: str = "", city: str = "", lang: str = "", ui: str = "a
         q = q.where(Meetup.registration == registration)
     if age:   # a meetup for all ages also suits every age group
         q = q.where(Meetup.age_group.in_([age, "all"]))
+    if audience in ("women", "men"):   # meetups this person can attend, family events included
+        q = q.where(Meetup.audience.in_([audience, "all", "families"]))
     if series:
         q = q.where(Meetup.series == series)
     meetups = db.scalars(q.order_by(Meetup.starts_at)).all()
@@ -513,6 +523,7 @@ class MeetupIn(BaseModel):
 
 REGISTRATION = ("required", "open")
 AGE_GROUPS = ("all", "kids", "youth", "adults", "seniors")
+GROUP_AGE_GROUPS = ("all", "youth", "adults", "seniors")   # an online group with strangers is no place for children
 SERIES = ("", "qawl_amal", "ramadan")
 
 

@@ -63,7 +63,7 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
   - review the abuse list with the reviewer;
   - add a "report message" button for members (API plus the seeker screen). The leader's view of reports is in Eman's da'i console: agree on the API with her.
 - [ ] Meetups:
-  - a city filter;
+  - a city filter; *(already there: the community page filters both tabs by country and region, preselected from the account. Filters by sex ("open to" women or men) and age group were added on 3 October, also preselected from the account.)*
   - show "the group this meetup belongs to" on the card;
   - a reminder text on the booking confirmation.
 - [ ] Tests for each change in `tests/community/`.

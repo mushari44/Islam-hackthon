@@ -18,6 +18,7 @@ class Group(Base):
     country: Mapped[str] = mapped_column(String(64), default="")
     city: Mapped[str] = mapped_column(String(64), default="")
     audience: Mapped[str] = mapped_column(String(16), default="all")   # all | women | men
+    age_group: Mapped[str] = mapped_column(String(16), default="all")  # all | youth | adults | seniors (no children's groups)
     leader_id: Mapped[int] = mapped_column(ForeignKey("daai.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     active: Mapped[bool] = mapped_column(Boolean, default=True)

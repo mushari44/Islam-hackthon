@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
-import { AGE_GROUPS, COUNTRIES, GroupMessage, REGISTRATION, SERIES, audienceKey, countryName } from "../community/public.js";
+import { AGE_GROUPS, COUNTRIES, GROUP_AGE_GROUPS, GroupMessage, REGISTRATION, SERIES, audienceKey, countryName } from "../community/public.js";
 
 function Select({ id, name, value, onChange, options }) {
   return (
@@ -17,7 +17,7 @@ function Select({ id, name, value, onChange, options }) {
 
 function GroupForm({ close, onDone }) {
   const { t, lang, langName } = useI18n();
-  const [f, setF] = useState({ title: "", description: "", lang: "ar", audience: "all", city: "", country: "" });
+  const [f, setF] = useState({ title: "", description: "", lang: "ar", audience: "all", age_group: "all", city: "", country: "" });
   const set = (k) => (v) => setF({ ...f, [k]: typeof v === "string" ? v : v.target.value });
   const submit = async (e) => {
     e.preventDefault();
@@ -32,6 +32,7 @@ function GroupForm({ close, onDone }) {
         <div className="field"><label htmlFor="g-aud">{t("dg.audience")}</label><Select id="g-aud" value={f.audience} onChange={set("audience")} options={["all", "women", "men"].map((a) => [a, t(audienceKey(a))])} /></div>
         <div className="field"><label htmlFor="g-city">{t("dg.city")}</label><input id="g-city" className="input" value={f.city} onChange={set("city")} /></div>
         <div className="field"><label htmlFor="g-country">{t("dg.country")}</label><Select id="g-country" value={f.country} onChange={set("country")} options={[["", "—"], ...COUNTRIES.map((c) => [c, countryName(c, lang)])]} /></div>
+        <div className="field"><label htmlFor="g-age">{t("com.age")}</label><Select id="g-age" value={f.age_group} onChange={set("age_group")} options={GROUP_AGE_GROUPS.map((a) => [a, t(`com.age.${a}`)])} /></div>
       </div>
       <div className="row"><button type="submit" className="btn btn-primary">{t("dg.create")}</button></div>
     </form>

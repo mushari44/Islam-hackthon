@@ -24,12 +24,15 @@ GROUPS = [
      "description": "مساحة للمسلمات الجدد والمهتمات للتعلم والسؤال في جو آمن، بإشراف داعية.",
      "welcome": "أهلاً بكنّ. نبدأ بأركان الإسلام الخمسة، وكل سؤال مرحب به."},
     {"leader": "maryam", "title": "New Muslims: first steps", "lang": "en", "country": "GB", "city": "Manchester",
+     "age_group": "youth",
      "description": "Support for new Muslims: prayer, wudu, the basics of faith, and a place to ask without hesitation.",
      "welcome": "Welcome to the circle! Let's start with how to pray. Tag @sabeeli for a sourced explanation."},
     {"leader": "khalid", "title": "حلقة دبي: أسئلة عن الإسلام", "lang": "ar", "country": "AE", "city": "دبي",
+     "age_group": "adults",
      "description": "حلقة أسبوعية للمقيمين والزوار في دبي، نجيب فيها عن أسئلة الإسلام بهدوء ومن المصادر.",
      "welcome": "أهلاً بكم في حلقة دبي. موضوعنا هذا الأسبوع: الصلاة ومعناها. اكتبوا @سبيلي لجواب موثق."},
     {"leader": "khalid", "title": "حلقة القاهرة: خطوة بخطوة", "lang": "ar", "country": "EG", "city": "القاهرة",
+     "age_group": "youth",
      "description": "تعرّف على أركان الإسلام والإيمان في حلقة ودية يقودها داعية.",
      "welcome": "مرحباً بكم. نبدأ بأركان الإيمان الستة، وكل سؤال مرحب به."},
     {"leader": "yusuf", "title": "New York circle: Islam basics", "lang": "en", "country": "US", "city": "New York",
@@ -103,12 +106,14 @@ MEETUPS = [
 
 def seed(db: Session, daais: dict[str, Daai]) -> None:
     if db.scalars(select(Group).where(Group.is_demo.is_(True))).first():
+        _backfill_age_groups(db)
         return
     groups = []
     for spec in GROUPS:
         leader = daais[spec["leader"]]
         g = Group(title=spec["title"], description=spec["description"], lang=spec["lang"], country=spec["country"],
-                  city=spec["city"], audience=spec.get("audience", "all"), leader_id=leader.id, is_demo=True)
+                  city=spec["city"], audience=spec.get("audience", "all"), age_group=spec.get("age_group", "all"),
+                  leader_id=leader.id, is_demo=True)
         db.add(g)
         db.flush()
         db.add(GroupMessage(group_id=g.id, author_type="daai", author_name=leader.display_name if spec["lang"] == "ar"
@@ -125,3 +130,13 @@ def seed(db: Session, daais: dict[str, Daai]) -> None:
                       host_id=daais[spec["host"]].id,
                       group_id=groups[spec["group"]].id if "group" in spec else None, is_demo=True))
     db.commit()
+
+
+def _backfill_age_groups(db: Session) -> None:
+    """Demo groups seeded before groups had an age group get the one their spec gives now."""
+    ages = {spec["title"]: spec["age_group"] for spec in GROUPS if "age_group" in spec}
+    rows = db.scalars(select(Group).where(Group.is_demo.is_(True), Group.title.in_(ages), Group.age_group == "all")).all()
+    for g in rows:
+        g.age_group = ages[g.title]
+    if rows:
+        db.commit()

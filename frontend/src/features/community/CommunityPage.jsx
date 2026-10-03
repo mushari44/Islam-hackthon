@@ -7,7 +7,11 @@ import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
 import { Icon, errorText, toast } from "../../core/ui.jsx";
 import { useAccount } from "../account/public.js";
-import { AGE_GROUPS, SERIES, audienceKey, countryName, openJoin, openRsvp } from "./shared.jsx";
+import { AGE_GROUPS, GROUP_AGE_GROUPS, SERIES, audienceKey, countryName, openJoin, openRsvp } from "./shared.jsx";
+
+// A signed-in seeker's own answers preselect the filters. Age bands that span two age groups preselect none.
+const AUDIENCE_FROM_GENDER = { f: "women", m: "men" };
+const AGE_FROM_BAND = { "18_24": "youth", "35_44": "adults", "45_54": "adults" };
 
 function GroupCard({ g }) {
   const { t, lang, fmtNum, langName } = useI18n();
@@ -17,6 +21,7 @@ function GroupCard({ g }) {
         <div className="row">
           <span className="badge">{langName(g.lang)}</span>
           {g.audience !== "all" && <span className="badge badge-purple">{t(audienceKey(g.audience))}</span>}
+          {g.age_group && g.age_group !== "all" && <span className="badge">{t(`com.age.${g.age_group}`)}</span>}
         </div>
         <span className="faint"><Icon name="users" size={16} /> {t("com.members", { n: fmtNum(g.members) })}</span>
       </div>
@@ -90,16 +95,23 @@ export default function CommunityPage({ query }) {
   const { t, lang, langName } = useI18n();
   const [tab, setTab] = useState(query.tab === "meetups" ? "meetups" : "groups");
   const [langFilter, setLangFilter] = useState("");
-  const [age, setAge] = useState("");
   const [series, setSeries] = useState(query.series || "");
   const { account } = useAccount();
   const [country, setCountry] = useState(account?.country || "");
   const [city, setCity] = useState(account?.city || "");
-  // A signed-in seeker sees their own city first; they can still pick "all".
+  const [audience, setAudience] = useState(AUDIENCE_FROM_GENDER[account?.gender] || "");
+  const [age, setAge] = useState(AGE_FROM_BAND[account?.age_band] || "");
+  // A signed-in seeker first sees what suits their city, sex and age; they can still pick "all".
   const [placed, setPlaced] = useState(Boolean(account));
   useEffect(() => {
-    if (account && !placed) { setCountry(account.country || ""); setCity(account.city || ""); setPlaced(true); }
+    if (account && !placed) {
+      setCountry(account.country || ""); setCity(account.city || "");
+      setAudience(AUDIENCE_FROM_GENDER[account.gender] || ""); setAge(AGE_FROM_BAND[account.age_band] || "");
+      setPlaced(true);
+    }
   }, [account, placed]);
+  const ages = tab === "groups" ? GROUP_AGE_GROUPS : AGE_GROUPS;
+  const ageValue = age && ages.includes(age) ? age : "";   // there are no children's groups
   const [places, setPlaces] = useState([]);
   useEffect(() => { api.get("/api/community/places").then(setPlaces).catch(() => {}); }, []);
   const cities = (places.find((p) => p.country === country) || {}).cities || [];
@@ -116,16 +128,15 @@ export default function CommunityPage({ query }) {
     if (langFilter) params.set("lang", langFilter);
     if (country) params.set("country", country);
     if (city) params.set("city", city);
-    if (tab === "meetups") {
-      if (age) params.set("age", age);
-      if (series) params.set("series", series);
-    }
+    if (audience) params.set("audience", audience);
+    if (ageValue) params.set("age", ageValue);
+    if (tab === "meetups" && series) params.set("series", series);
     const q = `?${params}`;
     api.get(`/api/${tab === "groups" ? "groups" : "meetups"}${q}`)
       .then((data) => alive && setItems({ tab, data }))
       .catch((err) => alive && setError(err));
     return () => { alive = false; };
-  }, [tab, langFilter, country, city, age, series, lang, version]);
+  }, [tab, langFilter, country, city, audience, ageValue, series, lang, version]);
 
   return (
     <>
@@ -161,21 +172,27 @@ export default function CommunityPage({ query }) {
           </>
         )}
       </div>
-      {tab === "meetups" && (
-        <div className="meetup-filters">
-          <label className="row age-filter">
-            <span className="faint">{t("com.age")}</span>
-            <select className="select" value={age} onChange={(e) => setAge(e.target.value)}>
-              {AGE_GROUPS.map((a) => <option key={a} value={a === "all" ? "" : a}>{t(`com.age.${a}`)}</option>)}
-            </select>
-          </label>
-          {SERIES.map((sr) => (
-            <button key={sr} type="button" className="chip series-chip" aria-pressed={series === sr} onClick={() => setSeries(series === sr ? "" : sr)}>
-              <Icon name={sr === "ramadan" ? "moon" : "layers"} size={16} />{t(`com.series.${sr}`)}
+      <div className="com-filters">
+        <div className="row" role="group" aria-label={t("com.open_to")}>
+          <span className="faint">{t("com.open_to")}</span>
+          {["", "women", "men"].map((a) => (
+            <button key={a || "all"} type="button" className="chip" aria-pressed={audience === a} onClick={() => setAudience(a)}>
+              {t(`com.for.${a || "all"}`)}
             </button>
           ))}
         </div>
-      )}
+        <label className="row age-filter">
+          <span className="faint">{t("com.age")}</span>
+          <select className="select" value={ageValue} onChange={(e) => setAge(e.target.value)}>
+            {ages.map((a) => <option key={a} value={a === "all" ? "" : a}>{t(`com.age.${a}`)}</option>)}
+          </select>
+        </label>
+        {tab === "meetups" && SERIES.map((sr) => (
+          <button key={sr} type="button" className="chip series-chip" aria-pressed={series === sr} onClick={() => setSeries(series === sr ? "" : sr)}>
+            <Icon name={sr === "ramadan" ? "moon" : "layers"} size={16} />{t(`com.series.${sr}`)}
+          </button>
+        ))}
+      </div>
       {tab === "meetups" && series && <p className="series-lead"><Icon name={series === "ramadan" ? "moon" : "layers"} size={18} />{t(`com.series_lead.${series}`)}</p>}
       {error && <p className="empty">{errorText(error, t)}</p>}
       {!error && (!items || items.tab !== tab) && <div className="skeleton" style={{ height: 120 }} />}

@@ -38,8 +38,8 @@
 .mod-tools { gap: 4px; margin-top: 2px; }
 
 /* Meetup types: booking or walk-in, age group, series */
-.meetup-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-block-end: 18px; }
-.meetup-filters .tabs button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.com-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-block-end: 18px; }
+.com-filters .tabs button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
 .age-filter { gap: 8px; }
 .age-filter .select { min-height: 38px; padding-block: 4px; width: auto; }
 .series-chip svg { width: 16px; height: 16px; }

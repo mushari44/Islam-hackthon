@@ -12,6 +12,7 @@ export const audienceKey = (a) => ({ women: "com.women", men: "com.men", familie
 // Meetup types: booking needed or walk-in, an age group, and an optional series.
 export const REGISTRATION = ["required", "open"];
 export const AGE_GROUPS = ["all", "kids", "youth", "adults", "seniors"];
+export const GROUP_AGE_GROUPS = ["all", "youth", "adults", "seniors"];   // no children's groups online
 export const SERIES = ["ramadan", "qawl_amal"];
 
 // Countries a da'i can pick when creating a group or meetup (ISO codes); names come from the browser.
