@@ -58,3 +58,12 @@
 .vid-desc { white-space: pre-line; margin: 0; max-inline-size: 70ch; }
 
 .vid-pager { justify-content: center; margin-block-start: 22px; }
+
+/* related videos under an answer */
+.vid-related { margin-block-start: 14px; padding-block-start: 12px; border-block-start: 1px solid var(--border); }
+.vid-related-head { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: .95rem; }
+.vid-related-row { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
+.vid-card-compact .vid-body { padding: 8px 10px 10px; gap: 4px; }
+.vid-card-compact h3 { font-size: .9rem; margin: 0; }
+.vid-card-compact .vid-topic { display: none; }
+.vid-related .faint { margin: 8px 0 0; }

@@ -9,6 +9,7 @@ import { Icon, Notice, openSheet } from "../../core/ui.jsx";
 const MARKER = /\[\[(q:\d{1,3}:\d{1,3}|h:\d+|t:[a-z_]+|qa:\d+|b:\d+)\]\]/g;
 const VERSE_MARKER = /\[\[(q:\d{1,3}:\d{1,3})\]\]/g;
 const arDigits = (n) => new Intl.NumberFormat("ar-SA-u-nu-arab").format(n);
+const KIND_LABEL = { quran: "verse", hadith: "hadith", term: "term", qa: "qa", bayyinat: "bayyinat" };
 
 /** An encyclopedia answer: its own Arabic text, with every verse it quotes shown from the Mushaf. */
 function QaAnswer({ text, verses }) {
@@ -198,12 +199,22 @@ export function Answer({ answer, compact = false }) {
         return <Notice key={i} kind={warn ? "warn" : ""} icon={warn ? "alert" : "info"}>{n.text}</Notice>;
       })}
       {!compact && numbers.size > 0 && (
-        <details className="sources-panel">
-          <summary><Icon name="book" />{t("ans.sources", { n: fmtNum(numbers.size) })}</summary>
-          <div className="src-list">
-            {[...numbers].filter(([id]) => cards[id]).map(([id, n]) => <SourceCard key={id} card={cards[id]} num={n} compact />)}
-          </div>
-        </details>
+        <section className="sources-used" aria-label={t("ans.used", { n: fmtNum(numbers.size) })}>
+          <h4><Icon name="book" />{t("ans.used", { n: fmtNum(numbers.size) })}</h4>
+          <ol className="src-mini">
+            {[...numbers].filter(([id]) => cards[id]).map(([id, n]) => (
+              <li key={id}>
+                <span className="src-num">{fmtNum(n)}</span>
+                <span className="badge badge-mint">{t(`src.${KIND_LABEL[cards[id].kind] || "term"}`)}</span>
+                <span className="src-mini-text">
+                  <button type="button" className="src-mini-title" onClick={() => openSource(id)}>{cards[id].title}</button>
+                  <span className="faint small">{cards[id].source}</span>
+                </span>
+                <SourceLink url={cards[id].url} />
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
     </div>
   );
