@@ -1,4 +1,8 @@
 """Videos feature (IslamHouse). Owner: Mushari. No network: the IslamHouse index is built from fixtures."""
+import threading
+
+import pytest
+
 from backend.app.features.videos import islamhouse
 
 
@@ -91,6 +95,63 @@ def test_outage_is_reported_once_and_not_retried_in_a_loop(client, monkeypatch):
     d = client.get("/api/videos?lang=zz").json()
     assert d["state"] == "unavailable" and d["items"] == []
     islamhouse._errors.pop("zz", None)
+
+
+def test_only_known_languages_are_indexed_once_the_list_is_loaded(monkeypatch):
+    monkeypatch.setitem(islamhouse._languages, "list", [{"code": "ur", "name": "اردو", "count": 1545}])
+    assert islamhouse.is_language("ur") and islamhouse.is_language("en")
+    assert not islamhouse.is_language("zz")         # falls back to Arabic: no build for made-up codes
+    monkeypatch.setitem(islamhouse._languages, "list", [])
+    assert islamhouse.is_language("zz")             # list not loaded yet: tried, under the build cap
+    assert not islamhouse.is_language("../x")
+
+
+def test_at_most_max_builds_run_at_once(monkeypatch):
+    gate = threading.Event()
+    monkeypatch.setattr(islamhouse.Index, "build", lambda self: gate.wait(5))
+    monkeypatch.setattr(islamhouse, "_indexes", {})
+    monkeypatch.setattr(islamhouse, "_errors", {})
+    monkeypatch.setattr(islamhouse, "_building", {f"busy{i}": None for i in range(islamhouse.MAX_BUILDS)})
+    assert islamhouse.get_index("ur") == (None, "loading")
+    assert "ur" not in islamhouse._building         # no free slot: waits, the client keeps polling
+    del islamhouse._building["busy0"]
+    assert islamhouse.get_index("ur") == (None, "loading")
+    started = islamhouse._building["ur"]            # a slot freed up: the build starts
+    gate.set()
+    started.join(5)
+    assert "ur" in islamhouse._indexes and "ur" not in islamhouse._building
+
+
+def test_languages_outage_is_not_retried_for_every_visitor(monkeypatch):
+    calls = []
+
+    def down():
+        calls.append(1)
+        raise islamhouse.httpx.ConnectError("IslamHouse down")
+
+    monkeypatch.setattr(islamhouse, "_fetch_languages", down)
+    monkeypatch.setattr(islamhouse, "_languages", {"at": 0.0, "list": [], "failed": 0.0})
+    for _ in range(3):
+        with pytest.raises(Exception):
+            islamhouse.languages()
+    assert len(calls) == 1                          # one attempt per RETRY_AFTER, not one per request
+    islamhouse._languages.update(list=[{"code": "en", "name": "English", "count": 1615}], failed=0.0)
+    assert islamhouse.languages()[0]["code"] == "en"    # a failed refresh keeps serving the last good list
+    assert len(calls) == 2
+
+
+def test_index_without_a_topic_tree_still_lists_videos(monkeypatch):
+    page = {"links": {"pages_number": 1}, "data": [_raw(1, "صفة الصلاة", [MP4])]}
+
+    def fake_get(client, path):
+        if path.startswith("main/videos/"):
+            return page
+        raise islamhouse.httpx.ConnectError("tree down")
+
+    monkeypatch.setattr(islamhouse, "_get", fake_get)
+    idx = islamhouse.Index("ar")
+    idx.build()
+    assert [x["id"] for x in idx.items] == [1] and idx.topics == [] and idx.members == {}
 
 
 def test_languages_list_from_islamhouse_counts(monkeypatch):

@@ -122,15 +122,16 @@ export default function VideosPage() {
     let timer;
     setError(null);
     const load = () => {
-      const qs = `?lang=${lang}&page=${page}&per_page=${PER_PAGE}${topic ? `&topic=${topic}` : ""}`;
+      const params = new URLSearchParams({ lang, page, per_page: PER_PAGE });
+      if (topic) params.set("topic", topic);
       // search words go in a POST body so they never appear in server logs
       const req = q
         ? api.post("/api/videos/search", { lang, q, topic, page, per_page: PER_PAGE }, { as: "none" })
-        : api.pGet(`/api/videos${qs}`);
+        : api.pGet(`/api/videos?${params}`);
       req
         .then((d) => {
           if (!alive) return;
-          setData({ ...d, key: `${qs}|${q}` });
+          setData(d);
           if (d.state === "loading") timer = setTimeout(load, 2000);   // first index build takes ~30s
         })
         .catch((err) => alive && setError(err));

@@ -74,7 +74,7 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 
 ## Videos — owner: Mushari
 
-`backend/app/features/videos/routes.py`, backed by `islamhouse.py`. Public (no auth). Data comes live from the IslamHouse API v3 (listed on page 9 of the scholarly package). Arabic and English are indexed in the background at startup; any other language is indexed on its first request (15–35 s). After that everything is served from memory for 6 hours. If IslamHouse can't be reached, the state is `unavailable` and the server waits 60 s before trying again. The API key can be overridden with `SABEELI_ISLAMHOUSE_KEY`.
+`backend/app/features/videos/routes.py`, backed by `islamhouse.py`. Public (no auth). Data comes live from the IslamHouse API v3 (listed on page 9 of the scholarly package). Arabic and English are indexed in the background at startup; any other language is indexed on its first request (15–35 s), at most 3 languages at a time (a language waiting for its turn stays `loading`). After that everything is served from memory for 6 hours. Once the language list has loaded, a `lang` that isn't in it falls back to `ar`. If IslamHouse can't be reached, the state is `unavailable` and the server waits 60 s before trying again; the language list does the same and keeps serving its last good copy. The API key can be overridden with `SABEELI_ISLAMHOUSE_KEY`.
 
 | Method | Path | Auth | Body / params | Returns |
 |---|---|---|---|---|

@@ -38,6 +38,7 @@ PLAYABLE = {"MP4", "YOUTUBE"}
 LANGS = ("ar", "en")
 CACHE_TTL = 6 * 3600
 RETRY_AFTER = 60          # seconds to wait before trying IslamHouse again after a failure
+MAX_BUILDS = 3            # languages indexed at the same time; each build makes a few hundred calls to IslamHouse
 PAGE = 50
 
 
@@ -52,6 +53,20 @@ def _get(client: httpx.Client, path: str):
                 raise
             time.sleep(0.6 * (attempt + 1))
     return None
+
+
+def _try_get(client: httpx.Client, path: str):
+    """_get for an optional part of a build (a topic tree): if it fails, the videos are still listed."""
+    try:
+        return _get(client, path)
+    except (httpx.HTTPError, ValueError) as exc:
+        log.info("videos: skipped %s (%s)", path, exc)
+        return None
+
+
+def _subs(cat) -> list[dict]:
+    """A topic tree node's sub-categories; [] when the node is missing or malformed."""
+    return [c for c in cat.get("sub_categories") or [] if isinstance(c, dict)] if isinstance(cat, dict) else []
 
 
 def _strip(text: str | None) -> str:
@@ -111,6 +126,7 @@ class Index:
         self.lang = lang
         self.items: list[dict] = []
         self.topics: list[dict] = []
+        self.members: dict[int, set[int]] = {}     # top-level topic id -> video ids filed anywhere under it
         self.built_at = 0.0
 
     def build(self) -> None:
@@ -130,19 +146,20 @@ class Index:
                 if it:
                     by_id.setdefault(it["id"], it)
 
-            # topic tree -> for every category, the top-level topic it belongs to
-            tree = _get(client, f"main/get-object-category-tree/{self.lang}/json")
+            # topic tree -> for every category, the top-level topic it belongs to.
+            # Without a tree the videos are still listed, just without topic chips.
+            tree = _try_get(client, f"main/get-object-category-tree/{self.lang}/json")
             owner: dict[int, tuple[dict, str]] = {}     # category id -> (top-level topic, leaf title)
 
             def walk(cat: dict, top: dict) -> None:
                 owner[cat["id"]] = (top, cat.get("title") or "")
-                for sub in cat.get("sub_categories") or []:
+                for sub in _subs(cat):
                     walk(sub, top)
 
-            tops = tree.get("sub_categories") or []
+            tops = _subs(tree)
             if any(not t.get("title") for t in tops) and self.lang != "en":
                 # some languages have no translated topic names: fall back to the English ones
-                names = {t["id"]: t.get("title") for t in (_get(client, "main/get-object-category-tree/en/json") or {}).get("sub_categories") or []}
+                names = {t["id"]: t.get("title") for t in _subs(_try_get(client, "main/get-object-category-tree/en/json"))}
                 for t in tops:
                     t["title"] = t.get("title") or names.get(t["id"]) or ""
             for top in tops:
@@ -160,7 +177,7 @@ class Index:
                         pages_n = int(r.get("links", {}).get("pages_number") or 0)
                         ids.extend(x["id"] for x in data if isinstance(x, dict) and "id" in x)
                         page += 1
-                except httpx.HTTPError:
+                except (httpx.HTTPError, ValueError):     # network error or broken JSON: keep what we have
                     log.info("videos %s: category %s skipped", self.lang, cat_id)
                 return cat_id, ids
 
@@ -211,13 +228,32 @@ class Index:
         return {"items": items[start:start + per_page], "page": page, "pages": pages, "total": len(items)}
 
 
-_languages: dict = {"at": 0.0, "list": []}
+_languages: dict = {"at": 0.0, "list": [], "failed": 0.0}
 
 
 def languages() -> list[dict]:
-    """Languages that have at least one video on IslamHouse: [{code, name, count}], largest first."""
-    if _languages["list"] and time.time() - _languages["at"] < CACHE_TTL:
+    """Languages that have at least one video on IslamHouse: [{code, name, count}], largest first.
+    After a failure the last good list is served (or the failure repeated) for RETRY_AFTER seconds, so an
+    IslamHouse outage doesn't hold a server thread for every visitor."""
+    now = time.time()
+    if _languages["list"] and now - _languages["at"] < CACHE_TTL:
         return _languages["list"]
+    if now - _languages["failed"] < RETRY_AFTER:
+        if _languages["list"]:
+            return _languages["list"]
+        raise RuntimeError("IslamHouse unavailable (failed recently)")
+    try:
+        result = _fetch_languages()
+    except Exception:  # noqa: BLE001 - remembered for RETRY_AFTER, then re-raised or covered by the last list
+        _languages["failed"] = time.time()
+        if _languages["list"]:
+            return _languages["list"]            # a stale menu beats an empty one
+        raise
+    _languages.update(at=time.time(), list=result, failed=0.0)
+    return result
+
+
+def _fetch_languages() -> list[dict]:
     with httpx.Client() as client:
         home = _get(client, "main/home/json")
         langs = [(x["language_code"], x.get("title") or x["language_code"]) for x in home.get("data") or []]
@@ -225,19 +261,23 @@ def languages() -> list[dict]:
         def count(code: str) -> int:
             try:
                 blocks = _get(client, f"main/sitecontent/{code}/{code}/json")
-            except httpx.HTTPError:
+            except (httpx.HTTPError, ValueError):
                 return 0
             return next((b.get("items_count") or 0 for b in blocks or [] if isinstance(b, dict) and b.get("block_name") == "videos"), 0)
 
         with ThreadPoolExecutor(8) as ex:
             counts = list(ex.map(count, [c for c, _ in langs]))
-    result = sorted(({"code": c, "name": n, "count": k} for (c, n), k in zip(langs, counts) if k), key=lambda x: -x["count"])
-    _languages.update(at=time.time(), list=result)
-    return result
+    return sorted(({"code": c, "name": n, "count": k} for (c, n), k in zip(langs, counts) if k), key=lambda x: -x["count"])
 
 
 def is_language(code: str) -> bool:
-    return code in LANGS or any(x["code"] == code for x in _languages["list"]) or bool(re.fullmatch(r"[a-z]{2,3}", code))
+    """ar and en always; another code only if IslamHouse lists videos in it. Until that list has loaded
+    (the videos page asks for it on open), any 2-3 letter code is tried, and get_index caps the builds."""
+    if code in LANGS:
+        return True
+    if _languages["list"]:
+        return any(x["code"] == code for x in _languages["list"])
+    return bool(re.fullmatch(r"[a-z]{2,3}", code))
 
 
 _indexes: dict[str, Index] = {}
@@ -260,12 +300,13 @@ def _build(lang: str) -> None:
 
 
 def get_index(lang: str) -> tuple[Index | None, str]:
-    """Returns (index, state); state is ready, loading or unavailable. Builds in the background."""
+    """Returns (index, state); state is ready, loading or unavailable. Builds in the background, at most
+    MAX_BUILDS languages at a time; a language waiting for a free slot stays "loading" (the client polls)."""
     idx = _indexes.get(lang)
     fresh = idx is not None and time.time() - idx.built_at < CACHE_TTL
     failed_recently = time.time() - _errors.get(lang, 0) < RETRY_AFTER
     with _lock:
-        if not fresh and lang not in _building and not failed_recently:
+        if not fresh and lang not in _building and not failed_recently and len(_building) < MAX_BUILDS:
             t = threading.Thread(target=_build, args=(lang,), daemon=True)
             _building[lang] = t
             t.start()
