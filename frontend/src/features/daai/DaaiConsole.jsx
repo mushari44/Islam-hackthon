@@ -1,4 +1,4 @@
-// Da'i console: login, availability and the tabs (calls, groups, meetups). Owner: Eman.
+// Da'i console: login, availability and the tabs (calls, call log, groups, meetups, profile). Owner: Eman.
 import "./strings.js";
 import { useEffect, useState } from "react";
 import { api, daaiAuth } from "../../core/api.js";
@@ -6,8 +6,10 @@ import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
 import { callsTab } from "./CallsTab.jsx";
 import { groupsTab, meetupsTab } from "./CommunityTabs.jsx";
+import { profileTab, titledName } from "./ProfileTab.jsx";
+import { historyTab } from "./HistoryTab.jsx";
 
-const TABS = [callsTab, groupsTab, meetupsTab];
+const TABS = [callsTab, historyTab, groupsTab, meetupsTab, profileTab];
 
 
 function Login({ onLogin }) {
@@ -62,7 +64,7 @@ export default function DaaiConsole({ query }) {
       <div className="page-head row spread">
         <div>
           <h1>{t("dai.title")}</h1>
-          <p>{lang === "ar" ? me.name : me.name_en || me.name} · {t("dai.langs", { l: (me.languages || []).map(langName).join(lang === "ar" ? "، " : ", ") })}</p>
+          <p>{titledName(me, lang, t)} · {t("dai.langs", { l: (me.languages || []).map(langName).join(lang === "ar" ? "، " : ", ") })}</p>
         </div>
         <div className="row">
           <label className="row"><span className="switch"><input type="checkbox" checked={me.available} onChange={setAvailable} /><span /></span><span>{t("dai.available")}</span></label>
@@ -72,7 +74,7 @@ export default function DaaiConsole({ query }) {
       <div className="tabs" role="tablist">
         {TABS.map((x) => <button key={x.key} type="button" role="tab" aria-selected={x === tab} onClick={() => setTab(x)}>{t(x.labelKey)}</button>)}
       </div>
-      <div className="section daai-panel"><Panel me={me} key={tab.key} /></div>
+      <div className="section daai-panel"><Panel me={me} onMe={setMe} key={tab.key} /></div>
     </>
   );
 }

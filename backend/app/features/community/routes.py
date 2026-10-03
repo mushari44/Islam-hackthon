@@ -122,13 +122,15 @@ def _bot_reply(group_id: int, question: str, reply_to: int, lang: str) -> None:
 # ---------------------------------------------------------------------------
 
 @router.get("/groups")
-def list_groups(lang: str = "", country: str = "", ui: str = "ar",
+def list_groups(lang: str = "", country: str = "", city: str = "", ui: str = "ar",
                 me: SeekerSession | None = Depends(optional_seeker), db: Session = Depends(get_db)):
     q = select(Group).where(Group.active.is_(True))
     if lang:
         q = q.where(Group.lang == lang)
     if country:
         q = q.where(Group.country == country)
+    if city:
+        q = q.where(Group.city == city)
     groups = db.scalars(q.order_by(Group.id)).all()
     counts = _member_counts(db, [g.id for g in groups])
     mine: dict[int, GroupMember] = {}
@@ -137,6 +139,22 @@ def list_groups(lang: str = "", country: str = "", ui: str = "ar",
             GroupMember.session_id == me.id, GroupMember.left.is_(False),
             GroupMember.group_id.in_([g.id for g in groups]))).all()}
     return [_group_view(db, g, ui, mine.get(g.id), counts.get(g.id, 0)) for g in groups]
+
+
+@router.get("/community/places")
+def community_places(db: Session = Depends(get_db)):
+    """Countries (ISO codes) and their cities that have an active group or an upcoming meetup, for the filters."""
+    rows = db.execute(select(Group.country, Group.city).where(Group.active.is_(True))).all()
+    rows += db.execute(select(Meetup.country, Meetup.city).where(
+        Meetup.status == "open", Meetup.starts_at >= utcnow() - timedelta(hours=3))).all()
+    places: dict[str, set[str]] = {}
+    for country, city in rows:
+        if country:
+            places.setdefault(country, set())
+            if city:
+                places[country].add(city)
+    order = sorted(places, key=lambda c: (c != "SA", c))     # Saudi Arabia first
+    return [{"country": c, "cities": sorted(places[c])} for c in order]
 
 
 @router.get("/groups/{gid}")
@@ -361,12 +379,14 @@ def _meetup_view(db: Session, m: Meetup, lang: str, sid: str | None = None, goin
     return {"id": m.id, "title": m.title, "description": m.description, "lang": m.lang, "country": m.country,
             "city": m.city, "venue": m.venue, "starts_at": iso(m.starts_at), "duration_min": m.duration_min,
             "capacity": m.capacity, "going": going, "spots_left": max(0, m.capacity - going), "audience": m.audience,
+            "registration": m.registration, "age_group": m.age_group, "series": m.series,
             "host": host.public(_ui(lang)) if host else None, "group_id": m.group_id, "status": m.status,
             "is_demo": m.is_demo, "my_rsvp": mine}
 
 
 @router.get("/meetups")
 def list_meetups(country: str = "", city: str = "", lang: str = "", ui: str = "ar",
+                 registration: str = "", age: str = "", series: str = "",
                  me: SeekerSession | None = Depends(optional_seeker), db: Session = Depends(get_db)):
     q = select(Meetup).where(Meetup.status == "open", Meetup.starts_at >= utcnow() - timedelta(hours=3))
     if country:
@@ -375,6 +395,12 @@ def list_meetups(country: str = "", city: str = "", lang: str = "", ui: str = "a
         q = q.where(Meetup.city == city)
     if lang:
         q = q.where(Meetup.lang == lang)
+    if registration:
+        q = q.where(Meetup.registration == registration)
+    if age:   # a meetup for all ages also suits every age group
+        q = q.where(Meetup.age_group.in_([age, "all"]))
+    if series:
+        q = q.where(Meetup.series == series)
     meetups = db.scalars(q.order_by(Meetup.starts_at)).all()
     mids = [m.id for m in meetups]
     going = _going_counts(db, mids)
@@ -396,7 +422,7 @@ def rsvp(mid: int, body: RsvpIn, ui: str = "ar", me: SeekerSession = Depends(see
     m = db.get(Meetup, mid)
     if not m or m.status != "open":
         raise HTTPException(404, "not found")
-    if m.audience in ("women", "men") and not body.confirm_audience:
+    if (m.audience in ("women", "men") or m.age_group == "kids") and not body.confirm_audience:
         raise HTTPException(400, "please confirm the audience of this meetup")
     existing = db.scalars(select(RSVP).where(RSVP.meetup_id == mid, RSVP.session_id == me.id,
                                              RSVP.cancelled.is_(False))).first()
@@ -405,7 +431,7 @@ def rsvp(mid: int, body: RsvpIn, ui: str = "ar", me: SeekerSession = Depends(see
     if m.starts_at <= utcnow():
         raise HTTPException(409, "meetup already started")
     going = _going_counts(db, [mid]).get(mid, 0)
-    if going >= m.capacity:
+    if going >= m.capacity and m.registration == "required":   # walk-in events only count who joined
         raise HTTPException(409, "full")
     nick = moderation.clean_nickname(body.nickname)
     if not moderation.nickname_ok(nick):
@@ -478,8 +504,16 @@ class MeetupIn(BaseModel):
     duration_min: int = Field(default=90, ge=15, le=480)
     capacity: int = Field(default=20, ge=2, le=500)
     audience: str = "all"
+    registration: str = "required"
+    age_group: str = "all"
+    series: str = ""
     group_id: int | None = None
     public_venue: bool = False
+
+
+REGISTRATION = ("required", "open")
+AGE_GROUPS = ("all", "kids", "youth", "adults", "seniors")
+SERIES = ("", "qawl_amal", "ramadan")
 
 
 @router.get("/daai/meetups")
@@ -500,6 +534,8 @@ def create_meetup(body: MeetupIn, ui: str = "ar", lead: Daai = Depends(daai), db
         raise HTTPException(400, "meetups must be at a public venue")
     if body.audience not in ("all", "women", "men", "families"):
         raise HTTPException(400, "bad audience")
+    if body.registration not in REGISTRATION or body.age_group not in AGE_GROUPS or body.series not in SERIES:
+        raise HTTPException(400, "bad meetup type")
     starts = body.starts_at if body.starts_at.tzinfo is None else \
         body.starts_at.astimezone(timezone.utc).replace(tzinfo=None)
     if starts <= utcnow():
@@ -510,7 +546,8 @@ def create_meetup(body: MeetupIn, ui: str = "ar", lead: Daai = Depends(daai), db
             raise HTTPException(400, "you can only link your own group")
     m = Meetup(title=body.title.strip(), description=body.description.strip(), lang=body.lang, country=body.country,
                city=body.city.strip(), venue=body.venue.strip(), starts_at=starts, duration_min=body.duration_min,
-               capacity=body.capacity, audience=body.audience, host_id=lead.id, group_id=body.group_id)
+               capacity=body.capacity, audience=body.audience, registration=body.registration,
+               age_group=body.age_group, series=body.series, host_id=lead.id, group_id=body.group_id)
     db.add(m)
     db.commit()
     return _meetup_view(db, m, ui)

@@ -36,3 +36,31 @@
 .g-msg.bot { border-color: color-mix(in srgb, var(--purple-500) 35%, var(--border)); max-width: 100%; }
 .sys-line { text-align: center; font-size: .82rem; color: var(--text-faint); }
 .mod-tools { gap: 4px; margin-top: 2px; }
+
+/* Meetup types: booking or walk-in, age group, series */
+.meetup-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-block-end: 18px; }
+.meetup-filters .tabs button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.age-filter { gap: 8px; }
+.age-filter .select { min-height: 38px; padding-block: 4px; width: auto; }
+.series-chip svg { width: 16px; height: 16px; }
+.series-tag {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-size: .8rem; font-weight: 600;
+  color: var(--purple-500); background: color-mix(in srgb, var(--purple-500) 10%, transparent);
+  padding: 3px 12px; border-radius: 999px;
+}
+.series-tag svg { width: 16px; height: 16px; }
+.series-lead {
+  display: flex; gap: 10px; align-items: center; margin-block: -6px 16px; padding: 12px 16px; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--purple-500) 8%, var(--surface)); color: var(--text-muted);
+}
+.series-lead svg { width: 18px; height: 18px; flex: none; color: var(--purple-500); }
+.reg-needed { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; font-weight: 600; font-size: .9rem; color: var(--text); }
+.reg-needed svg { width: 16px; height: 16px; color: var(--purple-500); }
+.reg-needed .faint { font-weight: 400; }
+.walk-in { display: inline-flex; gap: 6px; align-items: center; color: var(--accent-ink); font-weight: 600; font-size: .9rem; }
+.walk-in svg { width: 16px; height: 16px; }
+
+/* Country and region filter (both tabs) */
+.place-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-block-end: 14px; color: var(--text-faint); }
+.place-filters .select { width: auto; min-width: 160px; min-height: 40px; padding-block: 4px; }
+.series-tag.series-ramadan { color: var(--warn-text); background: var(--warn-bg); }

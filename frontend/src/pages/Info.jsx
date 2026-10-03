@@ -28,7 +28,7 @@ register({
     "src.later": "مقترح للإضافة: قاموس الجمهرة، والدرر السنية.",
     "src.license": "تتيح الجمعية محتوى منصاتها مجاناً للأفراد والجهات عبر واجهات برمجية عامة، بحسب بيانها في الحزمة العلمية.",
     "priv.title": "الخصوصية", "priv.lead": "صممنا سَبِيلي ليعمل دون أن نعرف من أنت.",
-    "priv.1": "لا حسابات للسائلين: رمز جلسة عشوائي في متصفحك فقط.",
+    "priv.1": "الحساب اختياري: تبدأ برمز جلسة عشوائي في متصفحك، ولو أنشأت حساباً فهو اسم مستخدم وكلمة مرور، وبريد اختياري لاستعادته فقط، بلا جوال ولا اسم حقيقي.",
     "priv.2": "أسئلتك وإجاباتها تُحذف تلقائياً بعد 24 ساعة.",
     "priv.3": "ملخص الإحالة لا يصل إلى الداعية إلا بموافقتك الصريحة.",
     "priv.4": "المكالمات لا تُسجّل، ولا نطلب رقم هاتف. في المجموعات واللقاءات اسم مستعار فقط.",
@@ -62,7 +62,7 @@ register({
     "src.later": "Proposed: the Jamhara dictionary and Dorar.",
     "src.license": "The association makes its platforms' content free for individuals and organisations through public APIs, per its statement in the package.",
     "priv.title": "Privacy", "priv.lead": "Sabeeli is designed to work without knowing who you are.",
-    "priv.1": "No accounts for people asking: just a random session token in your browser.",
+    "priv.1": "An account is optional: you start with a random session token in your browser, and an account is a username and password, with an optional email used only to recover it.",
     "priv.2": "Your questions and answers are deleted automatically after 24 hours.",
     "priv.3": "The referral summary only reaches a da'i with your explicit consent.",
     "priv.4": "Calls aren't recorded and we never ask for a phone number. Groups and meetups use nicknames only.",
@@ -153,6 +153,7 @@ export function More({ theme, setTheme }) {
     <>
       <div className="page-head"><h1>{t("more.title")}</h1></div>
       <div className="stack">
+        {link("#/account", "lock", "acc.mine")}
         {link("#/about", "info", "nav.about")}
         {link("#/sources", "book", "nav.sources")}
         {link("#/privacy", "shield", "nav.privacy")}
