@@ -37,6 +37,7 @@ import threading
 import time
 from pathlib import Path
 
+from ...core import timing
 from ...core.config import settings
 from ...core.textnorm import strip_marks
 from .corpus import Corpus, Passage, get_corpus
@@ -181,8 +182,10 @@ def _retriever_classes():
         k: int = 40
 
         def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> list[Document]:
+            with timing.step("bm25"):
+                hits = self.corpus.index.search(lines(query), k=self.k)
             return [Document(page_content=pid, metadata={"pid": pid, "bm25": score, "coverage": cov})
-                    for pid, score, cov in self.corpus.index.search(lines(query), k=self.k)]
+                    for pid, score, cov in hits]
 
     class DenseRetriever(BaseRetriever):
         """FAISS search for every query line; a passage scores its best chunk across all lines."""
@@ -194,12 +197,14 @@ def _retriever_classes():
             best: dict[str, float] = {}
             qs = lines(query)[:MAX_QUERIES]
             emb = self.store.embedding_function
-            vecs = emb.embed_queries(qs) if hasattr(emb, "embed_queries") else [emb.embed_query(q) for q in qs]
-            for vec in vecs:
-                for doc, score in self.store.similarity_search_with_score_by_vector(vec, k=DENSE_K):
-                    pid = doc.metadata["pid"]
-                    if pid in self.corpus.passages and score > best.get(pid, -1.0):
-                        best[pid] = float(score)
+            with timing.step("embed_query"):     # E5 on the question and its search phrases
+                vecs = emb.embed_queries(qs) if hasattr(emb, "embed_queries") else [emb.embed_query(q) for q in qs]
+            with timing.step("faiss"):
+                for vec in vecs:
+                    for doc, score in self.store.similarity_search_with_score_by_vector(vec, k=DENSE_K):
+                        pid = doc.metadata["pid"]
+                        if pid in self.corpus.passages and score > best.get(pid, -1.0):
+                            best[pid] = float(score)
             ranked = sorted(best.items(), key=lambda kv: -kv[1])[: self.k]
             return [Document(page_content=pid, metadata={"pid": pid, "dense": s}) for pid, s in ranked]
 
@@ -212,9 +217,10 @@ def _retriever_classes():
         def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> list[Document]:
             lex = self.lexical.invoke(query)
             den = self.dense.invoke(query)
-            ensemble = EnsembleRetriever(retrievers=[self.lexical, self.dense], weights=self.weights,
-                                         c=RRF_C, id_key="pid")
-            fused = ensemble.weighted_reciprocal_rank([lex, den])
+            with timing.step("fusion"):
+                ensemble = EnsembleRetriever(retrievers=[self.lexical, self.dense], weights=self.weights,
+                                             c=RRF_C, id_key="pid")
+                fused = ensemble.weighted_reciprocal_rank([lex, den])
             info: dict[str, dict] = {}
             for doc in lex + den:
                 info.setdefault(doc.metadata["pid"], {}).update(doc.metadata)
@@ -297,6 +303,7 @@ def _open():
         from langchain_community.vectorstores import FAISS
         from langchain_community.vectorstores.utils import DistanceStrategy
 
+        t_load = time.perf_counter()
         corpus = get_corpus()
         stamp = json.loads((path / "stamp.json").read_text(encoding="utf-8")) if (path / "stamp.json").exists() else {}
         if {k: stamp.get(k) for k in ("model", "files")} != {k: v for k, v in _stamp(corpus).items() if k != "passages"}:
@@ -309,7 +316,7 @@ def _open():
         w = dense_weight()
         retriever = Hybrid(lexical=Lexical(corpus=corpus), dense=Dense(store=store, corpus=corpus), weights=[1 - w, w])
         _State.reason = f"on ({model_name()}, {emb.device}, dense {w:.0%} + BM25 {1 - w:.0%})"
-        log.info("semantic search %s", _State.reason)
+        log.info("semantic search %s, loaded in %.1fs", _State.reason, time.perf_counter() - t_load)
         return retriever
     except Exception as exc:  # noqa: BLE001 - missing packages or a broken index: BM25 still works
         _State.reason = f"unavailable: {exc.__class__.__name__}: {exc}"[:200]
@@ -345,7 +352,8 @@ def search(queries: list[str], k: int = 30) -> tuple[list[tuple[str, float, floa
     queries = [q.strip().replace("\n", " ") for q in queries if q and q.strip()]
     retriever = _load()
     if retriever is None:
-        return corpus.index.search(queries, k=k), {}, "bm25"
+        with timing.step("bm25"):
+            return corpus.index.search(queries, k=k), {}, "bm25"
     docs = retriever.invoke("\n".join(dict.fromkeys(queries)))[:k]
     dense = {d.metadata["pid"]: round(d.metadata["dense"], 3) for d in docs if "dense" in d.metadata}
     return [(d.metadata["pid"], d.metadata["rrf"], d.metadata.get("coverage", 0.0)) for d in docs], dense, "hybrid"

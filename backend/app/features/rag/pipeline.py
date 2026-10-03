@@ -17,6 +17,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
+from ...core import timing
 from ...core.claude import LLMUnavailable, get_claude
 from ...core.config import settings
 from ...core.textnorm import has_arabic, normalize_ar, skeleton, tokens
@@ -26,6 +27,7 @@ from .corpus import ANSWER_KINDS, Passage, get_corpus
 from .quran_match import get_matcher, looks_like_quote
 
 log = logging.getLogger("sabeeli.pipeline")
+tlog = logging.getLogger("sabeeli.timing")
 
 MARKER_RE = re.compile(r"\[\[(q:\d{1,3}:\d{1,3}|h:\d+|t:[a-z_]+|qa:\d+|b:\d+)\]\]")
 QURAN_BRACKETS_RE = re.compile(r"[﴿{]([^﴾}]{3,600})[﴾}]")
@@ -442,6 +444,19 @@ def _sources_only(passages: list[Passage], lang: str, rtrace: list[dict], questi
 
 
 def ask(ctx: AskContext) -> dict:
+    """Answer one question, timing every step: the trace carries the breakdown (milliseconds per step, and
+    each model call with its provider, tokens and speed) and the server log gets one line per question."""
+    tm = timing.start()
+    t0 = time.perf_counter()
+    out = _ask(ctx)
+    total = time.perf_counter() - t0
+    timings = out.setdefault("trace", {}).setdefault("timings", {})
+    timings.update({"total": round(total, 2), "steps_ms": dict(tm["steps"]), "llm": list(tm["llm"])})
+    tlog.info("ask kind=%s mode=%s | %s", out.get("kind"), out.get("mode"), timing.summary(total))
+    return out
+
+
+def _ask(ctx: AskContext) -> dict:
     t0 = time.perf_counter()
     corpus = get_corpus()
     question = (ctx.question or "").strip()[:MAX_QUESTION_CHARS]
@@ -460,7 +475,8 @@ def ask(ctx: AskContext) -> dict:
     if ctx.image:
         if llm:
             try:
-                ocr = assistant.ocr(llm, ctx.image, ctx.image_type or "image/jpeg", ctx.ui_lang)
+                with timing.step("ocr", llm=True):
+                    ocr = assistant.ocr(llm, ctx.image, ctx.image_type or "image/jpeg", ctx.ui_lang)
             except LLMUnavailable as exc:
                 log.warning("ocr failed: %s", exc)
         if ocr is None:
@@ -482,7 +498,9 @@ def ask(ctx: AskContext) -> dict:
         quote_report = ocr["text"]
     if llm:
         try:
-            analysis = _normalize_analysis(assistant.analyze(llm, question, ctx.history, ctx.ui_lang, quote_report))
+            with timing.step("analyze", llm=True):
+                raw_analysis = assistant.analyze(llm, question, ctx.history, ctx.ui_lang, quote_report)
+            analysis = _normalize_analysis(raw_analysis)
             analysis["source"] = "model"
         except LLMUnavailable as exc:
             log.warning("analyze failed: %s", exc)
@@ -522,7 +540,8 @@ def ask(ctx: AskContext) -> dict:
         quote_texts.append(analysis["quoted_text"])   # a hadith is not checked against the Mushaf
     if not quote_texts and has_arabic(question) and looks_like_quote(question) and not INTERROGATIVE_RE.search(question):
         quote_texts.append(question)   # «لماذا خلق الله الشر؟» is a question, not a misquoted verse
-    qc = _quote_check(quote_texts)
+    with timing.step("quote_check"):
+        qc = _quote_check(quote_texts)
     if qc and qc["status"] == "not_found" and qc["input"] == question:
         qc = None  # a plain Arabic question, not a quote
     quote_ids: list[str] = []
@@ -533,7 +552,8 @@ def ask(ctx: AskContext) -> dict:
 
     # 5. Retrieve
     t2 = time.perf_counter()
-    passages, rtrace = retrieve(analysis, question, quote_ids)
+    with timing.step("retrieve"):
+        passages, rtrace = retrieve(analysis, question, quote_ids)
     timings["retrieve"] = round(time.perf_counter() - t2, 3)
     trace["retrieval"] = rtrace
     allowed = {p.id for p in passages} | {vid for p in passages for vid in p.verse_refs()}
@@ -564,8 +584,10 @@ def ask(ctx: AskContext) -> dict:
         if best_cov < 0.35 and not quote_ids and not on_topic:
             notes.append("Retrieval confidence is low: the results may not answer the question. Abstain unless they clearly do.")
         try:
-            answer = assistant.answer(llm, analysis.get("standalone_question") or question,
-                                      _search_results(passages, lang, focus), level, lang, ctx.history, notes, ctx.max_words)
+            with timing.step("answer", llm=True):
+                answer = assistant.answer(llm, analysis.get("standalone_question") or question,
+                                          _search_results(passages, lang, focus), level, lang, ctx.history, notes,
+                                          ctx.max_words)
         except LLMUnavailable as exc:
             log.warning("answer failed: %s", exc)
             mode = "sources_only"
@@ -575,8 +597,9 @@ def ask(ctx: AskContext) -> dict:
     if answer:
         index_to_id = [p.id for p in passages]
         for seg in answer.segments:
-            text = _guard_scripture(seg["text"], allowed, trace)
-            text = _clean_markers(text, allowed, trace)
+            with timing.step("scripture_guard"):
+                text = _guard_scripture(seg["text"], allowed, trace)
+                text = _clean_markers(text, allowed, trace)
             if UNVERIFIED in text and not settings.strict_grounding:
                 text = ""
             cites = []
@@ -677,8 +700,8 @@ def ask(ctx: AskContext) -> dict:
         for pid in s["cites"] + [m.group(1) for m in MARKER_RE.finditer(s["text"])]:
             if pid not in used_ids:
                 used_ids.append(pid)
-    cards = {pid: corpus.get(pid).card(lang) for pid in used_ids if corpus.get(pid)}
-    timings["total"] = round(time.perf_counter() - t0, 2)
+    with timing.step("cards"):
+        cards = {pid: corpus.get(pid).card(lang) for pid in used_ids if corpus.get(pid)}
     return {**base, "mode": mode, "kind": kind, "segments": segments, "cards": cards, "sources": used_ids,
             "suggest_daai": level in ("C", "D") or kind in ("abstain", "refer") or intent == "request_human"}
 

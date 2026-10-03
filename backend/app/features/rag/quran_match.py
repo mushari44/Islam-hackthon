@@ -12,7 +12,9 @@ word writes that long vowel with a dagger alef, the usual spelling split.
 """
 from __future__ import annotations
 
+import logging
 import math
+import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from difflib import SequenceMatcher
@@ -118,6 +120,7 @@ def _outside(ops) -> int:
 
 class QuranMatcher:
     def __init__(self) -> None:
+        t0 = time.perf_counter()
         corpus = get_corpus()
         self.verses: list[Passage] = [p for p in corpus.passages.values() if p.kind == "quran"]
         self.words = [arabic_words(p.data["text_ar"]) for p in self.verses]
@@ -130,6 +133,7 @@ class QuranMatcher:
                 self.grams[s[j:j + GRAM]].add(i)
             for j in range(len(sk) - SHINGLE + 1):
                 self.shingles.add(tuple(sk[j:j + SHINGLE]))
+        logging.getLogger("sabeeli.quran_match").info("verse matcher ready in %.1fs", time.perf_counter() - t0)
 
     def verse_runs(self, text: str, min_words: int = 7) -> list[tuple[int, int]]:
         """Character spans of text where at least min_words consecutive words follow the Mushaf word for

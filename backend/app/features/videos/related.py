@@ -22,8 +22,10 @@ import logging
 import math
 import re
 import threading
+import time
 from collections import Counter
 
+from ...core import timing
 from ...core.textnorm import tokens
 
 log = logging.getLogger("sabeeli.videos")
@@ -101,10 +103,11 @@ def _embed_in_background(st: _Stats, enc) -> None:
     st.embedding = True
 
     def run():
+        t0 = time.perf_counter()
         try:
             import numpy as np
             st.vectors = np.asarray(enc.embed_documents([video_text(it) for it in st.items]), dtype="float32")
-            log.info("videos: embedded %d videos for related suggestions", len(st.items))
+            log.info("videos: embedded %d videos for related suggestions in %.1fs", len(st.items), time.perf_counter() - t0)
         except Exception:  # noqa: BLE001 - words still work
             log.exception("videos: embedding for related suggestions failed")
         finally:
@@ -182,8 +185,10 @@ def _similarities(st: _Stats, enc, texts: list[str]):
     """E5 similarity of every video to the question (best over the question and its search phrases)."""
     import numpy as np
 
-    q = np.asarray([enc.embed_query(t) for t in texts if t.strip()], dtype="float32")
-    return (st.vectors @ q.T).max(axis=1) if len(q) else None
+    with timing.step("video_embed_query"):
+        q = np.asarray([enc.embed_query(t) for t in texts if t.strip()], dtype="float32")
+    with timing.step("video_similarity"):
+        return (st.vectors @ q.T).max(axis=1) if len(q) else None
 
 
 def related(idx, question: str, hints: list[str] | None = None, k: int = 3, encoder=None) -> list[dict]:
@@ -196,7 +201,8 @@ def related(idx, question: str, hints: list[str] | None = None, k: int = 3, enco
     h_toks = set(tokens(" ".join(hints or []))) - q_toks
     if pending(idx, encoder):
         return []    # meaning is on the way: better nothing for a few seconds than word-only guesses
-    words = _word_ranking(st, q_toks, h_toks)
+    with timing.step("video_words"):
+        words = _word_ranking(st, q_toks, h_toks)
     sims = _similarities(st, encoder, [question, " ".join(hints or [])]) if encoder is not None else None
     meaning_bar, coverage_bar = (REQUESTED_MEANING, REQUESTED_COVERAGE) if requested else (MEANING, COVERAGE)
     if sims is None:   # words only: keep strong matches

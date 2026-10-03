@@ -17,9 +17,11 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 
 import httpx
 
+from . import timing
 from .config import settings
 
 log = logging.getLogger("sabeeli.openrouter")
@@ -68,10 +70,12 @@ class OpenRouter:
             body["provider"] = {"data_collection": "deny"}
         if settings.openrouter_sort:
             body.setdefault("provider", {})["sort"] = settings.openrouter_sort
+        t0 = time.perf_counter()
         try:
             r = self.http.post(URL, json=body)
         except httpx.HTTPError as exc:
             raise LLMUnavailable("network error") from exc
+        elapsed = time.perf_counter() - t0
         if r.status_code in (401, 403):
             raise LLMUnavailable("invalid OpenRouter API key")
         if r.status_code == 429:
@@ -87,6 +91,9 @@ class OpenRouter:
         data = r.json()
         if data.get("error"):
             raise LLMUnavailable(f"API error: {str(data['error'])[:300]}")
+        u = data.get("usage") or {}
+        timing.llm_call(data.get("provider") or "openrouter", data.get("model") or self.model, elapsed,
+                        u.get("prompt_tokens"), u.get("completion_tokens"))
         return data
 
     @staticmethod

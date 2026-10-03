@@ -7,10 +7,12 @@ the user is always the stored reference text, never model output.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import pickle
 import re
 import threading
+import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -18,6 +20,8 @@ from pathlib import Path
 
 from ...core.config import settings
 from ...core.textnorm import normalize_ar, tokens
+
+log = logging.getLogger("sabeeli.corpus")
 
 INDEX_VERSION = 6
 PREFIX = {"quran": "q", "hadith": "h", "term": "t", "qa": "qa", "bayyinat": "b"}
@@ -217,6 +221,7 @@ def glossary_source(lang: str) -> str:
 
 class Corpus:
     def __init__(self) -> None:
+        t0 = time.perf_counter()
         self.passages: dict[str, Passage] = {}
         self.order: list[str] = []
         for row in _read_jsonl(settings.corpus_dir / "quran.jsonl"):
@@ -230,7 +235,10 @@ class Corpus:
         # built locally by scripts/ingest_bayyinat.py (the book's rights are reserved, so it isn't in git)
         for row in _read_jsonl(settings.corpus_dir / "bayyinat.jsonl"):
             self._add(Passage(row["id"], "bayyinat", row))
+        t1 = time.perf_counter()
         self.index = BM25Index.load_or_build(self)
+        log.info("corpus: %d passages read in %.1fs, BM25 index ready in %.1fs", len(self.order), t1 - t0,
+                 time.perf_counter() - t1)
 
     def _add(self, p: Passage) -> None:
         self.passages[p.id] = p

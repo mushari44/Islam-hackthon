@@ -13,16 +13,20 @@ question from the Ask page (related.py). Suggestions only: answers never cite vi
 """
 from __future__ import annotations
 
+import logging
 import os
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from ...core import timing
 from ..rag.public import semantic_encoder, semantic_status
 from . import islamhouse, related
 
 router = APIRouter(prefix="/api")
+tlog = logging.getLogger("sabeeli.timing")
 
 SOURCE = {"name": "IslamHouse", "url": "https://islamhouse.com/"}
 
@@ -83,8 +87,13 @@ def related_videos(body: RelatedIn):
     # shortly instead of answering with the stricter words-only match.
     if (enc is None and semantic_status() == "loading") or related.pending(idx, enc):
         return {"state": "loading", "items": [], "requested": requested, "source": SOURCE}
+    tm = timing.start()
+    t0 = time.perf_counter()
     items = related.related(idx, body.q, body.hints, body.k, encoder=enc)
-    return {"state": "ready", "items": items, "requested": requested, "source": SOURCE}
+    total = time.perf_counter() - t0
+    tlog.info("related videos lang=%s found=%d | %s", lang, len(items), timing.summary(total))
+    return {"state": "ready", "items": items, "requested": requested, "source": SOURCE,
+            "timings": {"total_ms": round(total * 1000, 1), "steps_ms": dict(tm["steps"])}}
 
 
 def warm() -> None:

@@ -39,6 +39,38 @@ function shrink(file) {
   });
 }
 
+// Where the time went: every step in milliseconds, and each model call with its provider and speed.
+const STEP_ORDER = ["ocr", "analyze", "quote_check", "retrieve", "bm25", "embed_query", "faiss", "fusion", "answer",
+  "scripture_guard", "cards"];
+
+function Timings({ timings }) {
+  const { t, fmtNum } = useI18n();
+  const steps = (timings && timings.steps_ms) || {};
+  const names = Object.keys(steps).sort((x, y) => STEP_ORDER.indexOf(x) - STEP_ORDER.indexOf(y));
+  if (!names.length) return null;
+  const sub = new Set(["bm25", "embed_query", "faiss", "fusion"]);
+  const fmt = (ms) => (ms >= 1000 ? t("unit.s", { n: fmtNum(Math.round(ms / 100) / 10) }) : `${fmtNum(Math.round(ms))} ms`);
+  return (
+    <div>
+      <h3>{t("ask.trace_steps")}</h3>
+      <ul className="trace-list trace-steps">
+        {names.map((n) => {
+          const calls = (timings.llm || []).filter((c) => c.step === n);
+          return (
+            <li key={n} className={sub.has(n) ? "sub" : ""}>
+              <span>{t(`ask.step_${n}`)}</span> <strong>{fmt(steps[n])}</strong>
+              {calls.map((c, i) => (
+                <span key={i} className="faint small">{` · ${c.provider} · ${fmtNum(c.in || 0)}→${fmtNum(c.out || 0)} tokens`}
+                  {c.tok_s ? ` · ${fmtNum(c.tok_s)} tok/s` : ""}</span>
+              ))}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function Trace({ ans }) {
   const { t, fmtNum } = useI18n();
   const tr = ans.trace || {};
@@ -53,6 +85,7 @@ function Trace({ ans }) {
         {tr.cited_share != null && <><dt>{t("ask.trace_cited")}</dt><dd>{fmtNum(Math.round(tr.cited_share * 100))}%</dd></>}
         {tr.timings && tr.timings.total != null && <><dt>{t("ask.trace_time")}</dt><dd>{t("unit.s", { n: fmtNum(tr.timings.total) })}</dd></>}
       </dl>
+      <Timings timings={tr.timings} />
       {(tr.retrieval || []).length > 0 && (
         <div>
           <h3>{t("ask.trace_found")}</h3>

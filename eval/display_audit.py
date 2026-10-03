@@ -49,25 +49,31 @@ QUESTIONS = [
     ("en", "What happens after death in Islam?"),
 ]
 
-BASE = sys.argv[sys.argv.index("--base") + 1] if "--base" in sys.argv else "http://localhost:8765"
-c = httpx.Client(base_url=BASE, timeout=120)
-tok = c.post("/api/session").json()["token"]
-out = []
-for lang, q in QUESTIONS:
-    d = c.post("/api/ask", data={"question": q, "lang": lang}, headers={"X-Seeker": tok}).json()
-    rows = {r["id"]: r for r in d["trace"].get("retrieval", [])}
-    shown = [(pid, d["cards"][pid]["title"][:70], rows.get(pid, {}).get("coverage"), rows.get(pid, {}).get("dense"))
-             for pid in d["sources"] if pid in d["cards"]]
-    vids = []
-    if d["kind"] in ("answer", "sources", "abstain"):
-        v = c.post("/api/videos/related", json={"lang": d["lang"], "q": q, "hints": []}).json()
-        vids = [(x["title"][:60], x["match"]) for x in v["items"]]
-    out.append({"q": q, "kind": d["kind"], "level": d["level"], "shown": shown, "videos": vids})
-    print(f"\n### {q}  [{d['kind']}, {d['level']}]")
-    for pid, title, cov, dense in shown:
-        print(f"   {pid:10} cov={cov} dense={dense}  {title}")
-    for title, m in vids:
-        print(f"   VIDEO {title}  {m}")
-target = next((a for a in sys.argv[1:] if a.endswith(".json")), "display_audit.json")
-with open(target, "w", encoding="utf-8") as f:
-    json.dump(out, f, ensure_ascii=False, indent=1)
+
+def main() -> None:
+    BASE = sys.argv[sys.argv.index("--base") + 1] if "--base" in sys.argv else "http://localhost:8765"
+    c = httpx.Client(base_url=BASE, timeout=120)
+    tok = c.post("/api/session").json()["token"]
+    out = []
+    for lang, q in QUESTIONS:
+        d = c.post("/api/ask", data={"question": q, "lang": lang}, headers={"X-Seeker": tok}).json()
+        rows = {r["id"]: r for r in d["trace"].get("retrieval", [])}
+        shown = [(pid, d["cards"][pid]["title"][:70], rows.get(pid, {}).get("coverage"), rows.get(pid, {}).get("dense"))
+                 for pid in d["sources"] if pid in d["cards"]]
+        vids = []
+        if d["kind"] in ("answer", "sources", "abstain"):
+            v = c.post("/api/videos/related", json={"lang": d["lang"], "q": q, "hints": []}).json()
+            vids = [(x["title"][:60], x["match"]) for x in v["items"]]
+        out.append({"q": q, "kind": d["kind"], "level": d["level"], "shown": shown, "videos": vids})
+        print(f"\n### {q}  [{d['kind']}, {d['level']}]")
+        for pid, title, cov, dense in shown:
+            print(f"   {pid:10} cov={cov} dense={dense}  {title}")
+        for title, m in vids:
+            print(f"   VIDEO {title}  {m}")
+    target = next((a for a in sys.argv[1:] if a.endswith(".json")), "display_audit.json")
+    with open(target, "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, indent=1)
+
+
+if __name__ == "__main__":
+    main()

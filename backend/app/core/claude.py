@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 
 import anthropic
 
+from . import timing
 from .config import settings
 
 log = logging.getLogger("sabeeli.claude")
@@ -36,6 +38,14 @@ class Claude:
     def create(self, **kw):
         """messages.create with server-side refusal fallbacks when the account supports them."""
         kw.setdefault("model", self.model)
+        t0 = time.perf_counter()
+        resp = self._create(**kw)
+        u = getattr(resp, "usage", None)
+        timing.llm_call("anthropic", getattr(resp, "model", self.model), time.perf_counter() - t0,
+                        getattr(u, "input_tokens", None), getattr(u, "output_tokens", None))
+        return resp
+
+    def _create(self, **kw):
         try:
             if self._fallbacks:
                 try:

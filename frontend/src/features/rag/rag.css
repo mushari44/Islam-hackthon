@@ -142,3 +142,5 @@
 .trace dd { margin: 0; }
 .trace-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: .88rem; }
 .trace-list code { font-size: .82rem; background: var(--bg-soft); padding: 1px 6px; border-radius: 6px; }
+.trace-steps li.sub { padding-inline-start: 18px; opacity: .85; }
+.trace-steps li strong { font-variant-numeric: tabular-nums; }
