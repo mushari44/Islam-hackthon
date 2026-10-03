@@ -107,7 +107,7 @@ export function MeetupCard({ m, reload, account }) {
             {w.countdown && !cancelled && <span className="when-rel">{w.countdown}</span>}
           </li>
           <li>{online
-            ? <><Icon name="globe" size={16} />{t("com.online_place")}</>
+            ? <><Icon name="globe" size={16} />{t(!m.online_url ? "com.online_place" : cancelled || w.ended ? "com.fmt.online" : "com.online_booked")}</>
             : <><Icon name="pin" size={16} /><span dir="auto">{placeOf(m, lang)}</span> <span className="badge">{t("com.public_place")}</span></>}</li>
           {m.host && <li><Icon name="users" size={16} />{t("com.host", { name: m.host.name })}</li>}
         </ul>

@@ -183,9 +183,9 @@ def seed(db: Session, daais: dict[str, Daai]) -> None:
 
 def _refresh_demo_meetups(db: Session, daais: dict[str, Daai]) -> None:
     """Keeps an older or long-running demo database in step: adds demo meetups added to MEETUPS since, gives older
-    ones their time zone (re-timing relative ones, which used to be put on Riyadh time everywhere), and moves
-    relative ones that have passed forward by whole weeks, so the demo always has upcoming meetups.
-    Only demo rows are touched."""
+    ones their time zone (keeping their date but moving them to the venue's local hour: the old seed put every city
+    on Riyadh time), and moves relative ones that have passed forward by whole weeks, so the demo always has upcoming
+    meetups. Only demo rows are touched."""
     rows = {m.title: m for m in db.scalars(select(Meetup).where(Meetup.is_demo.is_(True))).all()}
     groups = db.scalars(select(Group).where(Group.is_demo.is_(True)).order_by(Group.id)).all()
     now = utcnow()
@@ -196,7 +196,10 @@ def _refresh_demo_meetups(db: Session, daais: dict[str, Daai]) -> None:
                 db.add(_meetup(spec, daais, groups))
             continue
         if not m.tz:
-            m.tz, m.starts_at = ZONES[_zone(spec)][0], _start(spec)
+            m.tz = ZONES[_zone(spec)][0]
+            if "days" in spec:   # keep the date people saw (the old seed's Riyadh date), at the venue's local hour
+                day = (m.starts_at + timedelta(hours=3)).replace(hour=0, minute=0, second=0, microsecond=0)
+                m.starts_at = _shift(day + timedelta(hours=spec["hour"]), _zone(spec), to_utc=True)
         if "days" in spec and m.status == "open" and m.starts_at < now - timedelta(hours=3):
             code, weeks = _zone(spec), (now - m.starts_at).days // 7 + 1
             m.starts_at = _shift(_shift(m.starts_at, code, to_utc=False) + timedelta(weeks=weeks), code, to_utc=True)

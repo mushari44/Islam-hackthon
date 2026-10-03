@@ -98,16 +98,24 @@ def test_demo_meetups_stay_upcoming_in_local_time():
         # 18:00 in New York is 22:00 or 23:00 UTC, not 15:00 (the old seed put every city on Riyadh time)
         assert demo["Ask a Muslim: open evening"].starts_at.hour in (22, 23)
 
-        # a database seeded before time zones existed, and a demo meetup that has passed
+        # a database seeded before time zones existed (every "hour" stored as Riyadh time), and a demo meetup that has passed
         old, past = demo["لقاء تعريفي: من هو محمد ﷺ؟"], demo["Open evening: Questions about Islam"]
+        riyadh, new_york = demo["لقاء نسائي: الصلاة خطوة بخطوة"], demo["Ask a Muslim: open evening"]
+        day = (utcnow() + timedelta(days=5)).replace(hour=0, minute=0, second=0, microsecond=0)
         old.tz, old.starts_at = "", utcnow() - timedelta(days=40)
+        riyadh.tz, riyadh.starts_at = "", day + timedelta(hours=13)      # 16:00 in Riyadh, as the old seed stored it
+        new_york.tz, new_york.starts_at = "", day + timedelta(hours=15)  # "18:00", but on Riyadh time
         past.starts_at = utcnow() - timedelta(days=9, hours=2)
         hour = community_seed._shift(past.starts_at, "GB", to_utc=False).hour
         db.commit()
         community_seed.seed(db, {})          # demo data exists: only the refresh runs
-        db.refresh(old)
-        db.refresh(past)
+        for m in (old, past, riyadh, new_york):
+            db.refresh(m)
         assert old.tz == "Asia/Riyadh" and old.starts_at > utcnow()
+        assert riyadh.tz == "Asia/Riyadh" and riyadh.starts_at == day + timedelta(hours=13)   # nothing to fix
+        # same date people booked, now at 18:00 New York time
+        assert new_york.tz == "America/New_York" and new_york.starts_at.date() == day.date()
+        assert new_york.starts_at.hour in (22, 23)
         assert utcnow() < past.starts_at < utcnow() + timedelta(days=7)
         assert community_seed._shift(past.starts_at, "GB", to_utc=False).hour == hour   # same local hour
     finally:
