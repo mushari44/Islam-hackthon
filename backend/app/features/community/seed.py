@@ -111,7 +111,7 @@ MEETUPS = [
     {"host": "maryam", "title": "إفطار عائلي مع الجيران", "lang": "ar", "country": "SA", "city": "جدة",
      "venue": "حديقة عامة (مكان تجريبي)", "at": (2027, 2, 20, 14, 45), "capacity": 60, "audience": "families",
      "series": "ramadan", "description": "إفطار للعائلات ونشاط للأطفال عن قيم رمضان. (بيانات تجريبية)"},
-    {"host": "yusuf", "group": 2, "title": "Open iftar: Ramadan with neighbours", "lang": "en", "country": "GB",
+    {"host": "yusuf", "group": 1, "title": "Open iftar: Ramadan with neighbours", "lang": "en", "country": "GB",
      "city": "London", "venue": "Community centre hall (demo venue)", "at": (2027, 2, 18, 17, 30), "capacity": 80,
      "audience": "all", "registration": "open", "series": "ramadan",
      "description": "Break the fast with us and ask anything about Ramadan. Everyone welcome. (demo data)"},

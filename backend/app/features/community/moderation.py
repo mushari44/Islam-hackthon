@@ -17,7 +17,7 @@ STRIKES_TO_MUTE = 3
 
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 URL = re.compile(r"(https?://\S+|www\.\S+|\b[\w-]+\.(com|net|org|io|me|sa|co|info)\b\S*)", re.I)
-PHONE = re.compile(r"(?<!\d)(\+?\d[\d\s\-()]{7,}\d)")
+PHONE = re.compile(r"(?<!\d)(\+?\d[\d\s\-().]{7,}\d)")
 HANDLE = re.compile(r"(?<![\w@])@(?!(?:سبيلي|سَبِيلي|sabeeli)(?![\w.]))[A-Za-z0-9_.]{3,}", re.I)
 # Bidi overrides can make a message or nickname display differently from what was checked.
 BIDI = re.compile("[\u202a-\u202e\u2066-\u2069]")
@@ -58,7 +58,9 @@ class Verdict:
 
 
 def check(text: str, seconds_since_last: float | None) -> Verdict:
-    text = BIDI.sub("", text or "").strip()
+    # Format characters go first: a zero-width space inside a phone number, link or handle would otherwise
+    # hide it from the patterns below and still be stored and shown.
+    text = _invisible_free(BIDI.sub("", text or "")).strip()
     if not text:
         return Verdict(False, "", "empty")
     if len(text) > MAX_LEN:

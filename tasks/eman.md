@@ -72,6 +72,24 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 
 - [ ] Da'i console (`features/daai/CommunityTabs.jsx`): pass `?ui=${lang}` to `GET/POST /api/daai/groups` and `GET/POST /api/daai/meetups`, so leader and host names follow the interface language (the community API accepts `ui` since the 3 October community review; see `docs/API.md`). Also add the two new error messages to the meetup form if you want them translated there: `the meetup must start in the future` (a key is already registered by the community strings).
 
+## Found in the overnight audit (3-4 October, by Mushari's agent)
+
+Full report: `docs/AUDIT-2026-10-04.md`. Nothing in your folders was changed. Already listed above and confirmed again: the da'i chat-history endpoint, the queue entry that stays after the seeker leaves, and tokens in WebSocket URLs (they are also written to the uvicorn access log).
+
+- [ ] **Demo reviewer (admin) uses the public password `sabeeli-demo`** (`auth/seed.py`, `SEED_DEMO=1` by default, password in the README). On the live link anyone can sign in as reviewer and create admins or reset da'i passwords. Seed the admin only with a non-default `DEMO_PASSWORD`, or give the reviewer its own env password. (The shared fix in `core/config.py` already stops `SECRET_KEY=change-me` being usable to forge tokens.)
+- [ ] Changing, recovering or resetting a seeker password leaves the account's other devices signed in (`auth/routes.py` change/recover/reset). Detach the other sessions, as da'is do with `token_version`.
+- [ ] Login lockout is keyed by username only: five wrong passwords lock the real da'i out for 10 minutes, and `_failures` grows without limit. Key it on (IP, username) and prune old keys.
+- [ ] Unknown usernames answer about 10x faster than real ones (no PBKDF2), which shows which usernames exist (da'i login, seeker sign-in, recover). Verify against a dummy hash. `/account/forgot` also sends mail inside the request (timing) and has no rate limit.
+- [ ] A non-ASCII token gives a 500 (`auth/security.py`: `hmac.compare_digest` on `str` raises `TypeError`). Compare bytes or catch it. Same in the WebSocket `_authorize`.
+- [ ] Accepted calls never end if both people leave (`calls/signalling.py`); the call stays under "active" for good. Mark it ended when the room stays empty, and cap the duration.
+- [ ] A reconnect sends a false "peer-left" to the other side (`signalling.py`: the replaced socket's `finally`).
+- [ ] An expired request can still be accepted if nobody listed the queue in between (`calls/routes.py` accept: add a `created_at` condition to the UPDATE). The reviewer (admin) can accept seeker calls too.
+- [ ] An open call socket keeps storing chat after the call ends, with no rate limit.
+- [ ] Anonymous call data (in-call chat, referral question and card) is never deleted, although the privacy page promises 24 hours. Add a calls purger for anonymous sessions.
+- [ ] `month=9999-12` on `GET /api/daai/calls` is a 500. `GET /api/daai/experiment` needs only a da'i login, not admin; check that's intended.
+- [ ] Performance: `SeekerAccount.session_id` has no index but is queried on every seeker request (`deps.signed_out_home`); every seeker request also writes `last_seen`. Add the index and throttle the write.
+- [ ] Frontend: the da'i console stays "signed in" after the token expires (the `/me` poll swallows 401) and History spins forever if its first fetch fails; `TalkPage` `seekerToken()` and `CallPanel` `createRoom()` have no `.catch` (blank page / "connecting" forever); the experiment toggle's second fetch is unguarded; the queue poll repeats an error toast every 3 s while opening a call fails; the gender radiogroup (`TalkPage`) and the group post box (`CommunityTabs`) have no label.
+
 ## Day 3: 6 October (polish and publish)
 
 - [ ] Waiting screen: an estimated wait, and a clear message when no da'i speaks the chosen language right now (suggest groups instead).

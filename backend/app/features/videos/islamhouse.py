@@ -128,6 +128,17 @@ class Index:
         self.topics: list[dict] = []
         self.members: dict[int, set[int]] = {}     # top-level topic id -> video ids filed anywhere under it
         self.built_at = 0.0
+        self._search_text: dict[int, tuple[str, str]] = {}   # video id -> normalised (title, the rest)
+
+    def _texts(self, it: dict) -> tuple[str, str]:
+        """Search forms of a video's title and other text, normalised once per build: normalising every
+        item on every search cost about a second of CPU per query on a full language list."""
+        cached = self._search_text.get(it["id"])
+        if cached is None:
+            cached = (_norm(it["title"]), _norm(" ".join([it["description"], " ".join(it["authors"]),
+                                                          it.get("topic") or ""])))
+            self._search_text[it["id"]] = cached
+        return cached
 
     def build(self) -> None:
         started = time.time()
@@ -194,6 +205,9 @@ class Index:
 
         self.items = sorted(by_id.values(), key=lambda x: x.get("added") or 0, reverse=True)
         self.members = members
+        self._search_text = {}
+        for it in self.items:
+            self._texts(it)
         self.topics = sorted(
             ({"id": t["id"], "title": t.get("title") or "", "count": len(members[t["id"]])} for t in tops
              if members[t["id"]]),
@@ -211,8 +225,7 @@ class Index:
             return items
         scored = []
         for it in items:
-            title = _norm(it["title"])
-            rest = _norm(" ".join([it["description"], " ".join(it["authors"]), it.get("topic") or ""]))
+            title, rest = self._texts(it)
             if all(t in title or t in rest for t in terms):
                 score = sum(3 for t in terms if t in title) + sum(1 for t in terms if t in rest)
                 scored.append((score, it.get("added") or 0, it))
@@ -229,6 +242,7 @@ class Index:
 
 
 _languages: dict = {"at": 0.0, "list": [], "failed": 0.0}
+_languages_lock = threading.Lock()   # one fetch at a time: the first visitors must not each call IslamHouse ~130 times
 
 
 def languages() -> list[dict]:
@@ -237,6 +251,18 @@ def languages() -> list[dict]:
     IslamHouse outage doesn't hold a server thread for every visitor."""
     now = time.time()
     if _languages["list"] and now - _languages["at"] < CACHE_TTL:
+        return _languages["list"]
+    if now - _languages["failed"] < RETRY_AFTER:
+        if _languages["list"]:
+            return _languages["list"]
+        raise RuntimeError("IslamHouse unavailable (failed recently)")
+    with _languages_lock:
+        return _languages_locked()
+
+
+def _languages_locked() -> list[dict]:
+    now = time.time()
+    if _languages["list"] and now - _languages["at"] < CACHE_TTL:   # another request just fetched it
         return _languages["list"]
     if now - _languages["failed"] < RETRY_AFTER:
         if _languages["list"]:

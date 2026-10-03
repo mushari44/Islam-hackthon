@@ -33,9 +33,10 @@ RETRY_WAIT = 0.4   # seconds before the one retry of a passing failure
 def _provider_error(r: httpx.Response) -> bool:
     """A 200 reply that carries the upstream provider's error instead of an answer."""
     try:
-        return bool(r.json().get("error"))
+        data = r.json()
     except ValueError:
         return False
+    return isinstance(data, dict) and bool(data.get("error"))
 
 
 class OpenRouter:
@@ -113,7 +114,12 @@ class OpenRouter:
                 log.warning("no provider for %s accepts data_collection=deny; set SABEELI_OPENROUTER_PRIVATE=0 "
                             "to allow others (check their data policy first)", self.model)
             raise LLMUnavailable(f"API error {r.status_code}: {text}")
-        data = r.json()
+        try:
+            data = r.json()
+        except ValueError as exc:   # an HTML or cut-off 200 page: sources-only, not a 500
+            raise LLMUnavailable("bad response from OpenRouter") from exc
+        if not isinstance(data, dict):
+            raise LLMUnavailable("bad response from OpenRouter")
         if data.get("error"):
             raise LLMUnavailable(f"API error: {str(data['error'])[:300]}")
         u = data.get("usage") or {}
@@ -153,7 +159,9 @@ class OpenRouter:
                 return _parse(self._text(data)[0])
             except LLMUnavailable as exc:
                 msg = str(exc).lower()
-                if not any(w in msg for w in ("response_format", "json_schema", "structured", "schema")):
+                # Only the API refusing the format turns it off; one unreadable reply must not, for good.
+                if not msg.startswith("api error") or not any(w in msg for w in ("response_format", "json_schema",
+                                                                                 "structured", "schema")):
                     raise   # an unrelated failure (a rejected image, a bad reply) must not drop the schema for good
                 log.warning("json_schema not accepted by %s, using json_object: %s", self.model, exc)
                 self._schema_ok = False

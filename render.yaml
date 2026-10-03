@@ -14,9 +14,11 @@ services:
       - key: DEMO_PASSWORD
         value: sabeeli-demo
       - key: SABEELI_OFFLINE
-        value: "1"          # set to 0 and add ANTHROPIC_API_KEY to use the model
+        value: "0"          # without a key below the app still runs, in sources-only mode
+      - key: OPENROUTER_API_KEY
+        sync: false         # Gemma 4 31B through OpenRouter (the default model); paste the key in Render
       - key: ANTHROPIC_API_KEY
-        sync: false
+        sync: false         # only with SABEELI_LLM_PROVIDER=anthropic
       - key: TURN_URL
         sync: false
       - key: TURN_USERNAME
