@@ -60,7 +60,7 @@ p { margin: 0 0 .8em; }
   .nav { display: none; }
   .brand-tag { display: none; }
   .tabbar {
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
     position: fixed; inset-inline: 0; bottom: 0; z-index: 50;
     background: var(--surface); border-top: 1px solid var(--border);
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
