@@ -29,15 +29,16 @@ log = logging.getLogger("sabeeli.videos")
 
 TITLE, TOPIC, DESC = 3.0, 2.0, 1.0
 DESC_CHARS = 300          # the start of a description says what the video is about; the rest is often boilerplate
-MIN_COVERAGE = 0.3        # share of the question's known words (idf-weighted) a word match must contain
 MIN_SCORE = 4.0           # roughly: one rare word in the title, or several common ones
-# Which videos are close enough to suggest. E5 scores short titles in a narrow band (checked by hand
-# on 12 questions against the real ar/en lists): a clear match scores >= 0.85; 0.815-0.85 is either a
-# match or a video that merely shares a common word, so there the words must agree too.
-STRONG_MEANING = 0.85
-WEAK_MEANING = 0.815
-# Without the encoder, words alone must be much stronger ("مسلم" or "يوم" alone suggests nothing).
-WORDS_ONLY_SCORE, WORDS_ONLY_COVERAGE = 10.0, 0.5
+# Which videos are close enough to suggest. Precision first: no video is better than an unrelated one.
+# Checked by hand on 30 questions against the real ar/en lists: a video on the question scores >= 0.85
+# in meaning AND shares most of the question's words in its title or topic; meaning alone let in
+# "Why do Muslims do Hajj?" for a question about tawaf, words alone "Pillars of Faith" for the
+# pillars of Islam. Both must agree.
+MEANING = 0.85
+COVERAGE = 0.45           # share of the question's words (idf-weighted; words no video uses count fully)
+# Without the encoder, words alone must be much stronger.
+WORDS_ONLY_SCORE, WORDS_ONLY_COVERAGE = 10.0, 0.6
 DENSE_WEIGHT = 0.7        # same split as RAG search
 RRF_C = 60
 
@@ -130,24 +131,36 @@ def prepare(get_index, get_encoder, langs=("ar", "en"), wait_s: float = 600.0) -
     threading.Thread(target=run, daemon=True).start()
 
 
-def _word_ranking(st: _Stats, query: dict[str, float]) -> list[tuple[int, float, float]]:
-    known = {t: w for t, w in query.items() if t in st.idf}   # a word no video uses can't tell videos apart
-    total = sum(st.idf[t] * w for t, w in known.items())
-    if not total:
+def _word_ranking(st: _Stats, q_toks: set[str], h_toks: set[str]) -> list[tuple[int, float, float]]:
+    """(video index, score, coverage) for videos sharing a meaningful title/topic word with the question.
+
+    coverage is the larger of: the share of the question's own words the video has (a word no video
+    uses counts at full rarity, so a question about something the list lacks stays low), and the share
+    of the search phrases' known words (the analysis' rewording of the question)."""
+    max_idf = math.log(1 + len(st.items))
+    q_total = sum(st.idf.get(t, max_idf) for t in q_toks)
+    h_known = {t for t in h_toks if t in st.idf}
+    h_total = sum(st.idf[t] for t in h_known)
+    if not q_total and not h_total:
         return []
     out = []
     for i, fields in enumerate(st.fields):
-        score = covered = 0.0
+        score = q_cov = h_cov = 0.0
         anchored = False
-        for t, w in known.items():
+        for t in q_toks | h_known:
             fw = fields.get(t)
             if fw is None:
                 continue
+            w = 1.0 if t in q_toks else 0.6
             score += st.idf[t] * fw * w
-            covered += st.idf[t] * w
+            if t in q_toks:
+                q_cov += st.idf[t]
+            if t in h_known:
+                h_cov += st.idf[t]
             anchored = anchored or fw >= TOPIC
-        if anchored and score >= MIN_SCORE and covered / total >= MIN_COVERAGE:
-            out.append((i, score, covered / total))
+        coverage = max(q_cov / q_total if q_total else 0.0, h_cov / h_total if h_total else 0.0)
+        if anchored and score >= MIN_SCORE:
+            out.append((i, score, coverage))
     out.sort(key=lambda x: (x[1], x[2], st.items[x[0]].get("added") or 0), reverse=True)
     return out
 
@@ -165,21 +178,16 @@ def related(idx, question: str, hints: list[str] | None = None, k: int = 3, enco
     st = _stats(idx)
     q_toks = set(tokens(question))
     h_toks = set(tokens(" ".join(hints or []))) - q_toks
-    # words the question itself uses count fully; words that only the search phrases add count less
-    query = {t: 1.0 for t in q_toks} | {t: 0.6 for t in h_toks}
     if pending(idx, encoder):
         return []    # meaning is on the way: better nothing for a few seconds than word-only guesses
-    words = _word_ranking(st, query)
+    words = _word_ranking(st, q_toks, h_toks)
     sims = _similarities(st, encoder, [question, " ".join(hints or [])]) if encoder is not None else None
     if sims is None:   # words only: keep strong matches
         words = [w for w in words if w[1] >= WORDS_ONLY_SCORE and w[2] >= WORDS_ONLY_COVERAGE]
         meaning: list[tuple[int, float]] = []
-    else:              # meaning decides; a borderline meaning needs the words to agree
-        word_ids = {i for i, *_ in words}
-        ok = {int(i) for i in (sims >= STRONG_MEANING).nonzero()[0]}
-        ok |= {i for i in word_ids if sims[i] >= WEAK_MEANING}
-        words = [w for w in words if w[0] in ok]
-        meaning = sorted(((i, float(sims[i])) for i in ok), key=lambda x: -x[1])
+    else:              # both must agree: close in meaning, and most of the question's words in title/topic
+        words = [w for w in words if w[2] >= COVERAGE and sims[w[0]] >= MEANING]
+        meaning = sorted(((i, float(sims[i])) for i, *_ in words), key=lambda x: -x[1])
     fused: dict[int, float] = {}
     for rank, (i, *_) in enumerate(words, start=1):
         fused[i] = fused.get(i, 0.0) + (1 - DENSE_WEIGHT if sims is not None else 1.0) / (RRF_C + rank)

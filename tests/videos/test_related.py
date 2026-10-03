@@ -52,20 +52,22 @@ def test_words_alone_need_a_strong_match():
     assert related.related(idx, "ما الطقس اليوم في الرياض؟") == []
 
 
-def test_meaning_decides_and_borderline_needs_words():
+def test_meaning_and_words_must_both_agree():
     idx = _index()
     st = related._stats(idx)
     st.vectors = np.eye(len(idx.items), 8, dtype="float32")    # video i (i < 8) points along axis i
     q = np.zeros(8, dtype="float32")
-    q[0], q[3] = 0.90, 0.83        # video 1 (Ramadan) clearly close; video 4 (Ashura) borderline with no shared word
-    hits = related.related(idx, "لماذا يصوم المسلمون شهرا كاملا؟", encoder=FakeEncoder(q))
-    assert [h["id"] for h in hits] == [1]
-    assert hits[0]["match"]["meaning"] == 0.9
+    q[0], q[3] = 0.90, 0.90        # Ramadan video and Ashura video both close in meaning
+    enc = FakeEncoder(q)
+    # the question's own words barely match either title, but the search phrases match the Ramadan one
+    hits = related.related(idx, "لماذا يصوم المسلمون شهرا كاملا؟", ["صيام شهر رمضان"], encoder=enc)
+    assert [h["id"] for h in hits] == [1] and hits[0]["match"]["meaning"] == 0.9
+    assert related.related(idx, "لماذا يصوم المسلمون شهرا كاملا؟", encoder=enc) == []   # words don't agree
     q = np.zeros(8, dtype="float32")
-    q[4] = 0.83                    # borderline meaning, and the words agree ("التوحيد"): suggested
-    assert [h["id"] for h in related.related(idx, "ما معنى التوحيد؟", encoder=FakeEncoder(q))] == [5]
-    q[4] = 0.5                     # far in meaning: words alone don't override the encoder
+    q[4] = 0.83                    # the words agree («التوحيد») but the meaning is only borderline
     assert related.related(idx, "ما معنى التوحيد؟", encoder=FakeEncoder(q)) == []
+    q[4] = 0.88
+    assert [h["id"] for h in related.related(idx, "ما معنى التوحيد؟", encoder=FakeEncoder(q))] == [5]
 
 
 def test_nothing_is_suggested_while_the_videos_are_being_embedded(monkeypatch):

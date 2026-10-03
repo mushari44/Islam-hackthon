@@ -19,7 +19,7 @@ from pathlib import Path
 from ...core.config import settings
 from ...core.textnorm import normalize_ar, tokens
 
-INDEX_VERSION = 5
+INDEX_VERSION = 6
 PREFIX = {"quran": "q", "hadith": "h", "term": "t", "qa": "qa", "bayyinat": "b"}
 ANSWER_KINDS = ("qa", "bayyinat")  # whole approved answers to a question, with verses inside as markers
 QA_CONTEXT_CHARS = 4000  # long answers are cut here for the model (the card shows all of it)

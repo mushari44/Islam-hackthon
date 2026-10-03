@@ -91,7 +91,9 @@ function Feedback({ turnId }) {
   );
 }
 
-const VIDEO_KINDS = new Set(["answer", "sources"]);   // not for small talk, abstentions or personal questions
+// Related videos pass a strict check of their own, so they can help even when the sources fell short;
+// never for small talk or personal questions.
+const VIDEO_KINDS = new Set(["answer", "sources", "abstain"]);
 
 function BotMessage({ ans, question }) {
   const { t, lang } = useI18n();

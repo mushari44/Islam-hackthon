@@ -14,7 +14,11 @@ def _range(a: int, b: int) -> str:
 
 ARABIC_BLOCKS = _range(0x0600, 0x06FF) + _range(0x0750, 0x077F) + _range(0x08A0, 0x08FF)
 ARABIC_RE = re.compile(f"[{ARABIC_BLOCKS}]")
-WORD_RE = re.compile(rf"[\w{ARABIC_BLOCKS}]+", re.UNICODE)
+# Word characters: the Arabic blocks minus their punctuation (، ؛ ؟ ٪ ٫ ٬ ٭ ۔), which would otherwise
+# stick to the word before it ("النبوة؟" never matched "النبوة").
+ARABIC_LETTERS = (_range(0x0606, 0x060B) + _range(0x060D, 0x061A) + _range(0x061C, 0x061E) + _range(0x0620, 0x0669)
+                  + _range(0x066E, 0x06D3) + _range(0x06D5, 0x06FF) + _range(0x0750, 0x077F) + _range(0x08A0, 0x08FF))
+WORD_RE = re.compile(rf"[\w{ARABIC_LETTERS}]+", re.UNICODE)
 
 ALEF = chr(0x0627)
 ALEF_MAKSURA = chr(0x0649)
