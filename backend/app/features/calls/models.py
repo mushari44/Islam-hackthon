@@ -24,6 +24,10 @@ class Referral(Base):
     # The Ask conversation the card was drafted from (rag's Conversation.id), so the seeker's chat list can
     # show which da'i they talked to about it. NULL when the call started from the Talk page.
     conversation_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    # The seeker also agreed to share that conversation's messages (up to `chat_upto`, the latest turn id when
+    # they agreed) with the da'i who takes the call. Separate from `consented`, which covers the card.
+    share_chat: Mapped[bool] = mapped_column(Boolean, default=False)
+    chat_upto: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class CallRequest(Base):

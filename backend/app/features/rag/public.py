@@ -6,11 +6,13 @@ the RAG internals can change freely as long as these functions keep working.
 """
 from __future__ import annotations
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .corpus import get_corpus
-from .models import Conversation, recent_turns
+from .models import ChatTurn, Conversation, recent_turns
 from .pipeline import AskContext, ask, plain_text
+from .routes import turn_view
 
 
 SMALL_TALK = {"greeting", "thanks", "off_topic", "empty"}
@@ -39,6 +41,23 @@ def last_question(db: Session, session_id: str, conversation_id: int | None = No
 def owns_conversation(db: Session, session_id: str, conversation_id: int | None) -> bool:
     conv = db.get(Conversation, conversation_id) if conversation_id else None
     return bool(conv and conv.session_id == session_id)
+
+
+def conversation_size(db: Session, session_id: str, conversation_id: int) -> tuple[int, int | None]:
+    """(number of turns, id of the latest turn) in one of this seeker's conversations."""
+    n, last = db.execute(select(func.count(ChatTurn.id), func.max(ChatTurn.id)).where(
+        ChatTurn.session_id == session_id, ChatTurn.conversation_id == conversation_id)).one()
+    return n, last
+
+
+def shared_conversation(db: Session, session_id: str, conversation_id: int, upto_turn_id: int) -> list[dict]:
+    """The turns of a conversation the seeker chose to share with a da'i, as the Ask page shows them (questions,
+    cited answers, source cards), up to the turn that was latest when they shared it. Empty once they delete it."""
+    turns = db.scalars(select(ChatTurn).where(ChatTurn.session_id == session_id,
+                                              ChatTurn.conversation_id == conversation_id,
+                                              ChatTurn.id <= upto_turn_id).order_by(ChatTurn.id).limit(100)).all()
+    keep = ("question", "had_image", "created_at", "answer")
+    return [{k: v for k, v in turn_view(t).items() if k in keep} for t in turns]
 
 
 def source_exists(pid: str) -> bool:

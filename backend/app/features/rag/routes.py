@@ -95,7 +95,7 @@ def public_trace(trace: dict) -> dict:
     return out
 
 
-def _turn_view(turn: ChatTurn) -> dict:
+def turn_view(turn: ChatTurn) -> dict:
     """A saved turn as the Ask page shows it again. Source cards are rebuilt from the corpus."""
     corpus = get_corpus()
     ans = dict(turn.answer or {})
@@ -136,7 +136,7 @@ def conversation(cid: int, me: SeekerSession = Depends(seeker), db: Session = De
         raise HTTPException(404, "not found")
     turns = recent_turns(db, me.id, limit=500, conversation_id=conv.id)
     return {"id": conv.id, "title": conv.title, "created_at": iso(conv.created_at),
-            "updated_at": iso(conv.updated_at), "turns": [_turn_view(t) for t in turns]}
+            "updated_at": iso(conv.updated_at), "turns": [turn_view(t) for t in turns]}
 
 
 @router.delete("/conversations/{cid}")
@@ -157,7 +157,7 @@ def ask_history(limit: int = 50, me: SeekerSession = Depends(seeker), db: Sessio
     are kept (signed in) or follow the normal retention (anonymous)."""
     purge_expired(db)
     turns = recent_turns(db, me.id, limit=max(1, min(limit, 200)), recent_only=False)
-    return {"saved": _saved(db, me.id), "turns": [_turn_view(t) for t in turns]}
+    return {"saved": _saved(db, me.id), "turns": [turn_view(t) for t in turns]}
 
 
 @router.delete("/ask/history")

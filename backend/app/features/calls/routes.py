@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from ...core.config import settings
 from ...core.db import Setting, get_db, iso, utcnow
 from ..auth.public import Daai, SeekerSession, admin, daai, seeker
-from ..rag.public import source_card
+from ..rag.public import shared_conversation, source_card
 from .models import CallMessage, CallRequest, Referral
 
 router = APIRouter(prefix="/api")
@@ -232,7 +232,8 @@ def daai_requests(me: Daai = Depends(daai), db: Session = Depends(get_db)):
             continue
         ref = db.get(Referral, c.referral_id) if c.referral_id else None
         out.append({"id": c.id, "lang": c.lang, "waiting_seconds": int((utcnow() - c.created_at).total_seconds()),
-                    "has_card": bool(ref and ref.consented and ref.final), "for_you": c.daai_pref == me.id})
+                    "has_card": bool(ref and ref.consented and ref.final), "has_chat": bool(ref and ref.share_chat),
+                    "for_you": c.daai_pref == me.id})
     out.sort(key=lambda r: not r["for_you"])   # requests made for this da'i by name come first
     mine = db.scalars(select(CallRequest).where(CallRequest.daai_id == me.id, CallRequest.status == "accepted")).all()
     return {"waiting": out, "active": [{"id": c.id, "lang": c.lang} for c in mine]}
@@ -269,8 +270,11 @@ def daai_call(cid: int, me: Daai = Depends(daai), db: Session = Depends(get_db))
             c = source_card(sid, "ar" if call.lang == "ar" else "en")
             if c:
                 sources[sid] = c
+    # Only with the seeker's explicit OK, and only what the chat held when they agreed; gone if they deleted it.
+    chat = shared_conversation(db, ref.session_id, ref.conversation_id, ref.chat_upto) \
+        if ref and ref.share_chat and ref.conversation_id and ref.chat_upto else []
     return {"id": call.id, "status": call.status, "lang": call.lang, "card": card, "card_sources": sources,
-            "referral_mode": ref.mode if ref else "direct",
+            "chat": chat or None, "referral_mode": ref.mode if ref else "direct",
             "accepted_at": iso(call.accepted_at),
             "understood": bool(call.understood_at)}
 

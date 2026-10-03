@@ -93,6 +93,7 @@ function Choose({ query, initialDaai, initialLang, onRequested }) {
       </div>
       <DaaiPicker lang={lang} gender={gender} value={daai} onChange={setDaai} />
       {query.card && <Notice kind="mint" icon="check">{t("talk.with_card")}</Notice>}
+      {query.chat && <Notice kind="mint" icon="chat">{t("talk.with_chat")}</Notice>}
       <div className="row">
         <button type="button" className="btn btn-primary btn-lg" disabled={busy} onClick={request}><Icon name="talk" />{t("talk.call")}</button>
       </div>

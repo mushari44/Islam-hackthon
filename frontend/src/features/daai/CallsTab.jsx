@@ -6,7 +6,7 @@ import { api, daaiAuth } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
 import { CallPanel } from "../calls/public.jsx";
-import { SourceCard } from "../rag/public.js";
+import { Answer, SourceCard } from "../rag/public.js";
 
 // Arabic counts change form with the number (1, 2, 3-10, 11+), so pick the right string.
 function callCount(n, t, fmtNum) {
@@ -44,11 +44,35 @@ function Queue({ onActive }) {
         <div className="queue-item" key={r.id}>
           <div><strong>{langName(r.lang)}</strong> <span className="faint">{t("dc.waiting", { s: secs(r.waiting_seconds, fmtNum, t) })}</span></div>
           <span className={`badge ${r.has_card ? "badge-mint" : ""}`}>{r.has_card ? t("dc.card") : t("dc.no_card")}</span>
+          {r.has_chat && <span className="badge badge-mint">{t("dc.chat_badge")}</span>}
           {r.for_you && <span className="badge badge-purple">{t("dc.for_you")}</span>}
           <button type="button" className="btn btn-primary btn-sm" onClick={() => accept(r.id)}><Icon name="talk" />{t("dc.accept")}</button>
         </div>
       ))}
     </section>
+  );
+}
+
+/** The seeker's chat with Sabeeli, shared with their OK: their questions and the cited answers as they saw them. */
+function SharedChat({ turns }) {
+  const { t, fmtNum } = useI18n();
+  return (
+    <details className="shared-chat" open>
+      <summary><strong>{t("dc.chat_title")}</strong> <span className="faint">{t("dc.chat_count", { n: fmtNum(turns.length) })}</span></summary>
+      <p className="small muted">{t("dc.chat_hint")}</p>
+      <div className="stack">
+        {turns.map((x, i) => (
+          <div className="shared-turn stack" key={i}>
+            <div className="shared-q">
+              <span className="faint small">{t("dc.seeker_asked")}</span>
+              {x.had_image && <p className="faint small">{t("dc.photo")}</p>}
+              {x.question && <p dir="auto">{x.question}</p>}
+            </div>
+            <Answer answer={x.answer} compact />
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -63,7 +87,7 @@ function CardView({ call }) {
     <section className="card stack">
       <h3>{t("dc.card_title")}</h3>
       <div className="row"><span className="badge">{langName(call.lang)}</span><span className="badge badge-purple">{t(`dc.arm.${call.referral_mode}`)}</span></div>
-      {!card ? <p className="muted">{t("dc.no_card_long")}</p> : (
+      {!card ? (!call.chat && <p className="muted">{t("dc.no_card_long")}</p>) : (
         <div className="stack">
           {card.question && <div><div className="faint">{t("dc.question")}</div><p dir="auto">{card.question}</p></div>}
           {card.context && <div><div className="faint">{t("dc.context")}</div><p dir="auto">{card.context}</p></div>}
@@ -77,6 +101,7 @@ function CardView({ call }) {
           {card.unclear && <div><div className="faint">{t("dc.unclear")}</div><p dir="auto">{card.unclear}</p></div>}
         </div>
       )}
+      {call.chat && <SharedChat turns={call.chat} />}
       <div className="row">
         <button type="button" className="btn btn-accent" disabled={understood} onClick={mark}>
           <Icon name="check" />{understood ? t("dc.understood_done") : t("dc.understood")}

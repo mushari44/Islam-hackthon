@@ -111,14 +111,14 @@ Search: every word must appear in the title, description, presenters or topic; t
 | GET | `/api/calls` | seeker | – | `[{daai: {id, name, name_en, gender, languages, online}, last_call_at, lang}]`: the da'is this seeker has talked to, newest first, once each (for "call again") |
 | GET | `/api/calls/conversations` | seeker | – | `[{conversation_id, call_id, at, lang, daai: {id, name, name_en, callable}}]`, newest call first: the da'i this seeker talked to about each Ask conversation (calls whose referral was drafted from that conversation). `callable` is false for a disabled da'i |
 | GET | `/api/rtc-config` | none | – | `{iceServers: [{urls, username?, credential?}], iceTransportPolicy: "all"\|"relay"}`. Pass it straight to `RTCPeerConnection` |
-| POST | `/api/referral/draft` | seeker | `{lang: ar\|en, conversation_id?: int\|null}` | `{id, mode: "model"\|"template"\|"none", card: ReferralCard}`. With `conversation_id` (yours) the card is drafted from that Ask conversation and the referral is linked to it; otherwise from your latest turns. The experiment arm rotates when the experiment is on; `model` falls back to `template` without AI |
-| POST | `/api/referral/{rid}/confirm` | seeker (owner) | `{consent: bool, card: ReferralCard}` | `{ok: true, consented}`. The card is cleaned (lengths capped, unknown source ids dropped). The da'i sees nothing unless `consent` is true |
+| POST | `/api/referral/draft` | seeker | `{lang: ar\|en, conversation_id?: int\|null}` | `{id, mode: "model"\|"template"\|"none", card: ReferralCard, chat_turns}` (`chat_turns`: how many turns that conversation has, 0 without one). With `conversation_id` (yours) the card is drafted from that Ask conversation and the referral is linked to it; otherwise from your latest turns. The experiment arm rotates when the experiment is on; `model` falls back to `template` without AI |
+| POST | `/api/referral/{rid}/confirm` | seeker (owner) | `{consent: bool, card: ReferralCard, share_chat?: bool}` | `{ok: true, consented, share_chat}`. The card is cleaned (lengths capped, unknown source ids dropped). The da'i sees the card only if `consent` is true. `share_chat` (separate consent) also shows the da'i the messages of the conversation the referral was drafted from, up to its latest turn at this moment; ignored when the referral has no conversation of yours |
 | POST | `/api/calls` | seeker | `{lang, gender_pref: ""\|"m"\|"f", referral_id?: int\|null, daai_id?: int\|null}` | `{id, status: "waiting"}`. Cancels your earlier waiting request. With `daai_id` only that da'i sees and can accept the request. 400 for an unsupported language or preference (or a chosen da'i who doesn't speak it or doesn't match it), 404 if the referral isn't yours or the da'i doesn't exist |
 | GET | `/api/calls/{cid}` | seeker (owner) | – | CallStatus. Also turns `waiting` into `expired` after `CALL_WAIT_SECONDS` (default 600) |
 | POST | `/api/calls/{cid}/cancel` | seeker (owner) | – | CallStatus. `waiting` becomes `cancelled`, `accepted` becomes `ended` (the da'i gets no WebSocket notice) |
 | POST | `/api/calls/{cid}/rate` | seeker (owner) | `{rating: int}` (clamped to 1–5) | `{ok: true}` |
 | GET | `/api/calls/{cid}/messages` | seeker (owner) | – | `[{id, sender: "seeker"\|"daai", text, at}]` (in-call chat history) |
-| GET | `/api/daai/requests` | daai | – | `{waiting: [{id, lang, waiting_seconds, has_card, for_you}], active: [{id, lang}]}`. Lists only requests that match my languages and the requested gender, and that weren't made for another da'i by name. `for_you` requests come first |
+| GET | `/api/daai/requests` | daai | – | `{waiting: [{id, lang, waiting_seconds, has_card, has_chat, for_you}], active: [{id, lang}]}`. Lists only requests that match my languages and the requested gender, and that weren't made for another da'i by name. `for_you` requests come first |
 | POST | `/api/daai/requests/{cid}/accept` | daai | – | DaaiCall. 404 if it doesn't match me, 409 `already taken or no longer waiting` |
 | GET | `/api/daai/calls/{cid}` | daai (assigned) | – | DaaiCall |
 | POST | `/api/daai/calls/{cid}/understood` | daai (assigned) | – | `{ok: true}` |
@@ -238,8 +238,10 @@ Limits after cleaning: `question`, `context` and `unclear` ≤ 600 chars, `langu
 
 ```json
 {"id": 7, "status": "accepted", "lang": "en", "card": "ReferralCard or null", "card_sources": {"q:2:256": "source card"},
- "referral_mode": "model|template|none|direct", "accepted_at": "…Z", "understood": false}
+ "chat": "[shared turn] or null", "referral_mode": "model|template|none|direct", "accepted_at": "…Z", "understood": false}
 ```
+
+`chat` is `null` unless the seeker ticked "share this chat"; then it is `[{question, had_image, created_at, answer: Answer}]`, oldest first (the same saved answers the Ask page shows, without `trace`). It holds only the turns that existed when the seeker agreed, and becomes `null` if they delete that conversation.
 
 ### Profile (da'i)
 

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from ...core.claude import LLMUnavailable, get_claude
 from ...core.db import Setting, get_db
 from ..auth.public import SeekerSession, seeker
-from ..rag.public import conversation_transcript, last_question, owns_conversation, source_exists
+from ..rag.public import conversation_size, conversation_transcript, last_question, owns_conversation, source_exists
 from .models import Referral
 
 router = APIRouter(prefix="/api")
@@ -110,12 +110,14 @@ def draft(body: DraftIn, me: SeekerSession = Depends(seeker), db: Session = Depe
     ref = Referral(session_id=me.id, mode=mode, proposed=card, final={}, lang=lang, conversation_id=conv)
     db.add(ref)
     db.commit()
-    return {"id": ref.id, "mode": mode, "card": card}
+    chat_turns = conversation_size(db, me.id, conv)[0] if conv else 0
+    return {"id": ref.id, "mode": mode, "card": card, "chat_turns": chat_turns}
 
 
 class ConfirmIn(BaseModel):
     consent: bool
     card: dict = Field(default_factory=dict)
+    share_chat: bool = False   # also show the da'i this Ask conversation's messages, as they are now
 
 
 def clean_card(card: dict) -> dict:
@@ -139,5 +141,9 @@ def confirm(rid: int, body: ConfirmIn, me: SeekerSession = Depends(seeker), db: 
     ref.consented = bool(body.consent)
     ref.final = final if body.consent else {}
     ref.edited = bool(body.consent) and final != clean_card(ref.proposed)
+    ref.share_chat, ref.chat_upto = False, None
+    if body.share_chat and owns_conversation(db, me.id, ref.conversation_id):
+        ref.chat_upto = conversation_size(db, me.id, ref.conversation_id)[1]
+        ref.share_chat = ref.chat_upto is not None
     db.commit()
-    return {"ok": True, "consented": ref.consented}
+    return {"ok": True, "consented": ref.consented, "share_chat": ref.share_chat}
