@@ -24,6 +24,13 @@ def _list(name: str, default: str = "") -> list[str]:
     return [x.strip() for x in os.getenv(name, default).split(",") if x.strip()]
 
 
+DEFAULT_MODELS = {"openrouter": "google/gemma-4-31b-it", "anthropic": "claude-opus-5-5"}
+_PROVIDER = (os.getenv("SABEELI_LLM_PROVIDER", "").strip().lower()
+             or ("openrouter" if os.getenv("OPENROUTER_API_KEY") else "anthropic"))
+if _PROVIDER not in DEFAULT_MODELS:
+    _PROVIDER = "openrouter"
+
+
 @dataclass(frozen=True)
 class Settings:
     root: Path = ROOT
@@ -34,9 +41,14 @@ class Settings:
     database_url: str = os.getenv("DATABASE_URL", f"sqlite:///{(ROOT / 'data' / 'sabeeli.db').as_posix()}")
     secret_key: str = os.getenv("SECRET_KEY") or secrets.token_urlsafe(32)
 
-    # Claude. The app runs without a key in "sources-only" mode.
+    # The language model. Provider "openrouter" (default when OPENROUTER_API_KEY is set; Gemma 4 31B)
+    # or "anthropic" (Claude). The app runs without a key in "sources-only" mode.
+    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
-    model: str = os.getenv("SABEELI_MODEL", "claude-opus-5-5")
+    llm_provider: str = _PROVIDER
+    model: str = os.getenv("SABEELI_MODEL") or DEFAULT_MODELS[_PROVIDER]
+    # Only OpenRouter providers that don't store or train on prompts (seekers' questions).
+    openrouter_private: bool = _bool("SABEELI_OPENROUTER_PRIVATE", True)
     answer_effort: str = os.getenv("SABEELI_ANSWER_EFFORT", "medium")
     light_effort: str = os.getenv("SABEELI_LIGHT_EFFORT", "low")
     use_fallbacks: bool = _bool("SABEELI_FALLBACKS", True)
@@ -69,7 +81,8 @@ class Settings:
 
     @property
     def llm_enabled(self) -> bool:
-        return bool(self.anthropic_api_key) and not self.offline
+        key = self.openrouter_api_key if self.llm_provider == "openrouter" else self.anthropic_api_key
+        return bool(key) and not self.offline
 
 
 settings = Settings()

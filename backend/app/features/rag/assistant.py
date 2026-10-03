@@ -12,6 +12,7 @@ the model refers to passages by id and the app renders them from the corpus.
 from __future__ import annotations
 
 import base64
+import re
 from dataclasses import dataclass, field
 
 from ...core.claude import Claude, LLMUnavailable, usage_dict
@@ -98,6 +99,50 @@ Rules:
 10. If the user quoted a verse and the app reports differences from the reference text, point this out gently and show the correct verse with its marker."""
 
 
+NUMBERED_RULES = """
+Citations: the search results are numbered [1], [2], ... End every sentence that says anything about Islam with
+the number(s) of the result(s) it relies on, in square brackets, for example [2] or [1][3]. Use only those numbers.
+A sentence without a result number is deleted before the user sees it, so cite every sentence that states a fact;
+a short connecting phrase needs none. Verse and hadith markers such as [[q:2:256]] go on their own line, without a number."""
+
+CITE_RE = re.compile(r"\s*\[(\d{1,2}(?:\s*[,،]\s*\d{1,2})*)\]")
+SENTENCE_RE = re.compile(r"[^.!?؟\n]+(?:[.!?؟]+|$)(?:[ \t]*\[\d{1,2}(?:\s*[,،]\s*\d{1,2})*\])*[ \t]*|\n+", re.M)
+
+
+def numbered_sources(results: list[dict]) -> str:
+    """The retrieved passages as numbered sources for a model without Claude's citation feature."""
+    out = []
+    for n, r in enumerate(results, start=1):
+        body = "\n".join(t for t in r["blocks"] if t.strip())
+        out.append(f"[{n}] {r['title']}\n{body}")
+    return "Search results:\n\n" + "\n\n".join(out)
+
+
+def parse_numbered(text: str, n_results: int) -> list[dict]:
+    """Model text with [n] markers -> segments with citations (same shape as Claude's), one per sentence."""
+    segments = []
+    for m in SENTENCE_RE.finditer(text):
+        chunk = m.group(0)
+        if not chunk:
+            continue
+        cites = []
+        for g in CITE_RE.findall(chunk):
+            for num in re.split(r"\s*[,،]\s*", g):
+                i = int(num) - 1
+                if 0 <= i < n_results and i not in [c["index"] for c in cites]:
+                    cites.append({"index": i, "cited_text": "", "start": None, "end": None})
+        segments.append({"text": CITE_RE.sub("", chunk), "citations": cites})
+    return segments
+
+
+def _answer_numbered(llm, results: list[dict], brief: list[str]) -> "AnswerResult":
+    text, data = llm.chat(ANSWER_SYSTEM + "\n" + NUMBERED_RULES,
+                          numbered_sources(results) + "\n\n" + "\n".join(brief), max_tokens=2500)
+    return AnswerResult(segments=parse_numbered(text, len(results)),
+                        stop_reason=((data.get("choices") or [{}])[0].get("finish_reason") or ""),
+                        usage=llm.usage(data), model=data.get("model") or llm.model)
+
+
 @dataclass
 class AnswerResult:
     segments: list[dict]          # [{"text": str, "citations": [{"index", "cited_text", "start", "end"}]}]
@@ -145,6 +190,8 @@ def answer(llm: Claude, question: str, results: list[dict], level: str, answer_l
     if convo:
         brief.append(f"Earlier conversation (for context only):\n{convo}")
     brief.append(f"Question: {question}")
+    if getattr(llm, "kind", "anthropic") == "openrouter":
+        return _answer_numbered(llm, results, brief)
     resp = llm.create(
         max_tokens=8000,
         system=llm.system(ANSWER_SYSTEM),

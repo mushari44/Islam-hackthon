@@ -19,7 +19,7 @@
 
 ## 2. Retrieval (hybrid)
 
-1. **Analyse** (Claude, low effort, structured output): language, content level A-D, personal case, any quoted text, and **2-4 search queries in both Arabic and English**. This query expansion is what bridges "Kaaba" to «القبلة» and to the tafsir's vocabulary.
+1. **Analyse** (the model, structured output; Gemma 4 31B through OpenRouter by default, or Claude): language, content level A-D, personal case, any quoted text, and **2-4 search queries in both Arabic and English**. This query expansion is what bridges "Kaaba" to «القبلة» and to the tafsir's vocabulary.
 2. **Keyword search (built):** BM25 over normalised Arabic (Uthmani-aware) plus English. It is fast and needs no extra service.
 3. **Semantic search (built, optional):** `features/rag/embeddings.py`, with LangChain.
    - Model: `intfloat/multilingual-e5-large`, run locally, with E5's `query:` / `passage:` prefixes. Arabic and English with the same meaning land close together.

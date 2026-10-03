@@ -1,4 +1,5 @@
-"""Shared Claude transport: one client, refusal fallbacks, structured-output helper.
+"""Shared model transport: Claude (this module) or OpenRouter (core/openrouter.py), chosen by
+SABEELI_LLM_PROVIDER. Both offer json() for structured output; features check `kind` for the rest.
 
 Features keep their own prompts (features/rag/assistant.py, features/calls/referral.py)
 and call this module, so a change to one feature's prompts never touches another's.
@@ -22,6 +23,8 @@ class LLMUnavailable(RuntimeError):
 
 
 class Claude:
+    kind = "anthropic"
+
     def __init__(self) -> None:
         if not settings.llm_enabled:
             raise LLMUnavailable("ANTHROPIC_API_KEY is not set")
@@ -76,15 +79,23 @@ class Claude:
             raise LLMUnavailable("unparseable structured output") from exc
 
 
-_client: Claude | None = None
+_client = None
 
 
-def get_claude() -> Claude:
-    """The shared client; raises LLMUnavailable when the app runs without a key."""
+def get_claude():
+    """The shared model client (Claude or OpenRouter, per settings); raises LLMUnavailable without a key.
+    The name stays for the callers that already use it."""
     global _client
     if _client is None:
-        _client = Claude()
+        if settings.llm_provider == "openrouter":
+            from .openrouter import OpenRouter
+            _client = OpenRouter()
+        else:
+            _client = Claude()
     return _client
+
+
+get_llm = get_claude
 
 
 def usage_dict(resp) -> dict:
