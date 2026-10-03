@@ -19,6 +19,9 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 | Anthropic Claude API (`claude-opus-5-5`) | Question analysis, photo transcription, cited answers, referral card drafts | Needs `ANTHROPIC_API_KEY`. Without a key the app runs in sources-only mode. Only synthetic data is sent in tests and evaluation |
 | Google public STUN server (`stun.l.google.com:19302`) | WebRTC connectivity for calls | Configurable with `STUN_URLS`. Add the TURN provider here when it is chosen |
 | Google Fonts: Readex Pro, Amiri Quran | Interface and verse typography | SIL Open Font License |
+| TURN relay (e.g. Metered Open Relay, free tier) | Relays call audio when two networks block a direct connection | Optional, set with `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`. Audio is relayed, never recorded |
+| SMTP email (any provider, e.g. Gmail with an app password) | Emails a seeker's 6-digit password reset code | Optional, set with `SMTP_*`. Python standard library `smtplib`, no extra package |
+| Render (free web service) | Hosting the demo from the `Dockerfile` / `render.yaml` | Optional; any Docker host works |
 
 ## Software
 

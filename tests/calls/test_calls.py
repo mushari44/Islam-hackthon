@@ -73,3 +73,49 @@ def test_cancel_and_delete_my_data(client, seeker):
     assert client.post(f"/api/calls/{call['id']}/cancel", headers=h).json()["status"] == "cancelled"
     assert client.delete("/api/me", headers=h).status_code == 200
     assert client.get(f"/api/calls/{call['id']}", headers=h).status_code == 401
+
+
+def test_call_log_shows_only_my_ended_calls(client, seeker, daai_login):
+    h = seeker_headers(seeker)
+    d = daai_login("khalid")
+    client.post("/api/daai/availability", json={"available": True}, headers=d)
+    call = client.post("/api/calls", json={"lang": "ar"}, headers=h).json()
+    client.post(f"/api/daai/requests/{call['id']}/accept", headers=d)
+    # still in progress: not in the log yet
+    assert all(c["id"] != call["id"] for c in client.get("/api/daai/calls", headers=d).json()["calls"])
+    client.post(f"/api/daai/calls/{call['id']}/understood", headers=d)
+    client.post(f"/api/daai/calls/{call['id']}/end", json={"reexplain_needed": False, "note": "جيد"}, headers=d)
+
+    log = client.get("/api/daai/calls", headers=d).json()
+    row = next(c for c in log["calls"] if c["id"] == call["id"])
+    assert row["referral_mode"] == "direct" and row["reexplain_needed"] is False and row["note"] == "جيد"
+    assert row["duration_seconds"] is not None and row["seconds_to_understand"] is not None
+    assert "session_id" not in row                       # nothing that points back to the seeker
+    assert log["summary"]["calls"] >= 1 and log["summary"]["no_reexplain"] >= 1
+    # another da'i doesn't see it, and the log needs a da'i login
+    other = client.get("/api/daai/calls", headers=daai_login("maryam")).json()["calls"]
+    assert all(c["id"] != call["id"] for c in other)
+    assert client.get("/api/daai/calls").status_code == 401
+
+
+def test_call_log_is_by_month(client, daai_login):
+    d = daai_login("khalid")
+    this = client.get("/api/daai/calls", headers=d).json()
+    assert this["month"] in this["months"] and all(c["accepted_at"].startswith(this["month"]) for c in this["calls"])
+    assert client.get("/api/daai/calls?month=1999-01", headers=d).json()["calls"] == []
+    assert client.get("/api/daai/calls?month=soon", headers=d).status_code == 400
+
+
+def test_rtc_config_accepts_several_turn_urls(client, monkeypatch):
+    from backend.app.features.calls import routes
+    from dataclasses import replace
+    monkeypatch.setattr(routes, "settings", replace(routes.settings, turn_url="turn:a.example:80, turns:a.example:443?transport=tcp",
+                                                    turn_username="u", turn_credential="p"))
+    turn = client.get("/api/rtc-config").json()["iceServers"][-1]
+    assert turn["urls"] == ["turn:a.example:80", "turns:a.example:443?transport=tcp"] and turn["username"] == "u"
+
+
+def test_only_supported_languages(client, seeker):
+    h = seeker_headers(seeker)
+    assert client.post("/api/calls", json={"lang": "fr"}, headers=h).status_code == 400
+    assert client.post("/api/calls", json={"lang": "en"}, headers=h).status_code == 200

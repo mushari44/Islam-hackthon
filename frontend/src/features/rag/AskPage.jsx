@@ -10,7 +10,6 @@ import { Answer, LevelBadge } from "./Answer.jsx";
 
 const STORE = "sabeeli.chat";
 const MAX_IMAGE = 5 * 1024 * 1024;
-const SUGGESTIONS = ["s1", "s2", "s3", "s4", "s5", "s6"];
 
 function loadChat() {
   try { return JSON.parse(sessionStorage.getItem(STORE)) || []; } catch { return []; }
@@ -190,21 +189,11 @@ export default function AskPage() {
     <>
       <div className="page-head row spread">
         <div><h1>{t("ask.title")}</h1><p>{t("ask.lead")}</p></div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChat([])}><Icon name="plus" />{t("ask.clear")}</button>
+        {chat.length > 0 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChat([])}><Icon name="plus" />{t("ask.clear")}</button>}
       </div>
       <div className="ask-layout">
         <section className="ask-main">
           <div className="thread" aria-live="polite">
-            {chat.length === 0 && (
-              <div className="suggest">
-                <p className="faint">{t("ask.try")}</p>
-                <div className="row">
-                  {SUGGESTIONS.map((k) => (
-                    <button key={k} type="button" className="chip" onClick={() => submit(t(`ask.${k}`))}>{t(`ask.${k}`)}</button>
-                  ))}
-                </div>
-              </div>
-            )}
             {chat.map((item, i) => (item.role === "user" ? <UserMessage key={i} item={item} /> : <BotMessage key={i} ans={item.answer} />))}
             {busy && (
               <div className="msg msg-bot pending">
@@ -235,13 +224,6 @@ export default function AskPage() {
         </section>
         <aside className="ask-side">
           <div className="card stack">
-            <h3>{t("ask.side_title")}</h3>
-            <ul className="trust-list">
-              <li><Icon name="book" size={20} /><span>{t("ask.side_1")}</span></li>
-              <li><Icon name="quote" size={20} /><span>{t("ask.side_2")}</span></li>
-              <li><Icon name="shield" size={20} /><span>{t("ask.side_3")}</span></li>
-            </ul>
-            <div className="divider" />
             <p className="small muted">{t("ask.side_cta")}</p>
             <a className="btn btn-accent" href="#/talk"><Icon name="talk" />{t("nav.talk")}</a>
           </div>

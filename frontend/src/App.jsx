@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { LangProvider, useI18n } from "./core/i18n.jsx";
 import { match, useHashPath } from "./core/router.jsx";
 import { Icon, Logo, SheetHost, ToastHost } from "./core/ui.jsx";
+import { AccountButton, AccountPage } from "./features/account/index.js"; // Eman
 import { TalkPage } from "./features/calls/index.js";                  // Eman
 import { CommunityPage, GroupPage } from "./features/community/index.js"; // Mushari
 import { DaaiConsole } from "./features/daai/index.js";               // Eman
@@ -16,6 +17,7 @@ const ROUTES = [
   { path: "/talk", nav: "talk", page: TalkPage },
   { path: "/community", nav: "community", page: CommunityPage },
   { path: "/groups/:id", nav: "community", page: GroupPage },
+  { path: "/account", nav: "more", page: AccountPage },
   { path: "/daai", nav: "more", page: DaaiConsole },
   { path: "/about", nav: "more", page: About },
   { path: "/sources", nav: "more", page: Sources },
@@ -75,6 +77,7 @@ function Shell() {
             ))}
           </nav>
           <div className="top-actions">
+            <AccountButton />
             <a className="btn btn-ghost btn-sm hide-mobile" href="#/daai"><Icon name="users" />{t("nav.daai")}</a>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLang(lang === "ar" ? "en" : "ar")}><Icon name="globe" />{t("common.lang_toggle")}</button>
             <button type="button" className="icon-btn" aria-label={t("common.theme")} title={t("common.theme")} onClick={() => setTheme(isDark ? "light" : "dark")}>
