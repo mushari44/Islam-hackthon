@@ -37,6 +37,7 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 | SQLAlchemy | MIT |
 | anthropic (Python SDK) | MIT |
 | python-dotenv, python-multipart, websockets | BSD / Apache-2.0 |
+| tzdata (IANA time zone database for Python, used to show meetup times in the venue's local time) | Apache-2.0 (data: public domain) |
 | pytest | MIT |
 | LangChain (`langchain`, `langchain-core`, `langchain-community`, `langchain-text-splitters`): retrievers, rank fusion, FAISS wrapper, text splitter. Optional (`requirements-embeddings.txt`) | MIT |
 | sentence-transformers, transformers | Apache-2.0 |

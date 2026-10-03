@@ -18,6 +18,7 @@ class Group(Base):
     country: Mapped[str] = mapped_column(String(64), default="")
     city: Mapped[str] = mapped_column(String(64), default="")
     audience: Mapped[str] = mapped_column(String(16), default="all")   # all | women | men
+    age_group: Mapped[str] = mapped_column(String(16), default="all")  # all | youth | adults | seniors (no children's groups)
     leader_id: Mapped[int] = mapped_column(ForeignKey("daai.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -69,6 +70,9 @@ class Meetup(Base):
     registration: Mapped[str] = mapped_column(String(16), default="required")  # required (register for a booking code) | open (join with one tap)
     age_group: Mapped[str] = mapped_column(String(16), default="all")  # all | kids (with a guardian) | youth | adults | seniors
     series: Mapped[str] = mapped_column(String(32), default="")       # "" | qawl_amal ("Word and deed in Islam") | ramadan
+    format: Mapped[str] = mapped_column(String(16), default="in_person")   # in_person (at `venue`) | online (at `online_url`)
+    online_url: Mapped[str] = mapped_column(String(500), default="")       # shown only to people who booked, and the host
+    tz: Mapped[str] = mapped_column(String(64), default="")    # the venue's IANA time zone, so times show as local there
     host_id: Mapped[int] = mapped_column(ForeignKey("daai.id"))
     group_id: Mapped[int | None] = mapped_column(ForeignKey("study_group.id", ondelete="SET NULL"), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="open")   # open | cancelled

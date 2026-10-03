@@ -8,6 +8,7 @@ httpx==0.28.1
 python-dotenv==1.0.1
 python-multipart==0.0.9
 websockets==15.0.1
+tzdata==2026.5           # time zones for meetup times on machines without their own data (Windows)
 
 # tests
 pytest==8.4.2

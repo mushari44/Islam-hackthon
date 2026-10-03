@@ -109,8 +109,8 @@ def test_places_and_country_filters(client):
     assert "دبي" in places["AE"]
     dubai = client.get("/api/groups?country=AE&city=دبي").json()
     assert dubai and all(g["country"] == "AE" and g["city"] == "دبي" for g in dubai)
-    cairo = client.get("/api/meetups?country=EG").json()
-    assert cairo and all(m["country"] == "EG" for m in cairo)
+    cairo = client.get("/api/meetups?country=EG").json()      # online meetups can be joined from anywhere
+    assert any(m["country"] == "EG" for m in cairo) and all(m["country"] == "EG" or m["format"] == "online" for m in cairo)
 
 
 def test_daai_can_create_a_group(client, daai_login):

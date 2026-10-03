@@ -38,8 +38,8 @@
 .mod-tools { gap: 4px; margin-top: 2px; }
 
 /* Meetup types: booking or walk-in, age group, series */
-.meetup-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-block-end: 18px; }
-.meetup-filters .tabs button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.com-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-block-end: 18px; }
+.com-filters .tabs button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
 .age-filter { gap: 8px; }
 .age-filter .select { min-height: 38px; padding-block: 4px; width: auto; }
 .series-chip svg { width: 16px; height: 16px; }
@@ -64,3 +64,37 @@
 .place-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-block-end: 14px; color: var(--text-faint); }
 .place-filters .select { width: auto; min-width: 160px; min-height: 40px; padding-block: 4px; }
 .series-tag.series-ramadan { color: var(--warn-text); background: var(--warn-bg); }
+
+/* Meetups: online or in person, booking state, My activities */
+.format-filter { gap: 8px; margin-block-end: 12px; }
+.format-filter .chip svg { width: 16px; height: 16px; margin-inline-end: 4px; vertical-align: -3px; }
+.badge-online { background: color-mix(in srgb, var(--peri-400) 22%, transparent); color: var(--text); border-color: transparent; }
+.badge svg { vertical-align: -2px; margin-inline-end: 3px; }
+.badge-live { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); border-color: transparent; }
+.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; margin-inline-end: 5px; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+.when-rel { font-size: .8rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--mint-400) 18%, transparent); color: var(--accent-ink); }
+.spots-few { color: var(--warn-text); font-weight: 600; }
+.meetup-card.is-past { opacity: .72; }
+.meetup-actions { gap: 10px; flex-wrap: wrap; }
+.meetup-booked { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.cancel-ask { gap: 6px; align-items: center; }
+.tab-count { display: inline-block; min-width: 20px; margin-inline-start: 6px; padding: 0 6px; border-radius: 999px; font-size: .75rem; line-height: 20px; background: var(--mint-400); color: var(--navy-800); }
+.rsvp-summary { padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-soft); }
+.booked { gap: 10px; text-align: center; }
+.booked h3 { margin: 0; }
+.booked-check { margin: 0 auto; width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--mint-400) 25%, transparent); color: var(--accent-ink); }
+.booked-actions { justify-content: center; gap: 8px; flex-wrap: wrap; }
+.mine { gap: 22px; }
+.mine-h { display: flex; align-items: center; gap: 8px; font-size: 1.15rem; margin: 0; }
+.mine-h svg { width: 20px; height: 20px; }
+.mine-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 22px; }
+.mine-empty p { margin: 0; }
+.mine-past summary { cursor: pointer; font-weight: 600; color: var(--text-muted); margin-block-end: 10px; }
+
+/* On a phone the three tabs share the row and wrap their words, so "My activities" is never scrolled out of sight. */
+@media (max-width: 560px) {
+  .com-bar > .tabs { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; border-radius: 18px; }
+  .com-bar > .tabs button { white-space: normal; padding: 8px 6px; line-height: 1.3; border-radius: 14px; }
+}
