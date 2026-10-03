@@ -130,6 +130,8 @@ function Feedback({ turnId }) {
 // like a ruling on the person's case, whatever the answer's fatwa notice says).
 const VIDEO_KINDS = new Set(["answer", "sources", "abstain"]);
 const showVideos = (ans) => VIDEO_KINDS.has(ans.kind) && ans.level !== "D";
+// Replies that carry no content of their own: a content-level badge on them would mean nothing.
+const NO_LEVEL_KINDS = new Set(["greeting", "thanks", "clarify", "off_topic", "request_human", "empty"]);
 
 function BotMessage({ ans, question }) {
   const { t, lang } = useI18n();
@@ -139,7 +141,7 @@ function BotMessage({ ans, question }) {
     <div className="msg msg-bot">
       <div className="msg-avatar" aria-hidden="true"><Icon name="sparkle" size={20} /></div>
       <div className="msg-body">
-        {ans.level && !["greeting", "thanks"].includes(ans.kind) && (
+        {ans.level && !NO_LEVEL_KINDS.has(ans.kind) && (
           <div className="msg-meta">
             <LevelBadge level={ans.level} />
             {ans.mode !== "ai" && <span className="badge badge-warn">{t("mode.sources_only")}</span>}

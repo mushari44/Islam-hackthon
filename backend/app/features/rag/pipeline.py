@@ -583,8 +583,8 @@ def _ask(ctx: AskContext) -> dict:
     lang = analysis.get("language") if analysis.get("language") in ("ar", "en") else ctx.ui_lang
     level = analysis.get("level", "B")
     trace["analysis"] = {k: analysis.get(k) for k in ("language", "intent", "level", "personal_case", "hostile",
-                                                       "asks_for_evidence", "standalone_question", "queries_ar",
-                                                       "queries_en", "terms", "source")}
+                                                       "asks_for_evidence", "quoted_kind", "standalone_question",
+                                                       "queries_ar", "queries_en", "terms", "source")}
 
     base = {"mode": mode, "lang": lang, "level": level, "ocr": ocr, "notices": notices, "trace": trace,
             "cards": {}, "sources": [], "quote_check": None, "suggest_daai": False}
@@ -599,8 +599,8 @@ def _ask(ctx: AskContext) -> dict:
 
     # 4. Quoted verses (typed or photographed) checked against the Mushaf
     quote_texts = list((ocr or {}).get("quran_segments") or [])
-    if ocr and not quote_texts and ocr.get("text"):
-        quote_texts.append(ocr["text"])
+    if ocr and not quote_texts and ocr.get("text") and analysis.get("quoted_kind") != "hadith":
+        quote_texts.append(ocr["text"])   # a photographed hadith is not checked against the Mushaf either
     if analysis.get("quoted_text") and analysis.get("quoted_kind") != "hadith":
         quote_texts.append(analysis["quoted_text"])   # a hadith is not checked against the Mushaf
     if not quote_texts and has_arabic(question) and looks_like_quote(question) and not INTERROGATIVE_RE.search(question):
