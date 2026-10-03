@@ -37,6 +37,7 @@ Rules:
 
   Don't import a feature's internal files from another feature.
 - A change to a shared API shape (a request or response used by the other person's code) needs both people's agreement, and `docs/API.md` must change in the same commit.
+- **Mushari is the team lead: his approval counts for both people.** When he approves a shared change or a pull request, Eman's agreement is not needed as well (decided 3 October 2026). Still tell Eman when her folders or the shared API change.
 - Each feature keeps its own strings (`strings.js`, registered with `register()`), its own CSS file and its own tests. Don't put feature strings or styles in `core/`.
 - Work on your owner's branch (`mushari/<topic>` or `eman/<topic>`). Never push to `main` directly, never force-push, and never rewrite shared history.
 
