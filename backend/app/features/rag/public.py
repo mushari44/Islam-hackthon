@@ -46,3 +46,11 @@ def source_card(pid: str, lang: str) -> dict | None:
 def answer_in_group(question: str, lang: str) -> dict:
     """A short cited answer for the group assistant (no history, shorter text)."""
     return ask(AskContext(question=question, ui_lang=lang, surface="group", max_words=120))
+
+
+def semantic_encoder():
+    """The multilingual E5 encoder RAG search uses, or None when semantic search is off, not built or
+    still loading. Other features (the videos page's related videos) embed their own text with it, so a
+    question and a video title are compared in the same space. Never blocks."""
+    from .embeddings import encoder
+    return encoder()

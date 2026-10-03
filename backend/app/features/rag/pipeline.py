@@ -33,6 +33,8 @@ QUOTE_RE = re.compile(r"[«\"“]([^»\"”]{8,600})[»\"”]")
 HARAKAT_RE = re.compile(r"[\u064B-\u0652]")
 
 MAX_QUESTION_CHARS = 2000
+# A question mark, or a word that only starts questions (not «ما»/«من», which also start verses).
+INTERROGATIVE_RE = re.compile(r"[؟?]|^\s*(هل|لماذا|كيف|متى|أين|اين|ماذا|ليش|ليه|وش|شو|ايش|إيش)\b")
 
 TEXT = {
     "greeting": {
@@ -304,16 +306,57 @@ def _clean_markers(text: str, allowed: set[str], trace: dict) -> str:
     return MARKER_RE.sub(repl, text)
 
 
-def _sources_only(passages: list[Passage], lang: str, rtrace: list[dict], show: int = 3) -> list[dict]:
-    """The closest passages, shown as they are. An approved answer (Q&A or Bayyinat) leads when it
-    covers the question well (by its words, or by meaning), since it was written for this kind of question."""
+# What may be shown without the model. Precision first: no text is better than an unrelated one.
+# E5 similarities, checked by hand on 30 questions (docs/RAG-PLAN.md): an approved answer to the same
+# question scores >= 0.86, a verse or hadith on the point >= 0.85, while loosely related or unrelated
+# passages crowd 0.80-0.85. A word match alone is not enough (e.g. «دليل/وجود» matched an inheritance hadith).
+SHOW_ANSWER = 0.86       # an approved Q&A or Bayyinat answer
+SHOW_EXTRA = 0.89        # another passage next to that answer (rarely: the answer usually says it all;
+                         # at 0.88 «لا يقبل الله صلاة حائض إلا بخمار» joined a question about prayer during menses)
+SHOW_PASSAGE = 0.85      # a verse or hadith when no approved answer is close
+SHOW_WORDS = 0.65        # BM25-only installs (no E5): share of the question's words a passage must contain
+# A glossary card is shown only when the question asks what a term means, not whenever it names one.
+DEFINITION_RE = re.compile(r"(ما|ماذا)\s+(معنى|معني|تعريف|يعني|هو|هي)\b|^\s*(تعريف|معنى|معني)\b"
+                           r"|\bwhat\s+(is|are|does)\b|\bmeaning\s+of\b|\bdefine\b", re.I)
+
+
+def _asks_meaning(question: str, term: Passage) -> bool:
+    """«ما معنى التوحيد؟» or "What is Tawhid?": the question is about the term itself. "What are the five
+    pillars of Islam?" names a term but asks about something else."""
+    m = DEFINITION_RE.search(question)
+    if not m:
+        return False
+    rest = set(tokens(DEFINITION_RE.sub(" ", question)))
+    forms = set(tokens(" ".join([term.data["ar"], term.data["en"], *term.data.get("aliases", [])])))
+    return bool(rest) and rest <= forms | {"mean", "meaning", "islam", "اسلام", "دين"} and bool(rest & forms)
+
+
+def _sources_only(passages: list[Passage], lang: str, rtrace: list[dict], question: str = "",
+                  show: int = 3) -> list[dict]:
+    """The passages that answer the question, shown as they are; [] when none is close enough.
+
+    An approved answer (Q&A or Bayyinat), written for exactly this kind of question, leads and usually
+    stands alone; other verses and hadiths join it only when they are very close in meaning.
+    """
     coverage = {r["id"]: r["coverage"] or 0 for r in rtrace}
-    dense = {r["id"]: r.get("dense") or 0 for r in rtrace}
-    answers = [p for p in passages if p.kind in ANSWER_KINDS
-               and (coverage.get(p.id, 0) >= 0.5 or dense.get(p.id, 0) >= embeddings.DENSE_STRONG)]
-    qa = sorted(answers, key=lambda p: (-dense.get(p.id, 0), -coverage.get(p.id, 0)))[:1]
-    picks = ([p for p in passages if p.kind == "term"][:1] + qa
-             + [p for p in passages if p.kind in ("quran", "hadith")][:show])
+    dense = {r["id"]: r["dense"] for r in rtrace if r.get("dense") is not None}
+    terms = [p for p in passages if p.kind == "term" and _asks_meaning(question, p)][:1]
+    others = [p for p in passages if p.kind != "term"]
+    if dense:   # meaning decides
+        answers = sorted((p for p in others if p.kind in ANSWER_KINDS and dense.get(p.id, 0) >= SHOW_ANSWER),
+                         key=lambda p: -dense[p.id])
+        if answers:
+            picks = answers[:1] + [p for p in others if p.kind in ("quran", "hadith")
+                                   and dense.get(p.id, 0) >= SHOW_EXTRA][:2]
+        else:
+            picks = sorted((p for p in others if p.kind in ("quran", "hadith") and dense.get(p.id, 0) >= SHOW_PASSAGE),
+                           key=lambda p: -dense[p.id])[:show]
+    else:       # words only: they must cover most of the question
+        answers = sorted((p for p in others if p.kind in ANSWER_KINDS and coverage.get(p.id, 0) >= SHOW_WORDS),
+                         key=lambda p: -coverage[p.id])
+        picks = answers[:1] + [p for p in others if p.kind in ("quran", "hadith")
+                               and coverage.get(p.id, 0) >= SHOW_WORDS][:show]
+    picks = terms + picks
     segs = []
     for p in picks:
         segs.append({"text": f"\n[[{p.id}]]\n", "cites": [p.id]})
@@ -396,8 +439,8 @@ def ask(ctx: AskContext) -> dict:
         quote_texts.append(ocr["text"])
     if analysis.get("quoted_text"):
         quote_texts.append(analysis["quoted_text"])
-    if not quote_texts and has_arabic(question) and looks_like_quote(question):
-        quote_texts.append(question)
+    if not quote_texts and has_arabic(question) and looks_like_quote(question) and not INTERROGATIVE_RE.search(question):
+        quote_texts.append(question)   # «لماذا خلق الله الشر؟» is a question, not a misquoted verse
     qc = _quote_check(quote_texts)
     if qc and qc["status"] == "not_found" and qc["input"] == question:
         qc = None  # a plain Arabic question, not a quote
@@ -495,8 +538,11 @@ def ask(ctx: AskContext) -> dict:
         elif qc and qc["status"] in ("exact", "differs", "ambiguous"):
             kind = "sources"  # the quote check below shows the matching verse(s)
         else:
-            segments = _sources_only(passages, lang, rtrace)
+            segments = _sources_only(passages, lang, rtrace, question)
             kind = "sources"
+            if not segments:   # nothing close enough to show: say so rather than show something unrelated
+                kind = "abstain"
+                segments = [{"text": t("abstain", lang), "cites": []}]
 
     # Quote-check verdict leads the answer when the user sent a verse.
     if qc:

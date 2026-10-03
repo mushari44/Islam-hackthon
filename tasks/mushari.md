@@ -83,6 +83,11 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] Consider a "related videos" block under an answer on the Ask page, matched by topic. Show only IslamHouse's own titles; never generate text about a video.
 - [ ] Many IslamHouse thumbnails return 404; tell IslamHouse if a contact is available.
 
+- [x] Related videos under each answer (`/api/videos/related`, `features/videos/related.py`): E5 meaning plus title/topic words over the IslamHouse list in the answer's language. Thresholds (0.85 / 0.815) were set by hand on 12 questions; check them with the evaluation set.
+- [x] A visible list of the sources each answer used, under the answer (replaces the collapsed panel).
+- [x] Only related text and videos are shown: precision-first bars in `pipeline.py` (SHOW_*) and `videos/related.py`, checked with `eval/display_audit.py` on 30 questions. Also fixed: «؟» and «،» stuck to the word before them in search tokens (`core/textnorm.py`, shared), and questions were sometimes checked as misquoted verses.
+- [ ] Recall without the model is now low for English and for some Arabic questions (they say "not found"). With the API key, Claude's Arabic/English search phrases should bring most back: re-run `eval/display_audit.py` then.
+
 ## Ideas if time allows
 
 - [x] Add «بينات: أسئلة وأجوبة عن الإسلام» (dawa.center): `scripts/ingest_bayyinat.py`, passage kind `bayyinat` (built locally, git-ignored).

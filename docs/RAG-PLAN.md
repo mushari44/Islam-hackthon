@@ -51,6 +51,7 @@
   - no citation in the answer → shown as "not found in the sources";
   - asked for evidence that isn't in the passages → "no matching evidence found";
   - model unavailable → sources-only mode; a personal (level D) question then gets no raw texts at all (they would read like a ruling), only the fatwa notice and the referral (`kind: refer`).
+- **What sources-only mode shows (precision first: no text is better than an unrelated one).** An approved Q&A or Bayyinat answer with E5 similarity ≥ 0.86 leads and usually stands alone; another verse or hadith joins it only at ≥ 0.89. With no such answer, verses and hadiths at ≥ 0.85 are shown (at most 3). Otherwise the answer is "not found". A glossary card appears only when the question asks what the term means («ما معنى التوحيد؟»), not whenever it names one. Without E5 (BM25 only), a passage must contain 65% of the question's words. A question («لماذا خلق الله الشر؟») is never checked as a misquoted verse; only text that isn't a question is. These bars were set by reading what 30 questions showed (`eval/display_audit.py`); re-run it after changing them.
 
 ## 4. Evaluation (decides every change)
 

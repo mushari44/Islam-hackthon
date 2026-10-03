@@ -8,13 +8,19 @@ or viewing is stored.
 state is "loading" while the first index is built (the client polls), "ready" or "unavailable".
 GET /api/videos/languages -> [{code, name, count}]: every language with videos (107 of 133 on IslamHouse),
 so seekers who read neither Arabic nor English can watch in their own language.
+POST /api/videos/related {lang, q, hints?, k?} -> {state, items, source}: up to k videos related to a
+question from the Ask page (related.py). Suggestions only: answers never cite videos.
 """
 from __future__ import annotations
+
+import os
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from . import islamhouse
+from ..rag.public import semantic_encoder
+from . import islamhouse, related
 
 router = APIRouter(prefix="/api")
 
@@ -56,6 +62,30 @@ def search_videos(body: SearchIn):
     return _result(body.lang, body.topic, body.page, body.per_page, body.q)
 
 
+class RelatedIn(BaseModel):
+    lang: str = "ar"
+    q: str = Field("", max_length=2000)
+    hints: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=12)
+    k: int = Field(3, ge=1, le=6)
+
+
+@router.post("/videos/related")
+def related_videos(body: RelatedIn):
+    """Videos to suggest under an answer. A POST body, like /api/ask, so the question never reaches access logs;
+    nothing is stored."""
+    lang = body.lang if islamhouse.is_language(body.lang) else "ar"
+    idx, state = islamhouse.get_index(lang)
+    if idx is None or not body.q.strip():
+        return {"state": state if idx is None else "ready", "items": [], "source": SOURCE}
+    enc = semantic_encoder()
+    if related.pending(idx, enc):     # the videos of this language are being embedded (seconds on a GPU)
+        return {"state": "loading", "items": [], "source": SOURCE}
+    items = related.related(idx, body.q, body.hints, body.k, encoder=enc)
+    return {"state": "ready", "items": items, "source": SOURCE}
+
+
 def warm() -> None:
     """Called from the app's startup thread (main.py)."""
     islamhouse.warm()
+    if os.getenv("SABEELI_OFFLINE", "").strip().lower() not in {"1", "true", "yes", "on"}:
+        related.prepare(islamhouse.get_index, semantic_encoder)   # embed ar/en videos once both are ready

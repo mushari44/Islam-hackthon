@@ -17,6 +17,8 @@ register({
     "vid.search": "ابحث في المرئيات", "vid.search_ph": "ابحث بالعنوان أو الوصف أو اسم المُعِد…", "vid.clear": "امسح البحث",
     "vid.results": "{n} نتيجة لـ«{q}»", "vid.no_results": "لا توجد مقاطع تطابق «{q}» في هذه اللغة.",
     "vid.lang": "لغة المقاطع", "vid.lang_hint": "متاحة بـ{n} لغة، مستقلة عن لغة الواجهة",
+    "vid.related": "مرئيات ذات صلة من دار الإسلام",
+    "vid.related_note": "مقترحة بحسب موضوع سؤالك، والإجابة أعلاه لا تستند إليها.",
   },
   en: {
     "nav.videos": "Videos",
@@ -33,5 +35,7 @@ register({
     "vid.search": "Search videos", "vid.search_ph": "Search by title, description or presenter…", "vid.clear": "Clear search",
     "vid.results": "{n} results for “{q}”", "vid.no_results": "No videos match “{q}” in this language.",
     "vid.lang": "Video language", "vid.lang_hint": "Available in {n} languages, separate from the interface language",
+    "vid.related": "Related videos from IslamHouse",
+    "vid.related_note": "Suggested by the topic of your question; the answer above doesn't rely on them.",
   },
 });

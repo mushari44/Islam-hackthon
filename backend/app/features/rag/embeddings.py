@@ -317,6 +317,13 @@ def _open():
         return None
 
 
+def encoder():
+    """The loaded E5 model (embed_documents / embed_query with E5's prefixes), or None while it is
+    off, missing or still loading. Never blocks."""
+    retriever = _load()
+    return retriever.dense.store.embedding_function if retriever is not None else None
+
+
 def warm_up() -> None:
     """Load the model off the request path (called from a background thread at start-up)."""
     try:
