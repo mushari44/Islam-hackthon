@@ -1,13 +1,15 @@
 // "My activities": the meetups this seeker booked (coming up first) and the groups they are in. Owner: Mushari.
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, Notice } from "../../core/ui.jsx";
+import { Icon, Notice, errorText } from "../../core/ui.jsx";
 import { GroupCard, MeetupCard } from "./cards.jsx";
-
-const over = (m) => m.status === "cancelled" || new Date(m.starts_at).getTime() + m.duration_min * 60000 <= Date.now();
+import { useNow } from "./shared.jsx";
 
 export default function MyActivities({ data, reload, account, browse }) {
   const { t, fmtNum } = useI18n();
+  const now = useNow();
   if (!data) return <div className="skeleton" style={{ height: 120 }} />;
+  if (data.error) return <p className="empty">{errorText(data.error, t)}</p>;
+  const over = (m) => m.status === "cancelled" || new Date(m.starts_at).getTime() + m.duration_min * 60000 <= now;
   const upcoming = data.meetups.filter((m) => !over(m));
   const past = data.meetups.filter(over).reverse();
   return (

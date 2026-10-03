@@ -12,6 +12,7 @@ import logging
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
+from zoneinfo import available_timezones
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
@@ -34,11 +35,29 @@ BOT_FAILED = {"ar": "تعذّر على المساعد الإجابة الآن. �
 
 
 LANG = r"^[a-z]{2,3}$"    # interface or content language code, e.g. ar, en, fr
-TZ = r"^$|^[A-Za-z]+(?:/[A-Za-z0-9_+\-]+){0,2}$"    # an IANA time zone name, e.g. Asia/Riyadh
-ONLINE_URL = re.compile(r"^https://[^\s<>\"']{4,490}$")
+TZ = re.compile(r"^[A-Za-z]+(?:/[A-Za-z0-9_+\-]+){0,2}$")    # the shape of an IANA time zone name, e.g. Asia/Riyadh
+ZONES = available_timezones()         # empty when the machine has no time zone database (then only the shape is checked)
+ONLINE_URL = re.compile(r"^https://[^\s<>\"'\\]{4,490}$", re.IGNORECASE)
 ONLINE_LOCATION = {"ar": "عن بُعد (أونلاين)", "en": "Online"}
 ONLINE_NOTE = {"ar": "رابط اللقاء في سَبِيلي: المجتمع ← أنشطتي.", "en": "The meeting link is in Sabeeli: Community > My activities."}
 MESSAGES_PAGE = 200
+
+
+def _zone(name: str) -> str:
+    """The venue's IANA time zone, or "" when it isn't a real one. Only used to show local times, so an unknown
+    zone never blocks creating a meetup."""
+    name = name.strip()
+    if ZONES:
+        return name if name in ZONES else ""
+    return name if TZ.match(name) else ""
+
+
+def _meeting_link(url: str) -> str:
+    """An https meeting link with nothing hidden in it (no control or text-direction characters), or ""."""
+    url = url.strip()
+    if not ONLINE_URL.match(url) or not url.isprintable():
+        return ""
+    return "https://" + url[len("https://"):]
 
 
 def _ui(ui: str) -> str:
@@ -394,8 +413,9 @@ def _meetup_view(db: Session, m: Meetup, lang: str, sid: str | None = None, goin
             "capacity": m.capacity, "going": going, "spots_left": max(0, m.capacity - going), "audience": m.audience,
             "registration": m.registration, "age_group": m.age_group, "series": m.series,
             "format": m.format, "tz": m.tz,
-            # the meeting link goes only to people who booked (and the host), never into the public list
-            "online_url": m.online_url if m.format == "online" and (r or host_view) else "",
+            # the meeting link goes only to the host and people who booked (until the host cancels), never into the
+            # public list
+            "online_url": m.online_url if m.format == "online" and (host_view or (r and m.status != "cancelled")) else "",
             "host": host.public(_ui(lang)) if host else None, "group_id": m.group_id, "status": m.status,
             "is_demo": m.is_demo, "my_rsvp": mine}
 
@@ -552,7 +572,7 @@ class MeetupIn(BaseModel):
     public_venue: bool = False
     format: str = "in_person"
     online_url: str = Field(default="", max_length=500)
-    tz: str = Field(default="", max_length=64, pattern=TZ)
+    tz: str = Field(default="", max_length=64)          # the venue's time zone; unknown ones are stored as ""
 
 
 FORMATS = ("in_person", "online")
@@ -579,9 +599,11 @@ def create_meetup(body: MeetupIn, ui: str = "ar", lead: Daai = Depends(daai), db
     if body.format not in FORMATS:
         raise HTTPException(400, "bad meetup format")
     online = body.format == "online"
-    url, city, venue = body.online_url.strip(), body.city.strip(), body.venue.strip()
-    if online and not ONLINE_URL.match(url):
+    url, city, venue = _meeting_link(body.online_url), body.city.strip(), body.venue.strip()
+    if online and not url:
         raise HTTPException(400, "an online meetup needs an https meeting link")
+    if online and body.age_group == "kids":   # children attend with a guardian at a public venue, not on a video call
+        raise HTTPException(400, "a meetup for children must be in person")
     if not online:
         if not body.public_venue:
             raise HTTPException(400, "meetups must be at a public venue")
@@ -603,7 +625,7 @@ def create_meetup(body: MeetupIn, ui: str = "ar", lead: Daai = Depends(daai), db
                country="" if online else body.country, city="" if online else city, venue="" if online else venue,
                starts_at=starts, duration_min=body.duration_min, capacity=body.capacity, audience=body.audience,
                registration=body.registration, age_group=body.age_group, series=body.series, host_id=lead.id,
-               group_id=body.group_id, format=body.format, online_url=url if online else "", tz=body.tz)
+               group_id=body.group_id, format=body.format, online_url=url if online else "", tz=_zone(body.tz))
     db.add(m)
     db.commit()
     return _meetup_view(db, m, ui, host_view=True)

@@ -4,12 +4,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from ...core.db import utcnow
 from ..auth.public import Daai
-from .models import Group, GroupMessage, Meetup
+from .models import RSVP, Group, GroupMessage, Meetup
 
 GROUPS = [
     {"leader": "khalid", "title": "مدخل إلى الإسلام: حلقة أسبوعية", "lang": "ar", "country": "SA", "city": "الرياض",
@@ -118,7 +118,8 @@ MEETUPS = [
 ]
 
 
-# Demo venues' time zones, with their usual offset for a system that has no time zone data (Windows without tzdata).
+# Each demo venue's zone, with its summer offset as a fallback for a machine without time zone data (tzdata is in
+# requirements.txt, so the fallback is only for an older install).
 ZONES = {"SA": ("Asia/Riyadh", 3), "AE": ("Asia/Dubai", 4), "EG": ("Africa/Cairo", 3), "GB": ("Europe/London", 1),
          "US": ("America/New_York", -4), "MY": ("Asia/Kuala_Lumpur", 8)}
 
@@ -184,8 +185,8 @@ def seed(db: Session, daais: dict[str, Daai]) -> None:
 def _refresh_demo_meetups(db: Session, daais: dict[str, Daai]) -> None:
     """Keeps an older or long-running demo database in step: adds demo meetups added to MEETUPS since, gives older
     ones their time zone (keeping their date but moving them to the venue's local hour: the old seed put every city
-    on Riyadh time), and moves relative ones that have passed forward by whole weeks, so the demo always has upcoming
-    meetups. Only demo rows are touched."""
+    on Riyadh time), and moves relative ones that have passed forward by whole weeks with their old bookings
+    cleared, so the demo always has upcoming meetups. Only demo rows are touched."""
     rows = {m.title: m for m in db.scalars(select(Meetup).where(Meetup.is_demo.is_(True))).all()}
     groups = db.scalars(select(Group).where(Group.is_demo.is_(True)).order_by(Group.id)).all()
     now = utcnow()
@@ -203,6 +204,7 @@ def _refresh_demo_meetups(db: Session, daais: dict[str, Daai]) -> None:
         if "days" in spec and m.status == "open" and m.starts_at < now - timedelta(hours=3):
             code, weeks = _zone(spec), (now - m.starts_at).days // 7 + 1
             m.starts_at = _shift(_shift(m.starts_at, code, to_utc=False) + timedelta(weeks=weeks), code, to_utc=True)
+            db.execute(delete(RSVP).where(RSVP.meetup_id == m.id))   # a new date starts with no bookings
     db.commit()
 
 

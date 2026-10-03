@@ -62,9 +62,9 @@ function MeetupActions({ m, w, reload, account }) {
       {!w.live && <a className="btn btn-sm" href={`/api/meetups/${m.id}/ics`} download><Icon name="calendar" />{t("com.add_cal")}</a>}
       {!w.live && (asking ? (
         <span className="row cancel-ask">
-          <span className="small">{t("com.cancel_q")}</span>
-          <button type="button" className="btn btn-sm btn-danger" onClick={cancel}>{t("com.cancel_yes")}</button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAsking(false)}>{t("com.cancel_keep")}</button>
+          <span className="small">{t(open ? "com.leave_q" : "com.cancel_q")}</span>
+          <button type="button" className="btn btn-sm btn-danger" onClick={cancel}>{t(open ? "com.leave_yes" : "com.cancel_yes")}</button>
+          <button type="button" className="btn btn-ghost btn-sm" autoFocus onClick={() => setAsking(false)}>{t("com.cancel_keep")}</button>
         </span>
       ) : (
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAsking(true)}>{t(open ? "com.leave_event" : "com.cancel_rsvp")}</button>
@@ -112,9 +112,11 @@ export function MeetupCard({ m, reload, account }) {
           {m.host && <li><Icon name="users" size={16} />{t("com.host", { name: m.host.name })}</li>}
         </ul>
         <div className="row spread meetup-actions">
-          <span className={few ? "spots-few" : "faint"}>
-            {open ? t("com.going", { n: fmtNum(m.going) }) : full ? t("com.full") : t(few ? "com.spots_few" : "com.spots", { n: fmtNum(m.spots_left) })}
-          </span>
+          {cancelled || w.ended ? <span /> : (
+            <span className={few ? "spots-few" : "faint"}>
+              {open ? t("com.going", { n: fmtNum(m.going) }) : full ? t("com.full") : t(few ? "com.spots_few" : "com.spots", { n: fmtNum(m.spots_left) })}
+            </span>
+          )}
           <MeetupActions m={m} w={w} reload={reload} account={account} />
         </div>
       </div>

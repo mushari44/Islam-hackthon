@@ -1,7 +1,7 @@
 // Pieces shared inside the community feature: rules, join and RSVP forms. Owner: Mushari.
 import "./strings.js";
 import "./community.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
@@ -30,7 +30,76 @@ export function countryName(code, lang) {
   } catch { return code; }
 }
 
-const VIEWER_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return ""; } })();
+// Each country's IANA time zones, the usual one first, so a da'i enters the time as it is at the venue.
+export const COUNTRY_ZONES = {
+  SA: ["Asia/Riyadh"], AE: ["Asia/Dubai"], KW: ["Asia/Kuwait"], QA: ["Asia/Qatar"], BH: ["Asia/Bahrain"], OM: ["Asia/Muscat"],
+  EG: ["Africa/Cairo"], JO: ["Asia/Amman"], MA: ["Africa/Casablanca"], DZ: ["Africa/Algiers"], TN: ["Africa/Tunis"],
+  IQ: ["Asia/Baghdad"], GB: ["Europe/London"], IE: ["Europe/Dublin"], DE: ["Europe/Berlin"], FR: ["Europe/Paris"],
+  NL: ["Europe/Amsterdam"], SE: ["Europe/Stockholm"], TR: ["Europe/Istanbul"], MY: ["Asia/Kuala_Lumpur"],
+  SG: ["Asia/Singapore"], PH: ["Asia/Manila"], NG: ["Africa/Lagos"], KE: ["Africa/Nairobi"], ZA: ["Africa/Johannesburg"],
+  US: ["America/New_York", "America/Chicago", "America/Denver", "America/Phoenix", "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu"],
+  CA: ["America/Toronto", "America/Halifax", "America/St_Johns", "America/Winnipeg", "America/Regina", "America/Edmonton", "America/Vancouver"],
+  AU: ["Australia/Sydney", "Australia/Brisbane", "Australia/Adelaide", "Australia/Darwin", "Australia/Perth", "Australia/Hobart"],
+  ID: ["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"],
+};
+
+export const VIEWER_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return ""; } })();
+
+/** Wall-clock parts of a moment in a time zone ({} = the viewer's own). */
+function partsIn(ms, zone) {
+  const parts = new Intl.DateTimeFormat("en-US", { ...zone, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", second: "numeric" }).formatToParts(ms);
+  return Object.fromEntries(parts.filter((p) => p.type !== "literal").map((p) => [p.type, Number(p.value)]));
+}
+
+/** The UTC ISO time of a `datetime-local` value ("2030-06-01T19:00") read as wall-clock time in `tz`. */
+export function zonedToUtc(local, tz) {
+  const [date, time] = local.split("T");
+  const [y, mo, d] = date.split("-").map(Number);
+  const [h, mi] = time.split(":").map(Number);
+  const wall = Date.UTC(y, mo - 1, d, h, mi);
+  const offset = (ms) => { const p = partsIn(ms, { timeZone: tz }); return Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second) - ms; };
+  const guess = wall - offset(wall);
+  return new Date(wall - offset(guess)).toISOString();   // second pass: right on either side of a clock change
+}
+
+/** A time zone's city in the reader's language: named in strings for countries with several zones, else the
+ *  country (Arabic) or the zone's own city (English). */
+function zoneCity(tz, country, lang, t) {
+  const key = `com.zone.${tz}`;
+  const named = t(key);
+  if (named !== key) return named;
+  if (lang === "ar") return country ? countryName(country, "ar") : "";
+  return tz.split("/").pop().replace(/_/g, " ");
+}
+
+/** A time zone's name for a picker or a note, e.g. "Eastern Time (New York)". */
+export function zoneLabel(tz, lang, t) {
+  const city = zoneCity(tz, "", lang, t);
+  try {
+    const name = new Intl.DateTimeFormat(lang, { timeZone: tz, timeZoneName: "longGeneric" }).formatToParts(new Date())
+      .find((p) => p.type === "timeZoneName")?.value;
+    if (name) return city ? `${name} (${city})` : name;
+  } catch { /* fall through */ }
+  return city || tz;
+}
+
+// One clock for every card, so countdowns, "Join now" and "Happening now" move on their own.
+const ticks = new Set();
+let ticker = null;
+export function useNow() {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    ticks.add(tick);
+    if (!ticker) ticker = setInterval(() => ticks.forEach((f) => f()), 30000);
+    return () => {
+      ticks.delete(tick);
+      if (!ticks.size) { clearInterval(ticker); ticker = null; }
+    };
+  }, []);
+  return now;
+}
 
 /** Intl options showing an in-person meetup in its venue's time zone; an online one shows in the viewer's own. */
 function zoneOf(m) {
@@ -38,42 +107,40 @@ function zoneOf(m) {
   try { new Intl.DateTimeFormat("en", { timeZone: m.tz }); return { timeZone: m.tz }; } catch { return {}; }
 }
 
-/** The venue's place name in the reader's script: the city as the host wrote it when it matches the language,
- *  else the zone's own city (English) or the local name for that time zone (Arabic). */
+const ARABIC = /[\u0600-\u06FF]/;
+
+/** "(London time)": the venue's place in the reader's script, the city as the host wrote it when it is in that
+ *  script, else the zone's city or country. */
 function zoneName(m, lang, t) {
-  const arabicCity = /[\u0600-\u06FF]/.test(m.city);
-  if (m.city && arabicCity === (lang === "ar")) return t("com.city_time", { city: m.city });
-  if (lang !== "ar") return t("com.city_time", { city: m.tz.split("/").pop().replace(/_/g, " ") });
-  try {
-    const part = new Intl.DateTimeFormat("ar", { timeZone: m.tz, timeZoneName: "shortGeneric" })
-      .formatToParts(new Date()).find((p) => p.type === "timeZoneName");
-    if (part && /[\u0600-\u06FF]/.test(part.value)) return part.value.startsWith("توقيت") ? `ب${part.value}` : part.value;
-  } catch { /* fall through */ }
-  return t("com.city_time", { city: m.city });
+  const city = m.city && ARABIC.test(m.city) === (lang === "ar") ? m.city : zoneCity(m.tz, m.country, lang, t);
+  return t("com.city_time", { city: city || m.city });
 }
 
-function countdown(ms, lang) {
+/** "in 20 minutes", "in 5 hours", "tomorrow", "in 3 days": days count calendar days where the meetup is shown. */
+function countdown(start, now, zone, lang) {
   const rtf = new Intl.RelativeTimeFormat(lang === "ar" ? "ar-SA-u-nu-arab" : "en-GB", { numeric: "auto" });
-  const min = Math.round(ms / 60000);
+  const min = Math.floor((start - now) / 60000);
   if (min < 60) return rtf.format(Math.max(1, min), "minute");
-  if (min < 24 * 60) return rtf.format(Math.round(min / 60), "hour");
-  return rtf.format(Math.round(min / (24 * 60)), "day");
+  const day = (ms) => { const p = partsIn(ms, zone); return Date.UTC(p.year, p.month - 1, p.day) / 86400000; };
+  const days = day(start) - day(now);
+  if (days === 0 || min < 6 * 60) return rtf.format(Math.floor(min / 60), "hour");
+  return rtf.format(days, "day");
 }
 
 /** When a meetup is, as the cards show it: the date, a countdown, and whether it is on now or over. */
 export function useWhen(m) {
   const { t, lang, fmtDate } = useI18n();
+  const now = useNow();
   const zone = zoneOf(m);
   const start = new Date(m.starts_at).getTime();
   const end = start + m.duration_min * 60000;
-  const now = Date.now();
   const away = zone.timeZone && zone.timeZone !== VIEWER_TZ;
   return {
     day: fmtDate(m.starts_at, { day: "numeric", ...zone }),
     month: fmtDate(m.starts_at, { month: "short", ...zone }),
     date: fmtDate(m.starts_at, { weekday: "long", day: "numeric", month: "long", ...zone }),
     time: fmtDate(m.starts_at, { hour: "numeric", minute: "2-digit", ...zone }) + (away ? ` (${zoneName(m, lang, t)})` : ""),
-    countdown: now < start ? countdown(start - now, lang) : "",
+    countdown: now < start ? countdown(start, now, zone, lang) : "",
     soon: now < start && start - now <= 15 * 60000,
     live: now >= start && now < end,
     ended: now >= end,

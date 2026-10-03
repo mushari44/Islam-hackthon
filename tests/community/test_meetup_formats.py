@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from backend.app.core.db import SessionLocal, utcnow
 from backend.app.features.community import seed as community_seed
-from backend.app.features.community.models import Meetup
+from backend.app.features.community.models import RSVP, Meetup
 
 LINK = "https://meet.example.com/test-circle"
 
@@ -39,7 +39,18 @@ def test_online_meetup_rules(client, daai_login):
     assert client.post("/api/daai/meetups", json={**base, "public_venue": True}, headers=lead).status_code == 400
     assert client.post("/api/daai/meetups", json={**base, "public_venue": False, "city": "الرياض", "venue": "مكتبة عامة"},
                        headers=lead).status_code == 400
-    assert client.post("/api/daai/meetups", json={**base, "tz": "not a zone!"}, headers=lead).status_code == 422
+    # children meet a da'i in person, with a guardian, not on a video call with strangers
+    assert client.post("/api/daai/meetups", json={**base, "format": "online", "online_url": LINK, "age_group": "kids"},
+                       headers=lead).status_code == 400
+    # nothing hidden in a link (a right-to-left override can disguise where it goes); the scheme's case doesn't matter
+    for hidden in ("https://meet.example.com/\u202egro.live", "https://meet.example.com/\x7f"):
+        assert client.post("/api/daai/meetups", json={**base, "format": "online", "online_url": hidden},
+                           headers=lead).status_code == 400
+    assert online_meetup(client, lead, online_url="HTTPS://meet.example.com/x")["online_url"] == "https://meet.example.com/x"
+    # the time zone only shows local times: an unknown one is dropped, a real one is kept whatever its shape
+    assert online_meetup(client, lead, tz="not a zone!")["tz"] == ""
+    assert online_meetup(client, lead, tz="Foo/Bar")["tz"] == ""
+    assert online_meetup(client, lead, tz="EST5EDT")["tz"] == "EST5EDT"
 
 
 def test_the_link_reaches_only_people_who_booked(client, daai_login):
@@ -84,7 +95,8 @@ def test_my_activities(client, daai_login):
 
     mine = client.get("/api/community/mine", headers=h).json()
     assert [(m["id"], m["status"]) for m in mine["meetups"]] == [(sooner["id"], "open"), (later["id"], "cancelled")]
-    assert all(m["my_rsvp"] and m["online_url"] == LINK for m in mine["meetups"])
+    assert all(m["my_rsvp"] for m in mine["meetups"])
+    assert [m["online_url"] for m in mine["meetups"]] == [LINK, ""]        # no link to a cancelled meetup
     assert [g["id"] for g in mine["groups"]] == [gid] and mine["groups"][0]["membership"]
     assert client.get("/api/community/mine", headers=new_device(client)).json() == {"meetups": [], "groups": []}
 
@@ -107,6 +119,7 @@ def test_demo_meetups_stay_upcoming_in_local_time():
         new_york.tz, new_york.starts_at = "", day + timedelta(hours=15)  # "18:00", but on Riyadh time
         past.starts_at = utcnow() - timedelta(days=9, hours=2)
         hour = community_seed._shift(past.starts_at, "GB", to_utc=False).hour
+        db.add(RSVP(meetup_id=past.id, session_id="last-weeks-guest", nickname="ضيف", code="LASTWEEK"))
         db.commit()
         community_seed.seed(db, {})          # demo data exists: only the refresh runs
         for m in (old, past, riyadh, new_york):
@@ -118,5 +131,7 @@ def test_demo_meetups_stay_upcoming_in_local_time():
         assert new_york.starts_at.hour in (22, 23)
         assert utcnow() < past.starts_at < utcnow() + timedelta(days=7)
         assert community_seed._shift(past.starts_at, "GB", to_utc=False).hour == hour   # same local hour
+        # last week's bookings don't fill next week's meetup
+        assert not db.scalars(select(RSVP).where(RSVP.meetup_id == past.id)).all()
     finally:
         db.close()

@@ -4,11 +4,12 @@ import "./community.css";
 import { useEffect, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
+import { navigate } from "../../core/router.jsx";
 import { Icon, errorText } from "../../core/ui.jsx";
 import { useAccount } from "../account/public.js";
 import MyActivities from "./MyActivities.jsx";
 import { GroupCard, MeetupCard } from "./cards.jsx";
-import { AGE_GROUPS, FORMATS, GROUP_AGE_GROUPS, SERIES, countryName } from "./shared.jsx";
+import { AGE_GROUPS, FORMATS, GROUP_AGE_GROUPS, SERIES, countryName, useNow } from "./shared.jsx";
 
 const TABS = ["groups", "meetups", "mine"];
 
@@ -18,8 +19,9 @@ const AGE_FROM_BAND = { "18_24": "youth", "35_44": "adults", "45_54": "adults" }
 
 export default function CommunityPage({ query }) {
   const { t, lang, fmtNum, langName } = useI18n();
-  const [tab, setTab] = useState(TABS.includes(query.tab) ? query.tab : "groups");
-  useEffect(() => { if (TABS.includes(query.tab)) setTab(query.tab); }, [query.tab]);
+  // The tab lives in the address (#/community?tab=mine), so links such as "Go to My activities" always work.
+  const tab = TABS.includes(query.tab) ? query.tab : "groups";
+  const setTab = (k) => navigate(`/community?tab=${k}`);
   const [langFilter, setLangFilter] = useState("");
   const [fmt, setFmt] = useState("");
   const [series, setSeries] = useState(query.series || "");
@@ -50,15 +52,17 @@ export default function CommunityPage({ query }) {
   const [mine, setMine] = useState(null);
   useEffect(() => {
     let alive = true;
-    api.get(`/api/community/mine?ui=${lang}`).then((d) => alive && setMine(d)).catch(() => alive && setMine({ meetups: [], groups: [] }));
+    api.get(`/api/community/mine?ui=${lang}`).then((d) => alive && setMine(d)).catch((err) => alive && setMine({ error: err }));
     return () => { alive = false; };
   }, [lang, version, account]);
-  const upcoming = mine ? mine.meetups.filter((m) => m.status === "open" && new Date(m.starts_at).getTime() + m.duration_min * 60000 > Date.now()).length : 0;
+  const now = useNow();
+  const upcoming = mine?.meetups ? mine.meetups.filter((m) => m.status === "open" && new Date(m.starts_at).getTime() + m.duration_min * 60000 > now).length : 0;
 
+  // Which list is showing: a new list shows a placeholder while it loads; a refresh after booking keeps the old one.
+  const listKey = [tab, langFilter, country, city, audience, ageValue, series, fmt, lang].join("|");
   useEffect(() => {
     if (tab === "mine") return undefined;
     let alive = true;
-    setItems(null);
     setError(null);
     const params = new URLSearchParams({ ui: lang });
     if (langFilter) params.set("lang", langFilter);
@@ -70,7 +74,7 @@ export default function CommunityPage({ query }) {
     if (tab === "meetups" && fmt) params.set("format", fmt);
     const q = `?${params}`;
     api.get(`/api/${tab === "groups" ? "groups" : "meetups"}${q}`)
-      .then((data) => alive && setItems({ tab, data }))
+      .then((data) => alive && setItems({ key: listKey, tab, data }))
       .catch((err) => alive && setError(err));
     return () => { alive = false; };
   }, [tab, langFilter, country, city, audience, ageValue, series, fmt, lang, version]);
@@ -125,7 +129,7 @@ export default function CommunityPage({ query }) {
                   </select>
                 </>
               )}
-              {tab === "meetups" && country && <span className="faint small">{t("com.online_everywhere")}</span>}
+              {tab === "meetups" && country && !fmt && <span className="faint small">{t("com.online_everywhere")}</span>}
             </div>
           ) : null}
           <div className="com-filters">
@@ -151,11 +155,11 @@ export default function CommunityPage({ query }) {
           </div>
           {tab === "meetups" && series && <p className="series-lead"><Icon name={series === "ramadan" ? "moon" : "layers"} size={18} />{t(`com.series_lead.${series}`)}</p>}
           {error && <p className="empty">{errorText(error, t)}</p>}
-          {!error && (!items || items.tab !== tab) && <div className="skeleton" style={{ height: 120 }} />}
-          {items && items.tab === tab && tab === "groups" && (items.data.length
+          {!error && items?.key !== listKey && <div className="skeleton" style={{ height: 120 }} />}
+          {!error && items?.key === listKey && tab === "groups" && (items.data.length
             ? <div className="grid grid-2">{items.data.map((g) => <GroupCard key={g.id} g={g} />)}</div>
             : <p className="empty">{t("com.empty_groups")}</p>)}
-          {items && items.tab === tab && tab === "meetups" && (items.data.length
+          {!error && items?.key === listKey && tab === "meetups" && (items.data.length
             ? <div className="stack">{items.data.map((m) => <MeetupCard key={m.id} m={m} reload={reload} account={account} />)}</div>
             : <p className="empty">{t("com.empty_meetups")}</p>)}
         </>
