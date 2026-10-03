@@ -66,8 +66,11 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 
 ## Known gaps found in review (2 October)
 
-- [ ] Community responses ignore the interface language. Join, RSVP, create group/meetup and the da'i's group and meetup lists always return the leader or host name in Arabic: pass `ui` through to `_group_view` and `_meetup_view`.
+- [x] Community responses ignore the interface language. Join, RSVP, create group/meetup and the da'i's group and meetup lists always return the leader or host name in Arabic: pass `ui` through to `_group_view` and `_meetup_view`.
 - [ ] Without an API key, sources-only answers come from raw-keyword BM25 and can be weak (e.g. «ما أركان الإسلام» misses «بني الإسلام على خمس»). Decide whether sources-only mode should show fewer and stronger passages, or a curated list of starter topics.
+
+- [x] Community review (3 October): abuse filter evasions (zero-width characters, attached prefixes, feminine form), handles like `@sabeeli_x`, bidi overrides, nicknames posing as the assistant or a moderator, RSVP nicknames unmoderated, a mute undone by leaving and rejoining, the first message page showing the oldest 200, deletions not reaching members' open feeds, booking after a meetup started, meetups in the past, calendar-file line injection and folding, unbounded group/meetup fields, a silent spinner when the assistant fails, and one query per card in the group, meetup and da'i lists. Tests in `tests/community/test_review_fixes.py`.
+- [ ] Anyone can open many anonymous sessions and fill a meetup's seats. Consider a per-IP limit on `POST /api/session` and RSVPs, or letting the host release no-show seats (agree with Eman: sessions are hers).
 
 ## Day 3: 6 October (test and publish)
 

@@ -43,17 +43,28 @@ export default function GroupPage({ params }) {
   const [waitingBot, setWaitingBot] = useState(false);
   const [text, setText] = useState("");
   const lastId = useRef(0);
+  const polls = useRef(0);
   const endRef = useRef(null);
+
+  // A new group starts from an empty feed (the router can reuse this page for another id).
+  useEffect(() => { lastId.current = 0; polls.current = 0; setMessages([]); setWaitingBot(false); }, [gid]);
 
   const load = () => api.get(`/api/groups/${gid}?ui=${lang}`).then(setGroup).catch(setError);
   useEffect(() => { load(); }, [gid, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // New messages every poll; every 5th poll the newest page again, so messages the leader
+  // deleted or answered since we fetched them update for everyone.
   const poll = async () => {
-    const msgs = await api.get(`/api/groups/${gid}/messages?after=${lastId.current}`);
+    const refresh = lastId.current > 0 && ++polls.current % 5 === 0;
+    const msgs = await api.get(`/api/groups/${gid}/messages?after=${refresh ? 0 : lastId.current}`);
     if (!msgs.length) return;
     lastId.current = Math.max(lastId.current, ...msgs.map((m) => m.id));
     if (msgs.some((m) => m.author_type === "bot")) setWaitingBot(false);
-    setMessages((list) => [...list, ...msgs.filter((m) => !list.some((x) => x.id === m.id))]);
+    setMessages((list) => {
+      const fresh = new Map(msgs.map((m) => [m.id, m]));
+      const known = new Set(list.map((m) => m.id));
+      return [...list.map((m) => fresh.get(m.id) || m), ...msgs.filter((m) => !known.has(m.id))];
+    });
   };
   usePolling(poll, 3000, [gid], Boolean(group && group.membership));
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages.length, waitingBot]);
@@ -74,6 +85,7 @@ export default function GroupPage({ params }) {
     } catch (err) {
       const key = { abuse: "gr.err.abuse", too_fast: "gr.err.too_fast", too_long: "gr.err.too_long", muted: "gr.muted" }[err.detail];
       toast(key ? t(key) : errorText(err, t), "error");
+      if (err.detail === "muted" || err.detail === "abuse") load();   // show the paused composer straight away
     }
   };
 
