@@ -153,7 +153,7 @@ Call status values: `waiting` → `accepted` → `ended`, or `cancelled` / `expi
 }
 ```
 
-- `kind`: `answer` | `sources` | `abstain` | `clarify` | `greeting` | `thanks` | `off_topic` | `request_human` | `empty`.
+- `kind`: `answer` | `sources` | `abstain` | `refer` | `clarify` | `greeting` | `thanks` | `off_topic` | `request_human` | `empty`. `refer` is a personal (level D) question while the model is unavailable: a fixed message, the `fatwa` notice and `suggest_daai: true`, and no source cards.
 - `mode`: `ai` | `sources_only` (no model: the passages are shown with no generated text). `lang`: the language detected from the question, which can differ from the UI language. `level`: `A`–`D` (`C` = scholars differ, `D` = personal case or fatwa; both set `suggest_daai`).
 - `cards`: id → full source card (see below; shortened in the example). `sources`: every id used, in order of first use.
 - `quote_check`: `null`, or `status` = `exact` | `differs` | `ambiguous` | `not_found` (`matches` is `[]` for `not_found`, otherwise up to 3). `differences[].type` = `changed` | `missing` | `extra`.

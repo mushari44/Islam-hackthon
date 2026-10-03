@@ -50,7 +50,7 @@
   - retrieval coverage low → the model is told to abstain unless the passages clearly answer;
   - no citation in the answer → shown as "not found in the sources";
   - asked for evidence that isn't in the passages → "no matching evidence found";
-  - model unavailable → sources-only mode.
+  - model unavailable → sources-only mode; a personal (level D) question then gets no raw texts at all (they would read like a ruling), only the fatwa notice and the referral (`kind: refer`).
 
 ## 4. Evaluation (decides every change)
 

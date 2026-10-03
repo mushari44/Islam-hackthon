@@ -40,6 +40,19 @@ def test_qa_card_shows_verses_from_the_mushaf():
     assert "﴿" not in card["answer"].split("[[q:7:54]]")[0]  # the quoted verse became a marker
 
 
+def test_long_answer_gives_the_model_its_matching_lines():
+    from backend.app.core.textnorm import tokens
+    qa = max((p for p in get_corpus().passages.values() if p.kind == "qa"), key=lambda p: len(p.data["answer"]))
+    lines = [x.strip() for x in qa.data["answer"].split("\n") if x.strip()]
+    target = next(x for x in reversed(lines) if len(tokens(x)) >= 5)    # a line near the end
+    plain = qa.context_blocks("ar")
+    focused = qa.context_blocks("ar", focus=set(tokens(target)))
+    assert target not in plain and target in focused                    # it is beyond the budget otherwise
+    assert focused[1] == lines[0] and "(…)" in focused                  # the opening stays; gaps are marked
+    assert sum(map(len, focused[1:])) <= 4000 + 50
+    assert target in qa.context_blocks("ar", full=True)
+
+
 def test_doubt_question_retrieves_an_approved_answer():
     out = pipeline.ask(pipeline.AskContext(question="لماذا يعبد المسلمون الكعبة؟", ui_lang="ar"))
     retrieved = [r["id"] for r in out["trace"]["retrieval"]]
