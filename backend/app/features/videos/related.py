@@ -50,14 +50,14 @@ VIDEO_REQUEST = re.compile(
     r"|(فيديو|فديو|مقطع|مقاطع|مقطعا|مقطعاً|مرئي|مرئيات|أشاهد|اشاهد|شاهد|أرني|ارني|وريني|أريد|اريد|ابغى|أبغى|يشرح|يوضح)",
     re.I)
 REQUESTED_MEANING, REQUESTED_COVERAGE = 0.83, 0.3
-
-
-def wants_video(question: str) -> bool:
-    return bool(re.search(r"\b(videos?|clips?|watch|youtube)\b|فيديو|فديو|مقطع|مقاطع|مرئي|أشاهد|اشاهد", question or "", re.I))
 DENSE_WEIGHT = 0.7        # same split as RAG search
 RRF_C = 60
 
 _lock = threading.Lock()
+
+
+def wants_video(question: str) -> bool:
+    return bool(re.search(r"\b(videos?|clips?|watch|youtube)\b|فيديو|فديو|مقطع|مقاطع|مرئي|أشاهد|اشاهد", question or "", re.I))
 
 
 def video_text(it: dict) -> str:
@@ -185,8 +185,10 @@ def _similarities(st: _Stats, enc, texts: list[str]):
     """E5 similarity of every video to the question (best over the question and its search phrases)."""
     import numpy as np
 
-    with timing.step("video_embed_query"):
-        q = np.asarray([enc.embed_query(t) for t in texts if t.strip()], dtype="float32")
+    texts = [t for t in texts if t.strip()]
+    with timing.step("video_embed_query"):     # the question and its search phrases in one batch
+        vecs = enc.embed_queries(texts) if hasattr(enc, "embed_queries") else [enc.embed_query(t) for t in texts]
+        q = np.asarray(vecs, dtype="float32")
     with timing.step("video_similarity"):
         return (st.vectors @ q.T).max(axis=1) if len(q) else None
 

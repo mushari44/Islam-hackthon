@@ -126,8 +126,10 @@ function Feedback({ turnId }) {
 }
 
 // Related videos pass a strict check of their own, so they can help even when the sources fell short;
-// never for small talk or personal questions.
+// never for small talk or personal questions (level D: a video next to "are we still married?" reads
+// like a ruling on the person's case, whatever the answer's fatwa notice says).
 const VIDEO_KINDS = new Set(["answer", "sources", "abstain"]);
+const showVideos = (ans) => VIDEO_KINDS.has(ans.kind) && ans.level !== "D";
 
 function BotMessage({ ans, question }) {
   const { t, lang } = useI18n();
@@ -144,7 +146,7 @@ function BotMessage({ ans, question }) {
           </div>
         )}
         <Answer answer={ans} />
-        {VIDEO_KINDS.has(ans.kind) && <RelatedVideos question={question} hints={hints} lang={ans.lang || lang} />}
+        {showVideos(ans) && <RelatedVideos question={question} hints={hints} lang={ans.lang || lang} />}
         <div className="row spread answer-foot">
           <Feedback turnId={ans.turn_id} />
           <div className="row">
