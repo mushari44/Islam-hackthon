@@ -81,7 +81,7 @@ def ask_history(limit: int = 50, me: SeekerSession = Depends(seeker), db: Sessio
     purge_expired(db)
     corpus = get_corpus()
     turns = []
-    for turn in recent_turns(db, me.id, limit=max(1, min(limit, 200))):
+    for turn in recent_turns(db, me.id, limit=max(1, min(limit, 200)), recent_only=False):
         ans = dict(turn.answer or {})
         lang = ans.get("lang") or turn.lang
         ans["cards"] = {pid: corpus.get(pid).card(lang) for pid in ans.get("sources") or [] if corpus.get(pid)}

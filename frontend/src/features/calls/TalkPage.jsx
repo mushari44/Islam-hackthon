@@ -16,14 +16,15 @@ const recall = () => { try { return Number(sessionStorage.getItem(ACTIVE)) || nu
 /** Optional: pick one da'i by name. Da'is this seeker talked to before come first, marked "talked before". */
 function DaaiPicker({ lang, gender, value, onChange }) {
   const { t, lang: uiLang } = useI18n();
-  const [people, setPeople] = useState([]);
+  const [people, setPeople] = useState(null);   // null until the list for this language has loaded
   const [past, setPast] = useState([]);
   useEffect(() => { api.get("/api/calls").then((p) => setPast(p.map((x) => x.daai.id))).catch(() => {}); }, []);
+  useEffect(() => setPeople(null), [lang]);
   usePolling(async () => setPeople(await api.pGet(`/api/daais?lang=${lang}&ui=${uiLang}`)), 15000, [lang, uiLang]);
-  const shown = people.filter((p) => !gender || p.gender === gender)
+  const shown = (people || []).filter((p) => !gender || p.gender === gender)
     .sort((a, b) => (past.includes(b.id) - past.includes(a.id)) || (b.online - a.online));
   useEffect(() => {
-    if (value && people.length && !shown.some((p) => p.id === value)) onChange(null);   // no longer matches the language or gender
+    if (value && people && !shown.some((p) => p.id === value)) onChange(null);   // no longer matches the language or gender
   }, [value, people, gender]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!shown.length) return null;
   return (
@@ -48,9 +49,9 @@ function DaaiPicker({ lang, gender, value, onChange }) {
   );
 }
 
-function Choose({ query, initialDaai, onRequested }) {
+function Choose({ query, initialDaai, initialLang, onRequested }) {
   const { t, lang: uiLang, fmtNum, langName } = useI18n();
-  const [lang, setLang] = useState(query.lang || uiLang);
+  const [lang, setLang] = useState(initialLang || query.lang || uiLang);
   const [gender, setGender] = useState("");
   const [daai, setDaai] = useState(initialDaai || null);
   const [availability, setAvailability] = useState({});
@@ -141,7 +142,7 @@ function Ended({ id, daai, onAgain }) {
       <div className="row" style={{ justifyContent: "center" }}>
         <a className="btn btn-primary" href="#/ask">{t("talk.back_ask")}</a>
         <button type="button" className="btn" onClick={() => onAgain(null)}>{t("talk.again")}</button>
-        {daai && <button type="button" className="btn" onClick={() => onAgain(daai.id)}><Icon name="talk" />{t("talk.again_same", { name: daai.name })}</button>}
+        {daai && <button type="button" className="btn" onClick={() => onAgain(daai.id, daai.lang)}><Icon name="talk" />{t("talk.again_same", { name: daai.name })}</button>}
       </div>
     </div>
   );
@@ -167,7 +168,7 @@ export default function TalkPage({ query }) {
 
   let body = null;
   if (view.name === "choose") {
-    body = <Choose query={query} initialDaai={view.daai} key={view.daai || "any"} onRequested={(id) => setView({ name: "waiting", id })} />;
+    body = <Choose query={query} initialDaai={view.daai} initialLang={view.lang} key={view.daai || "any"} onRequested={(id) => setView({ name: "waiting", id })} />;
   }
   if (view.name === "waiting") {
     body = (
@@ -193,13 +194,13 @@ export default function TalkPage({ query }) {
     const name = d ? (lang === "ar" ? d.name : d.name_en || d.name) : "";
     body = (
       <>
-        <EndWatcher id={view.id} onEnded={() => ended(view.id, d && { id: d.id, name })} />
+        <EndWatcher id={view.id} onEnded={() => ended(view.id, d && { id: d.id, name, lang: view.st.lang })} />
         <CallPanel callId={view.id} role="seeker" token={token} title={t("talk.connected_with", { name })}
-          historyPath={`/api/calls/${view.id}/messages`} onEnded={() => ended(view.id, d && { id: d.id, name })} />
+          historyPath={`/api/calls/${view.id}/messages`} onEnded={() => ended(view.id, d && { id: d.id, name, lang: view.st.lang })} />
       </>
     );
   }
-  if (view.name === "ended") body = <Ended id={view.id} daai={view.daai} onAgain={(daai) => setView({ name: "choose", daai })} />;
+  if (view.name === "ended") body = <Ended id={view.id} daai={view.daai} onAgain={(daai, lang) => setView({ name: "choose", daai, lang })} />;
 
   return (
     <div className="talk">

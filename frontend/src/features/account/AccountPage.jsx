@@ -287,6 +287,7 @@ function Security() {
   };
   const signout = async () => {
     await api.post("/api/account/signout", {}).catch(() => {});
+    try { sessionStorage.removeItem("sabeeli.chat"); } catch { /* ignore */ }   // the saved chat stays in the account
     setAccount(null);
     toast(t("acc.signed_out"));
   };

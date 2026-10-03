@@ -120,8 +120,11 @@ def _call_view(call: CallRequest, db: Session) -> dict:
     d = db.get(Daai, call.daai_id) if call.daai_id else None
     waiting_ahead = 0
     if call.status == "waiting":
+        # A request for a named da'i only queues behind requests for the same da'i, and the general queue
+        # doesn't count requests that only one other da'i can take.
+        same_queue = (CallRequest.daai_pref == call.daai_pref) if call.daai_pref else CallRequest.daai_pref.is_(None)
         waiting_ahead = len(db.scalars(select(CallRequest.id).where(
-            CallRequest.status == "waiting", CallRequest.lang == call.lang, CallRequest.id < call.id)).all())
+            CallRequest.status == "waiting", CallRequest.lang == call.lang, CallRequest.id < call.id, same_queue)).all())
     return {"id": call.id, "status": call.status, "lang": call.lang,
             "daai": {"id": d.id, "name": d.display_name, "name_en": d.display_name_en, "gender": d.gender} if d else None,
             "daai_pref": call.daai_pref, "queue_position": waiting_ahead, "created_at": iso(call.created_at)}

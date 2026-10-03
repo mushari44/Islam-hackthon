@@ -26,6 +26,7 @@ Other backend features use auth only through `backend/app/features/auth/public.p
 | DELETE | `/api/me` | seeker | – | `{ok: true}`. Deletes everything tied to the session in every feature (`SESSION_PURGERS`), then the session itself |
 | POST | `/api/daai/login` | none | `{username, password}` | `{token, me: Profile}`. 401 on wrong credentials |
 | GET | `/api/account` | seeker | – | `{account: Account\|null}` (null when this browser isn't signed in) |
+| POST | `/api/account/signout` | seeker | – | `{ok: true}`. On the browser that created the account, the token then answers 401 everywhere (its session is the account's home), so the client starts a fresh anonymous session and the next person on that device can't see the account's data |
 | POST | `/api/account/profile` | seeker (signed in) | `{country?, city?, lang?, email?, age_band?}` | `{account: Account}`. `age_band` is one of `"" u18 18_24 25_34 35_44 45_54 55p` (`""` removes it), 422 otherwise. A new `country` without `city` clears the city |
 | GET | `/api/daai/me` | daai | – | Profile |
 | POST | `/api/daai/availability` | daai | `{available: bool}` | Profile |

@@ -28,10 +28,15 @@ class ChatTurn(Base):
     feedback_reason: Mapped[str] = mapped_column(String(64), default="")
 
 
-def recent_turns(db: Session, session_id: str, limit: int = 6) -> list[ChatTurn]:
-    """Oldest first. Used by the referral card (features/calls) as well as for follow-up questions."""
-    rows = db.scalars(select(ChatTurn).where(ChatTurn.session_id == session_id)
-                      .order_by(ChatTurn.id.desc()).limit(limit)).all()
+def recent_turns(db: Session, session_id: str, limit: int = 6, recent_only: bool = True) -> list[ChatTurn]:
+    """Oldest first. Used by the referral card (features/calls) as well as for follow-up questions.
+
+    `recent_only` keeps to the last RETENTION_HOURS, so a signed-in seeker's saved chats from earlier days
+    don't leak into a new question's context or referral card. The history screen passes False."""
+    q = select(ChatTurn).where(ChatTurn.session_id == session_id)
+    if recent_only:
+        q = q.where(ChatTurn.created_at >= utcnow() - timedelta(hours=settings.retention_hours))
+    rows = db.scalars(q.order_by(ChatTurn.id.desc()).limit(limit)).all()
     return list(reversed(rows))
 
 

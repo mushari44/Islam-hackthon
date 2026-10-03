@@ -45,3 +45,22 @@ def test_signed_in_chats_follow_the_account(client):
 
     assert client.delete("/api/ask/history", headers=laptop).json() == {"ok": True}
     assert client.get("/api/ask/history", headers=phone).json()["turns"] == []
+
+
+def test_old_saved_chats_stay_out_of_a_new_question(client):
+    """Saved turns from earlier days show in the history, but aren't fed to the model or the referral card."""
+    from backend.app.features.rag.models import recent_turns
+    h = device(client)
+    client.post("/api/account/signup", json={"username": "old_chats", "password": "long-pass-1"}, headers=h)
+    turn = client.post("/api/ask", data={"question": "سؤال قديم", "lang": "ar"}, headers=h).json()["turn_id"]
+    db = SessionLocal()
+    try:
+        row = db.get(ChatTurn, turn)
+        row.created_at = utcnow() - timedelta(days=5)
+        sid = row.session_id
+        db.commit()
+        assert recent_turns(db, sid) == []
+        assert [t.id for t in recent_turns(db, sid, recent_only=False)] == [turn]
+    finally:
+        db.close()
+    assert [t["turn_id"] for t in client.get("/api/ask/history", headers=h).json()["turns"]] == [turn]

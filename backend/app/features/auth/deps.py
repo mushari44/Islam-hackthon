@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, Header, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ...core.db import get_db, utcnow
@@ -17,12 +18,22 @@ def canonical(db: Session, row: SeekerSession | None) -> SeekerSession | None:
     return (db.get(SeekerSession, acc.session_id) if acc else None) or row
 
 
+def signed_out_home(db: Session, row: SeekerSession | None) -> bool:
+    """True for the browser that created an account and then signed out of it.
+
+    That browser's session is the account's home, where every feature files the account's data, so the
+    token must stop working after sign-out: otherwise the next person on that device would see the
+    account's chats and bookings. The web client answers a 401 by starting a fresh anonymous session."""
+    return bool(row and row.account_id is None
+                and db.scalar(select(SeekerAccount.id).where(SeekerAccount.session_id == row.id)) is not None)
+
+
 def seeker_device(x_seeker: str = Header(default=""), db: Session = Depends(get_db)) -> SeekerSession:
     """This browser's own session row (used to sign in and out)."""
     if len(x_seeker) < 20:
         raise HTTPException(401, "no session")
     row = db.get(SeekerSession, seeker_id(x_seeker))
-    if not row:
+    if not row or signed_out_home(db, row):
         raise HTTPException(401, "unknown session")
     row.last_seen = utcnow()
     db.commit()
@@ -36,12 +47,14 @@ def seeker(device: SeekerSession = Depends(seeker_device), db: Session = Depends
 def optional_seeker(x_seeker: str = Header(default=""), db: Session = Depends(get_db)) -> SeekerSession | None:
     if len(x_seeker) < 20:
         return None
-    return canonical(db, db.get(SeekerSession, seeker_id(x_seeker)))
+    row = db.get(SeekerSession, seeker_id(x_seeker))
+    return None if signed_out_home(db, row) else canonical(db, row)
 
 
 def seeker_key(db: Session, token: str) -> str | None:
     """The session id a seeker token files data under (for the call room, which has no request headers)."""
-    row = canonical(db, db.get(SeekerSession, seeker_id(token or "")))
+    device = db.get(SeekerSession, seeker_id(token or ""))
+    row = None if signed_out_home(db, device) else canonical(db, device)
     return row.id if row else None
 
 
