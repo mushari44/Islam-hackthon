@@ -19,7 +19,7 @@
 
 ## 2. Retrieval (hybrid)
 
-1. **Analyse** (Claude, low effort, structured output): language, content level A-D, personal case, any quoted text, and **2-4 search queries in both Arabic and English**. This query expansion is what bridges "Kaaba" to «القبلة» and to the tafsir's vocabulary.
+1. **Analyse** (the model, structured output; Gemma 4 31B through OpenRouter by default, or Claude): language, content level A-D, personal case, any quoted text, and **2-4 search queries in both Arabic and English**. This query expansion is what bridges "Kaaba" to «القبلة» and to the tafsir's vocabulary.
 2. **Keyword search (built):** BM25 over normalised Arabic (Uthmani-aware) plus English. It is fast and needs no extra service.
 3. **Semantic search (built, optional):** `features/rag/embeddings.py`, with LangChain.
    - Model: `intfloat/multilingual-e5-large`, run locally, with E5's `query:` / `passage:` prefixes. Arabic and English with the same meaning land close together.
@@ -45,13 +45,20 @@
   - B: explain from the approved material, with the reference;
   - C: note that scholars differ, or refer to a specialist;
   - D: general information only, plus the fatwa notice and a da'i referral.
-- **Strict grounding (built):** every model sentence must cite an approved passage, or it is removed before the user sees it; short connectors of 6 words or fewer are kept. An answer with no citation at all is replaced by the fixed "not found in the sources" message. Removed text is listed in `trace.removed_uncited`, so the evaluation can count it.
+- **Citations by provider.** Claude cites through its search-result citation feature (the cited span comes from the passage). Gemma (OpenRouter, the default) gets the passages as numbered sources and ends each sentence with `[n]` (or a result id, which Gemma often writes); the answer is split into sentences and clauses (`.`, `?`, `؟`, `;`, `؛`), and each one keeps only the citations attached to it. These citations are declared by the model and not yet checked against the passage text: the evaluation should sample cited sentences and judge them (see `tasks/mushari.md`).
+- **Strict grounding (built):** every model sentence must cite an approved passage, or it is removed before the user sees it. Exceptions, all narrow:
+  - a short connector of at most 6 words (3 at level D) with no ruling word (حرام، يجب، باطل، invalid, must ...);
+  - a line of at most 12 words ending in ":" that introduces the verse or hadith shown right after it.
+  A verse or hadith marker inside an uncited sentence keeps the marker and loses the words. An answer with no citation at all is replaced by the fixed "not found in the sources" message.
+- **Scripture guard (built):** verses in ﴿﴾ or {} and quotes in «» "" “” ‹› are matched against the Mushaf and become markers. Any 7+ consecutive words that follow the Mushaf word for word, with or without brackets, are replaced by the verse marker (or removed when the match isn't exact). A quoted text found in no retrieved passage (a hadith from memory) removes its whole sentence. The analysis' clarifying question is shown only if it is a short plain question; otherwise a fixed one.
+- Removed text stays on the server: the API returns only counts in `trace` (`SABEELI_DEBUG_TRACE=1` returns the text, for evaluation).
 - **Refusal paths:**
   - retrieval coverage low → the model is told to abstain unless the passages clearly answer;
   - no citation in the answer → shown as "not found in the sources";
   - asked for evidence that isn't in the passages → "no matching evidence found";
   - model unavailable → sources-only mode; a personal (level D) question then gets no raw texts at all (they would read like a ruling), only the fatwa notice and the referral (`kind: refer`).
 - **What sources-only mode shows (precision first: no text is better than an unrelated one).** An approved Q&A or Bayyinat answer with E5 similarity ≥ 0.86 leads and usually stands alone; another verse or hadith joins it only at ≥ 0.89. With no such answer, verses and hadiths at ≥ 0.85 are shown (at most 3). Otherwise the answer is "not found". A glossary card appears only when the question asks what the term means («ما معنى التوحيد؟»), not whenever it names one. Without E5 (BM25 only), a passage must contain 65% of the question's words. A question («لماذا خلق الله الشر؟») is never checked as a misquoted verse; only text that isn't a question is. These bars were set by reading what 30 questions showed (`eval/display_audit.py`); re-run it after changing them.
+- **Speed, measured per step.** Every answer carries `trace.timings` (steps in ms, and each model call with its provider, tokens and tokens per second), shown in the "How I found this" sheet, and the server logs one `sabeeli.timing` line per question. `eval/speed_report.py` runs the 30 audit questions and prints median, 90th percentile and worst per step. On 2026-10-03 (Gemma 4 31B on OpenRouter, E5 on the GPU): 2.8 s median per answer, 3.7 s p90. The answer call is 1.6 s (59%) and the analysis call 1.1 s (40%). All of retrieval is 76 ms (E5 query 26 ms, FAISS 27 ms, BM25 6 ms), and related videos take 39 ms. The slow outliers are answers that OpenRouter sent to a slower host (DeepInfra, 52 tok/s against ModelRun's 157).
 
 ## 4. Evaluation (decides every change)
 

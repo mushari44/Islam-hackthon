@@ -90,3 +90,26 @@ def test_route(client, monkeypatch):
     assert d["state"] == "ready" and [x["id"] for x in d["items"]] == [2]
     assert d["items"][0]["page_url"].startswith("https://islamhouse.com/ar/videos/")
     assert client.post("/api/videos/related", json={"lang": "ar", "q": "x", "hints": ["y" * 201]}).status_code == 422
+
+
+def test_an_explicit_video_request_matches_on_its_topic():
+    assert related.wants_video("I want a video showing me how to pray")
+    assert related.wants_video("أريد مقطع يوضح كيف أصلي") and not related.wants_video("كيف أصلي؟")
+    idx = _index()
+    st = related._stats(idx)
+    st.vectors = np.eye(len(idx.items), 8, dtype="float32")
+    q = np.zeros(8, dtype="float32")
+    q[1] = 0.84                    # "صفة الصلاة": a little under the usual bar, fine for an explicit request
+    hits = related.related(idx, "أريد مقطع فيديو عن صفة الصلاة", encoder=FakeEncoder(q))
+    assert [h["id"] for h in hits] == [2]
+    assert related.related(idx, "ما صفة الصلاة؟", encoder=FakeEncoder(q)) == []      # not asked: the usual bar
+
+
+def test_route_waits_while_the_encoder_loads(client, monkeypatch):
+    from backend.app.features.videos import routes
+    idx = _index()
+    monkeypatch.setattr(islamhouse, "get_index", lambda lang: (idx, "ready"))
+    monkeypatch.setattr(routes, "semantic_encoder", lambda: None)
+    monkeypatch.setattr(routes, "semantic_status", lambda: "loading")
+    d = client.post("/api/videos/related", json={"lang": "ar", "q": "أريد فيديو عن الصلاة"}).json()
+    assert d["state"] == "loading" and d["requested"] is True

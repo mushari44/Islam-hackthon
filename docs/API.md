@@ -172,7 +172,7 @@ Call status values: `waiting` → `accepted` → `ended`, or `cancelled` / `expi
 - `quote_check`: `null`, or `status` = `exact` | `differs` | `ambiguous` | `not_found` (`matches` is `[]` for `not_found`, otherwise up to 3). `differences[].type` = `changed` | `missing` | `extra`.
 - `notices[].type`: `ocr` | `fatwa` | `disagreement` | `mode`.
 - `ocr`: `null`, or `{text, quran_segments: [string], description, legible: bool}` when a photo was read.
-- `trace`: for debugging and the "how was this answered" sheet only. Its fields change freely; other features must not rely on them.
+- `trace`: for debugging and the "how was this answered" sheet only. Its fields change freely; other features must not rely on them. Text the pipeline removed is never sent: `removed_uncited`, `unverified_quotes`, `scripture_guard` and `uncited` are counts (the server returns the text only with `SABEELI_DEBUG_TRACE=1`).
 
 **Rendering rule:** segment `text` may contain `[[q:SURA:AYA]]`, `[[h:ID]]`, `[[t:key]]`, `[[qa:ID]]` and `[[b:N]]` markers. Render each marker as the card `cards[id]` (skip it if the card is missing), **never as text**. Scripture shown to the user only ever comes from cards. Each id in `cites` that isn't already shown as a card in that segment becomes a numbered citation button. Group bot messages carry the same structure in `payload`.
 

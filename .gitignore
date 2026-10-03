@@ -32,3 +32,7 @@ Thumbs.db
 
 # built locally from the package link (rights reserved): python scripts/ingest_bayyinat.py
 data/corpus/bayyinat.jsonl
+
+# eval script outputs (local reports)
+display_audit.json
+speed_report.json

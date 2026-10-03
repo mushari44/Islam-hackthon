@@ -19,7 +19,8 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 
 | Service | Used for | Notes |
 |---|---|---|
-| Anthropic Claude API (`claude-opus-5-5`) | Question analysis, photo transcription, cited answers, referral card drafts | Needs `ANTHROPIC_API_KEY`. Without a key the app runs in sources-only mode. Only synthetic data is sent in tests and evaluation |
+| OpenRouter (openrouter.ai), model `google/gemma-4-31b-it` (Gemma 4 31B, Google) — the default | Question analysis, photo transcription, cited answers, referral card drafts | Needs `OPENROUTER_API_KEY`. Requests go only to OpenRouter providers that don't store or train on prompts (`provider.data_collection = "deny"`; `SABEELI_OPENROUTER_PRIVATE`). Gemma is under the Gemma Terms of Use; OpenRouter under its own terms. Without a key the app runs in sources-only mode. Only synthetic data is sent in tests and evaluation |
+| Anthropic Claude API (`claude-opus-5-5`) — the alternative | The same jobs, when `SABEELI_LLM_PROVIDER=anthropic` | Needs `ANTHROPIC_API_KEY`. Uses Claude's search-result citations; with Gemma the model cites numbered sources instead |
 | Google public STUN server (`stun.l.google.com:19302`) | WebRTC connectivity for calls | Configurable with `STUN_URLS`. Add the TURN provider here when it is chosen |
 | YouTube embeds (`youtube-nocookie.com`, privacy-enhanced mode) | Playing IslamHouse videos that IslamHouse publishes only as a YouTube embed | Today every such item also has an MP4 on IslamHouse, which is preferred, so the embed is a fallback only |
 | Google Fonts: Readex Pro, Amiri Quran | Interface and verse typography | SIL Open Font License |

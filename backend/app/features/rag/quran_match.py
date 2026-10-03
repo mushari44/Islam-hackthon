@@ -12,7 +12,9 @@ word writes that long vowel with a dagger alef, the usual spelling split.
 """
 from __future__ import annotations
 
+import logging
 import math
+import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from difflib import SequenceMatcher
@@ -23,6 +25,7 @@ from .corpus import Passage, get_corpus
 
 GRAM = 4
 MIN_SKELETON = 7
+SHINGLE = 5          # consecutive words; 5 identical to a verse is already a strong sign of quoted Quran
 
 
 @dataclass
@@ -117,15 +120,42 @@ def _outside(ops) -> int:
 
 class QuranMatcher:
     def __init__(self) -> None:
+        t0 = time.perf_counter()
         corpus = get_corpus()
         self.verses: list[Passage] = [p for p in corpus.passages.values() if p.kind == "quran"]
         self.words = [arabic_words(p.data["text_ar"]) for p in self.verses]
         self.word_sk = [[skeleton(w) for w in ws] for ws in self.words]
         self.grams: dict[str, set[int]] = defaultdict(set)
+        self.shingles: set[tuple[str, ...]] = set()
         for i, sk in enumerate(self.word_sk):
             s = "".join(sk)
             for j in range(len(s) - GRAM + 1):
                 self.grams[s[j:j + GRAM]].add(i)
+            for j in range(len(sk) - SHINGLE + 1):
+                self.shingles.add(tuple(sk[j:j + SHINGLE]))
+        logging.getLogger("sabeeli.quran_match").info("verse matcher ready in %.1fs", time.perf_counter() - t0)
+
+    def verse_runs(self, text: str, min_words: int = 7) -> list[tuple[int, int]]:
+        """Character spans of text where at least min_words consecutive words follow the Mushaf word for
+        word (by letter skeleton), whatever the punctuation around them. Shorter runs are left alone:
+        five or six words are often a common phrase («إن الله على كل شيء قدير») rather than a quotation."""
+        words = [(m.start(), m.end(), skeleton(m.group(0))) for m in WORD_RE.finditer(text or "")
+                 if ARABIC_RE.search(m.group(0))]
+        words = [w for w in words if w[2]]
+        sk = [w[2] for w in words]
+        hit = [tuple(sk[j:j + SHINGLE]) in self.shingles for j in range(len(sk) - SHINGLE + 1)]
+        runs, j = [], 0
+        while j < len(hit):
+            if not hit[j]:
+                j += 1
+                continue
+            k = j
+            while k + 1 < len(hit) and hit[k + 1]:
+                k += 1
+            if k - j + SHINGLE >= min_words:
+                runs.append((words[j][0], words[k + SHINGLE - 1][1]))
+            j = k + 1
+        return runs
 
     def _candidates(self, skel_in: str, limit: int = 40) -> list[int]:
         """Verses sharing the most (rarity-weighted) 4-grams with the quote; ties broken by position."""

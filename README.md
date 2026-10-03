@@ -22,7 +22,7 @@ Requirements: Python 3.11 and Node 18 or newer.
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env            # add ANTHROPIC_API_KEY for AI answers; without it the app runs in sources-only mode
+cp .env.example .env            # add OPENROUTER_API_KEY (Gemma 4 31B) for AI answers; without it the app runs in sources-only mode
 cd frontend && npm install && npm run build && cd ..
 python -m uvicorn backend.app.main:app --port 8000
 ```
@@ -40,14 +40,14 @@ The corpus is already in `data/corpus/`, except «بينات»: its publisher re
 ## Tests
 
 ```bash
-python -m pytest tests             # 44 tests; no API key needed (sources-only mode + a mocked Claude API)
+python -m pytest tests             # 80 tests; no API key needed (sources-only mode + mocked OpenRouter and Claude APIs)
 ```
 
 ## How the code is organised
 
 ```
 backend/app/
-  core/               shared: config, database, Claude transport, Arabic normalisation
+  core/               shared: config, database, model transport (OpenRouter/Gemma or Claude), Arabic normalisation
   features/auth/      Eman: seeker sessions, da'i login and accounts, demo accounts
   features/rag/       Mushari: corpus, retrieval, verse matching, answer pipeline, prompts
   features/community/ Mushari: groups, moderation, meetups

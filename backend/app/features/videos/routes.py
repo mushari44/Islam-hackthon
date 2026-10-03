@@ -13,16 +13,20 @@ question from the Ask page (related.py). Suggestions only: answers never cite vi
 """
 from __future__ import annotations
 
+import logging
 import os
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from ..rag.public import semantic_encoder
+from ...core import timing
+from ..rag.public import semantic_encoder, semantic_status
 from . import islamhouse, related
 
 router = APIRouter(prefix="/api")
+tlog = logging.getLogger("sabeeli.timing")
 
 SOURCE = {"name": "IslamHouse", "url": "https://islamhouse.com/"}
 
@@ -74,14 +78,22 @@ def related_videos(body: RelatedIn):
     """Videos to suggest under an answer. A POST body, like /api/ask, so the question never reaches access logs;
     nothing is stored."""
     lang = body.lang if islamhouse.is_language(body.lang) else "ar"
+    requested = related.wants_video(body.q)        # the person asked for a video: the page says so if none fits
     idx, state = islamhouse.get_index(lang)
     if idx is None or not body.q.strip():
-        return {"state": state if idx is None else "ready", "items": [], "source": SOURCE}
+        return {"state": state if idx is None else "ready", "items": [], "requested": requested, "source": SOURCE}
     enc = semantic_encoder()
-    if related.pending(idx, enc):     # the videos of this language are being embedded (seconds on a GPU)
-        return {"state": "loading", "items": [], "source": SOURCE}
+    # E5 still loading (first seconds after start-up), or this language's videos being embedded: ask again
+    # shortly instead of answering with the stricter words-only match.
+    if (enc is None and semantic_status() == "loading") or related.pending(idx, enc):
+        return {"state": "loading", "items": [], "requested": requested, "source": SOURCE}
+    tm = timing.start()
+    t0 = time.perf_counter()
     items = related.related(idx, body.q, body.hints, body.k, encoder=enc)
-    return {"state": "ready", "items": items, "source": SOURCE}
+    total = time.perf_counter() - t0
+    tlog.info("related videos lang=%s found=%d | %s", lang, len(items), timing.summary(total))
+    return {"state": "ready", "items": items, "requested": requested, "source": SOURCE,
+            "timings": {"total_ms": round(total * 1000, 1), "steps_ms": dict(tm["steps"])}}
 
 
 def warm() -> None:

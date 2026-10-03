@@ -20,16 +20,20 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 import threading
+import time
 from collections import Counter
 
+from ...core import timing
 from ...core.textnorm import tokens
 
 log = logging.getLogger("sabeeli.videos")
 
 TITLE, TOPIC, DESC = 3.0, 2.0, 1.0
 DESC_CHARS = 300          # the start of a description says what the video is about; the rest is often boilerplate
-MIN_SCORE = 4.0           # roughly: one rare word in the title, or several common ones
+MIN_SCORE = 8.0           # a rare word in the title, or several in title and topic ("الرسول" alone suggested a
+                          # video on insults to the Prophet for «من هو النبي محمد؟»)
 # Which videos are close enough to suggest. Precision first: no video is better than an unrelated one.
 # Checked by hand on 30 questions against the real ar/en lists: a video on the question scores >= 0.85
 # in meaning AND shares most of the question's words in its title or topic; meaning alone let in
@@ -39,6 +43,17 @@ MEANING = 0.85
 COVERAGE = 0.45           # share of the question's words (idf-weighted; words no video uses count fully)
 # Without the encoder, words alone must be much stronger.
 WORDS_ONLY_SCORE, WORDS_ONLY_COVERAGE = 10.0, 0.6
+# When the person asks for a video ("I want a video showing me how to pray", «أريد مقطعاً عن الصلاة»), the
+# request words are left out of the match and the bars are a little lower: a close video is the answer.
+VIDEO_REQUEST = re.compile(
+    r"\b(videos?|clips?|watch|show(ing)? me|youtube|i want|i would like|i'?d like|can you|please|give me|find me)\b"
+    r"|(فيديو|فديو|مقطع|مقاطع|مقطعا|مقطعاً|مرئي|مرئيات|أشاهد|اشاهد|شاهد|أرني|ارني|وريني|أريد|اريد|ابغى|أبغى|يشرح|يوضح)",
+    re.I)
+REQUESTED_MEANING, REQUESTED_COVERAGE = 0.83, 0.3
+
+
+def wants_video(question: str) -> bool:
+    return bool(re.search(r"\b(videos?|clips?|watch|youtube)\b|فيديو|فديو|مقطع|مقاطع|مرئي|أشاهد|اشاهد", question or "", re.I))
 DENSE_WEIGHT = 0.7        # same split as RAG search
 RRF_C = 60
 
@@ -88,10 +103,11 @@ def _embed_in_background(st: _Stats, enc) -> None:
     st.embedding = True
 
     def run():
+        t0 = time.perf_counter()
         try:
             import numpy as np
             st.vectors = np.asarray(enc.embed_documents([video_text(it) for it in st.items]), dtype="float32")
-            log.info("videos: embedded %d videos for related suggestions", len(st.items))
+            log.info("videos: embedded %d videos for related suggestions in %.1fs", len(st.items), time.perf_counter() - t0)
         except Exception:  # noqa: BLE001 - words still work
             log.exception("videos: embedding for related suggestions failed")
         finally:
@@ -169,24 +185,31 @@ def _similarities(st: _Stats, enc, texts: list[str]):
     """E5 similarity of every video to the question (best over the question and its search phrases)."""
     import numpy as np
 
-    q = np.asarray([enc.embed_query(t) for t in texts if t.strip()], dtype="float32")
-    return (st.vectors @ q.T).max(axis=1) if len(q) else None
+    with timing.step("video_embed_query"):
+        q = np.asarray([enc.embed_query(t) for t in texts if t.strip()], dtype="float32")
+    with timing.step("video_similarity"):
+        return (st.vectors @ q.T).max(axis=1) if len(q) else None
 
 
 def related(idx, question: str, hints: list[str] | None = None, k: int = 3, encoder=None) -> list[dict]:
     """The k videos of this language most related to the question, best first; [] when none is close."""
     st = _stats(idx)
+    requested = wants_video(question)
+    if requested:      # match on the topic, not on "I want a video showing me"
+        question = re.sub(r"\s+", " ", VIDEO_REQUEST.sub(" ", question)).strip() or question
     q_toks = set(tokens(question))
     h_toks = set(tokens(" ".join(hints or []))) - q_toks
     if pending(idx, encoder):
         return []    # meaning is on the way: better nothing for a few seconds than word-only guesses
-    words = _word_ranking(st, q_toks, h_toks)
+    with timing.step("video_words"):
+        words = _word_ranking(st, q_toks, h_toks)
     sims = _similarities(st, encoder, [question, " ".join(hints or [])]) if encoder is not None else None
+    meaning_bar, coverage_bar = (REQUESTED_MEANING, REQUESTED_COVERAGE) if requested else (MEANING, COVERAGE)
     if sims is None:   # words only: keep strong matches
         words = [w for w in words if w[1] >= WORDS_ONLY_SCORE and w[2] >= WORDS_ONLY_COVERAGE]
         meaning: list[tuple[int, float]] = []
     else:              # both must agree: close in meaning, and most of the question's words in title/topic
-        words = [w for w in words if w[2] >= COVERAGE and sims[w[0]] >= MEANING]
+        words = [w for w in words if w[2] >= coverage_bar and sims[w[0]] >= meaning_bar]
         meaning = sorted(((i, float(sims[i])) for i, *_ in words), key=lambda x: -x[1])
     fused: dict[int, float] = {}
     for rank, (i, *_) in enumerate(words, start=1):

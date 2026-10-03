@@ -91,7 +91,7 @@ python -m uvicorn backend.app.main:app --port 8000      # API on :8000
 cd frontend && npm install && npm run dev               # UI on :5173 (proxies /api and /ws to :8000)
 ```
 
-Tests (no API key needed; they run in sources-only mode and mock Claude):
+Tests (no API key needed; they run in sources-only mode and mock the model API):
 
 ```bash
 python -m pytest tests/rag tests/community tests/videos   # Mushari
@@ -101,12 +101,12 @@ python -m pytest tests                         # everything, before any pull req
 
 Before opening a pull request, run the whole test suite and `npm run build` in `frontend/`.
 
-- **Don't run anything that spends API credits** (the full evaluation, bulk calls to Claude) without your developer's explicit OK.
+- **Don't run anything that spends API credits** (the full evaluation, bulk calls to the model) without your developer's explicit OK.
 - Never commit `.env`, API keys, the database, `data/raw/` or `HACKTHON/`.
 
 ## 5. Style
 
-- Python: type hints, short functions, docstrings that say why. Use the `core/claude.py` helpers for every Claude call, and keep prompts in the feature that uses them.
+- Python: type hints, short functions, docstrings that say why. Use `core/claude.py`'s `get_claude()` (Gemma through OpenRouter by default, or Claude) for every model call, and keep prompts in the feature that uses them.
 - React: function components and hooks, and no new dependencies without both people's agreement.
   - Every visible string goes through `t("key")`, with Arabic and English entries.
   - Use logical CSS properties (`margin-inline-start`, ...) so RTL and LTR both work.

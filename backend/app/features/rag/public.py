@@ -48,6 +48,12 @@ def answer_in_group(question: str, lang: str) -> dict:
     return ask(AskContext(question=question, ui_lang=lang, surface="group", max_words=120))
 
 
+def semantic_status() -> str:
+    """"loading" while the E5 encoder is still being loaded at start-up; otherwise on/off and why."""
+    from .embeddings import status
+    return status()
+
+
 def semantic_encoder():
     """The multilingual E5 encoder RAG search uses, or None when semantic search is off, not built or
     still loading. Other features (the videos page's related videos) embed their own text with it, so a
