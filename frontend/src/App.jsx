@@ -8,6 +8,7 @@ import { TalkPage } from "./features/calls/index.js";                  // Eman
 import { CommunityPage, GroupPage } from "./features/community/index.js"; // Mushari
 import { DaaiConsole } from "./features/daai/index.js";               // Eman
 import { AskPage } from "./features/rag/index.js";                      // Mushari
+import { VideosPage } from "./features/videos/index.js";               // Mushari
 import Home from "./pages/Home.jsx";
 import { About, More, NotFound, Privacy, Sources } from "./pages/Info.jsx";
 
@@ -16,6 +17,7 @@ const ROUTES = [
   { path: "/ask", nav: "ask", page: AskPage },
   { path: "/talk", nav: "talk", page: TalkPage },
   { path: "/community", nav: "community", page: CommunityPage },
+  { path: "/videos", nav: "videos", page: VideosPage },
   { path: "/groups/:id", nav: "community", page: GroupPage },
   { path: "/account", nav: "more", page: AccountPage },
   { path: "/daai", nav: "more", page: DaaiConsole },
@@ -30,6 +32,7 @@ const NAV = [
   { key: "ask", href: "#/ask", icon: "ask" },
   { key: "talk", href: "#/talk", icon: "talk" },
   { key: "community", href: "#/community", icon: "community" },
+  { key: "videos", href: "#/videos", icon: "play" },
 ];
 
 function useTheme() {

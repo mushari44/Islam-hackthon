@@ -81,4 +81,5 @@ def source_card(pid: str, lang: str = "ar"):
 
 @router.get("/corpus")
 def corpus_info():
-    return get_corpus().stats()
+    from .embeddings import status
+    return {**get_corpus().stats(), "semantic_search": status()}

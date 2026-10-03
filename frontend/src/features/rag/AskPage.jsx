@@ -6,6 +6,7 @@ import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, openSheet, toast } from "../../core/ui.jsx";
 import { startReferral } from "../calls/public.jsx";
+import { RelatedVideos } from "../videos/public.js";
 import { Answer, LevelBadge } from "./Answer.jsx";
 
 const STORE = "sabeeli.chat";
@@ -61,6 +62,7 @@ function Trace({ ans }) {
                 {r.via === "quote" ? <span className="badge badge-mint">{t("ask.via_quote")}</span>
                   : r.via === "glossary" ? <span className="badge">{t("ask.via_glossary")}</span>
                     : <span className="faint">{fmtNum(Math.round((r.coverage || 0) * 100))}%</span>}
+                {r.dense != null && <span className="faint">{" · "}{t("ask.via_meaning")} {fmtNum(Math.round(r.dense * 100))}%</span>}
               </li>
             ))}
           </ul>
@@ -88,8 +90,14 @@ function Feedback({ turnId }) {
   );
 }
 
-function BotMessage({ ans }) {
+// Related videos pass a strict check of their own, so they can help even when the sources fell short;
+// never for small talk or personal questions.
+const VIDEO_KINDS = new Set(["answer", "sources", "abstain"]);
+
+function BotMessage({ ans, question }) {
   const { t, lang } = useI18n();
+  const analysis = (ans.trace && ans.trace.analysis) || {};
+  const hints = [...(analysis.queries_ar || []), ...(analysis.queries_en || [])];
   return (
     <div className="msg msg-bot">
       <div className="msg-avatar" aria-hidden="true"><Icon name="sparkle" size={20} /></div>
@@ -101,6 +109,7 @@ function BotMessage({ ans }) {
           </div>
         )}
         <Answer answer={ans} />
+        {VIDEO_KINDS.has(ans.kind) && <RelatedVideos question={question} hints={hints} lang={ans.lang || lang} />}
         <div className="row spread answer-foot">
           <Feedback turnId={ans.turn_id} />
           <div className="row">
@@ -194,7 +203,8 @@ export default function AskPage() {
       <div className="ask-layout">
         <section className="ask-main">
           <div className="thread" aria-live="polite">
-            {chat.map((item, i) => (item.role === "user" ? <UserMessage key={i} item={item} /> : <BotMessage key={i} ans={item.answer} />))}
+            {chat.map((item, i) => (item.role === "user" ? <UserMessage key={i} item={item} />
+              : <BotMessage key={i} ans={item.answer} question={(chat[i - 1] && chat[i - 1].text) || ""} />))}
             {busy && (
               <div className="msg msg-bot pending">
                 <div className="msg-avatar"><Icon name="sparkle" size={20} /></div>

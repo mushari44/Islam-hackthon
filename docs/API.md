@@ -27,7 +27,7 @@ Other backend features use auth only through `backend/app/features/auth/public.p
 | POST | `/api/daai/login` | none | `{username, password}` | `{token, me: Profile}`. 401 on wrong credentials |
 | GET | `/api/daai/me` | daai | – | Profile |
 | POST | `/api/daai/availability` | daai | `{available: bool}` | Profile |
-| GET | `/api/health` | none | – | `{ok, ai: bool, model: string\|null, corpus: {quran_verses, hadiths, terms}}` |
+| GET | `/api/health` | none | – | `{ok, ai: bool, model: string\|null, corpus: {quran_verses, hadiths, terms, qa, bayyinat}}` |
 
 Every authenticated da'i request updates `last_seen`. That is what makes a da'i count as "online" for `/api/availability` (see Calls).
 
@@ -39,8 +39,8 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 |---|---|---|---|---|
 | POST | `/api/ask` | seeker | multipart: `question` (text; may be empty if `image` is sent), `lang` (`ar`, anything else means `en`; default `ar`), `image?` (JPEG/PNG/WebP/GIF, max 5 MB) | Answer. 400 `empty question`, 413 image too large, 415 unsupported image type |
 | POST | `/api/ask/{turn_id}/feedback` | seeker (owner of the turn) | `{helpful: bool, reason?: string ≤ 64}` | `{ok: true}`. 404 if the turn isn't yours |
-| GET | `/api/sources/{id}` | none | `id` = `q:2:256`, `h:2962`, `t:tawhid`; `?lang=ar\|en` (default `ar`) | Source card. 404 for an unknown id |
-| GET | `/api/corpus` | none | – | `{quran_verses, hadiths, terms}` |
+| GET | `/api/sources/{id}` | none | `id` = `q:2:256`, `h:2962`, `t:tawhid`, `qa:36065`, `b:12`; `?lang=ar\|en` (default `ar`) | Source card. 404 for an unknown id |
+| GET | `/api/corpus` | none | – | `{quran_verses, hadiths, terms, qa, bayyinat, semantic_search}` (`bayyinat` is 0 until the copy has run `scripts/ingest_bayyinat.py`; `semantic_search` is a status string such as `on (intfloat/multilingual-e5-large, cuda, dense 70% + BM25 30%)`, `loading` or `off`) |
 
 **Python interface (not HTTP).** Calls and Community import only from `features/rag/public.py`:
 `conversation_transcript(db, session_id)`, `last_question(db, session_id) -> (question, source_ids)`, `source_exists(id)`,
@@ -71,6 +71,19 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 | GET | `/api/daai/meetups` | daai | – | `[Meetup + attendees: [nickname]]` (meetups I host, in any status) |
 | POST | `/api/daai/meetups` | daai | `{title: 3–160, description?, lang, country?, city: 2–64, venue: 3–200, starts_at: ISO 8601 (no offset = UTC), duration_min: 15–480 (default 90), capacity: 2–500 (default 20), audience: all\|women\|men\|families, group_id?: int\|null, public_venue: true}` | Meetup. 400 if `public_venue` isn't true, the audience is bad, or the group isn't yours |
 | POST | `/api/daai/meetups/{mid}/cancel` | daai (host) | – | `{ok: true}` |
+
+## Videos — owner: Mushari
+
+`backend/app/features/videos/routes.py`, backed by `islamhouse.py`. Public (no auth). Data comes live from the IslamHouse API v3 (listed on page 9 of the scholarly package). Arabic and English are indexed in the background at startup; any other language is indexed on its first request (15–35 s), at most 3 languages at a time (a language waiting for its turn stays `loading`). After that everything is served from memory for 6 hours. Once the language list has loaded, a `lang` that isn't in it falls back to `ar`. If IslamHouse can't be reached, the state is `unavailable` and the server waits 60 s before trying again; the language list does the same and keeps serving its last good copy. The API key can be overridden with `SABEELI_ISLAMHOUSE_KEY`.
+
+| Method | Path | Auth | Body / params | Returns |
+|---|---|---|---|---|
+| GET | `/api/videos` | none | `lang` (an IslamHouse language code, e.g. `ar`, `en`, `ur`, `fr`, `zh`; default `ar`), `page` (default 1), `per_page` (1–48, default 12), `topic?` (a topic id from `topics`) | `{state, items: [Video], page, pages, total, topics: [{id, title, count}], source: {name, url}}`. `state` is `loading` while the index is built (the client polls every 2 s; `items` is empty), `ready`, or `unavailable` when IslamHouse can't be reached |
+| POST | `/api/videos/search` | none | JSON `{lang, q, topic?, page?, per_page?}` (`q` max 100 chars) | Same as `GET /api/videos`, filtered by the search words. A POST body so search words never reach access logs; searches are not stored |
+| POST | `/api/videos/related` | none | JSON `{lang, q, hints?: [string], k?}` (`q` max 2000 chars; up to 12 `hints` of 200 chars, the answer's search phrases; `k` 1-6, default 3) | `{state, items: [Video + match], source}`: up to `k` videos related to a question, used under answers on the Ask page. `state` is `loading` while the language's list is built or its videos are being embedded (the client polls). `match` is `{words, coverage, meaning}` (for debugging). A video is suggested only when it is close in meaning (E5 ≥ 0.85) **and** its title or topic carries most of the question's words; without E5, only strong word matches. Suggestions only: answers never cite videos. Nothing is stored |
+| GET | `/api/videos/languages` | none | – | `[{code, name, count}]`: every language with videos, native name, largest first (107 languages today). 503 `unavailable` |
+
+Search: every word must appear in the title, description, presenters or topic; title matches rank first, then the newest. Arabic text is compared through `core/textnorm.normalize_ar` (hamza, taa marbuta, diacritics) and a leading «ال» is ignored; other scripts are case- and accent-folded. IslamHouse's API has no search endpoint, so this runs on the cached index.
 
 ## Calls — owner: Eman
 
@@ -153,7 +166,7 @@ Call status values: `waiting` → `accepted` → `ended`, or `cancelled` / `expi
 }
 ```
 
-- `kind`: `answer` | `sources` | `abstain` | `clarify` | `greeting` | `thanks` | `off_topic` | `request_human` | `empty`.
+- `kind`: `answer` | `sources` | `abstain` | `refer` | `clarify` | `greeting` | `thanks` | `off_topic` | `request_human` | `empty`. `refer` is a personal (level D) question while the model is unavailable: a fixed message, the `fatwa` notice and `suggest_daai: true`, and no source cards.
 - `mode`: `ai` | `sources_only` (no model: the passages are shown with no generated text). `lang`: the language detected from the question, which can differ from the UI language. `level`: `A`–`D` (`C` = scholars differ, `D` = personal case or fatwa; both set `suggest_daai`).
 - `cards`: id → full source card (see below; shortened in the example). `sources`: every id used, in order of first use.
 - `quote_check`: `null`, or `status` = `exact` | `differs` | `ambiguous` | `not_found` (`matches` is `[]` for `not_found`, otherwise up to 3). `differences[].type` = `changed` | `missing` | `extra`.
@@ -161,7 +174,7 @@ Call status values: `waiting` → `accepted` → `ended`, or `cancelled` / `expi
 - `ocr`: `null`, or `{text, quran_segments: [string], description, legible: bool}` when a photo was read.
 - `trace`: for debugging and the "how was this answered" sheet only. Its fields change freely; other features must not rely on them.
 
-**Rendering rule:** segment `text` may contain `[[q:SURA:AYA]]`, `[[h:ID]]` and `[[t:key]]` markers. Render each marker as the card `cards[id]` (skip it if the card is missing), **never as text**. Scripture shown to the user only ever comes from cards. Each id in `cites` that isn't already shown as a card in that segment becomes a numbered citation button. Group bot messages carry the same structure in `payload`.
+**Rendering rule:** segment `text` may contain `[[q:SURA:AYA]]`, `[[h:ID]]`, `[[t:key]]`, `[[qa:ID]]` and `[[b:N]]` markers. Render each marker as the card `cards[id]` (skip it if the card is missing), **never as text**. Scripture shown to the user only ever comes from cards. Each id in `cites` that isn't already shown as a card in that segment becomes a numbered citation button. Group bot messages carry the same structure in `payload`.
 
 ### Source cards (`cards[id]`, `GET /api/sources/{id}`, `card_sources`)
 
@@ -176,7 +189,16 @@ Every card has `id, kind, title, url, source`. Text in the requested language fa
 
 {"id": "t:tawhid", "kind": "term", "title": "Term: …", "url": "", "source": "<glossary source>",
  "term_ar": "…", "term_en": "…", "rule_ar": "…"}
+
+{"id": "qa:36065", "kind": "qa", "title": "سؤال وجواب: …", "url": "https://islamenc.com/…", "source": "<encyclopedia>, icadb",
+ "question": "…", "answer": "Arabic text with [[q:S:A]] markers", "verses": {"q:7:54": {"sura", "aya", "text_ar", "translation_en", "sura_name_ar", "sura_name_en"}},
+ "categories": ["…"], "encyclopedia": "…"}
+
+{"id": "b:12", "kind": "bayyinat", "title": "بيّنات: …", "url": "https://dawa.center/file/7937", "source": "«بينات…»، المسألة 12 (ص …)",
+ "question": "…", "heading": "…", "short_answer": "… with markers", "answer": "… with markers", "verses": {}, "section": "…"}
 ```
+
+`qa` and `bayyinat` answers are Arabic only. Inside `question`, `short_answer` and `answer`, a `[[q:S:A]]` marker is drawn from `verses[id]`, never as text. `SourceCard` from `features/rag/public.js` already renders both kinds.
 
 ### ReferralCard (`/api/referral/*`, `DaaiCall.card`)
 
@@ -243,6 +265,19 @@ Limits after cleaning: `question`, `context` and `unclear` ≤ 600 chars, `langu
 `audience` is `all` | `women` | `men` | `families`, `status` is `open` | `cancelled`, and `my_rsvp` is `null` when you haven't booked.
 
 ---
+
+### Video
+
+```json
+{"id": 2844735, "title": "صفة الحج", "description": "تطبيق عملي يوضح كيفية الحج خطوة بخطوة.",
+ "thumbnail": "https://d1.islamhouse.com/data/ar/ih_videos/pic/pic_index/2844735.jpg", "authors": ["..."], "lang": "ar", "added": 1780566879,
+ "parts": [{"kind": "mp4", "url": "https://d1.islamhouse.com/data/ar/ih_videos/mp4/single/ar_Description_of_the_Hajj.mp4", "label": "صفة الحج", "size": "194.11 MB"}],
+ "page_url": "https://islamhouse.com/ar/videos/2844735/", "topic": "صفة الحج", "topic_id": 1234}
+```
+
+- `parts` has one entry per file (a series has several). `kind` is `mp4` (play with `<video>`) or `youtube` (an embed URL on `youtube-nocookie.com`). When an item has both, only the MP4s are kept; items with neither are dropped (IslamHouse lists some PDFs as videos).
+- `description` is plain text (HTML stripped) and may be empty. `thumbnail` may 404 on IslamHouse's side; the page then shows a placeholder.
+- `topic` is the most specific IslamHouse category the video was found under; `topic_id` is its top-level topic (an id from `topics`).
 
 ## Changing the contract
 

@@ -13,6 +13,8 @@ Shared (`backend/app/core/`, `frontend/src/core/`, `frontend/src/styles/`, `fron
 
 Work on a branch named `mushari/<topic>` and open a pull request into `main`.
 
+**Every task:** pull before you start and push when you finish. The exact commands are in `CLAUDE.md`, section 2a.
+
 Tick a box when the task is merged. Keep the order unless the team agrees otherwise.
 
 ## Before 4 October (setup, not judged)
@@ -20,6 +22,7 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] Put `ANTHROPIC_API_KEY` in `.env` (never commit it). Run the six sample questions on the Ask page, and check that the answers carry citations and that `/api/health` shows `"ai": true`.
 - [ ] If the API rejects the `fallbacks` parameter, set `SABEELI_FALLBACKS=0` in `.env` and note it in `docs/STARTING_POINT.md`.
 - [ ] Confirm the source usage terms with the reviewer: QuranEnc, HadeethEnc, and the glossary from the scholarly package. Record the answer in `THIRD_PARTY.md`.
+- [ ] Ask the reviewer to confirm At-Tafsir Al-Muyassar. Page 9 lists QuranEnc with its tafsirs, while the tafsir rule on page 3 names early sources or dorar.net/tafseer. If the reviewer says no, switch the tafsir to Dorar.
 - [ ] Ask the organisers for the scholarly appendix and the exact content-level wording, and update `LEVELS` in `features/rag/assistant.py` if it differs.
 
 ## Day 1: 4 October (content and answers)
@@ -72,8 +75,30 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] Add a short `docs/SOURCES.md` section: how each source is used and how a reviewer can verify an answer (`كيف وصلتُ للإجابة؟`).
 - [ ] With Eman: deploy, record the demo video (2 minutes or less), make the repo public, submit before **23:59 on 6 October (Riyadh time)**.
 
+## Videos (IslamHouse), added 3 October
+
+- [x] «مرئيات» section: live IslamHouse API v3, 107 video languages chosen separately from the interface language, topics, Arabic-aware search, a player that streams from IslamHouse with a link back. `features/videos/`, `tests/videos/`.
+- [ ] Ask the reviewer to confirm that showing IslamHouse videos this way is allowed (no explicit embedding licence was found; see `THIRD_PARTY.md`). Record the answer there.
+- [ ] Topic names that IslamHouse hasn't translated fall back to English; consider hiding topics with very few videos.
+- [ ] Consider a "related videos" block under an answer on the Ask page, matched by topic. Show only IslamHouse's own titles; never generate text about a video.
+- [ ] Many IslamHouse thumbnails return 404; tell IslamHouse if a contact is available.
+
+- [x] Related videos under each answer (`/api/videos/related`, `features/videos/related.py`): E5 meaning plus title/topic words over the IslamHouse list in the answer's language. Thresholds (0.85 / 0.815) were set by hand on 12 questions; check them with the evaluation set.
+- [x] A visible list of the sources each answer used, under the answer (replaces the collapsed panel).
+- [x] Only related text and videos are shown: precision-first bars in `pipeline.py` (SHOW_*) and `videos/related.py`, checked with `eval/display_audit.py` on 30 questions. Also fixed: «؟» and «،» stuck to the word before them in search tokens (`core/textnorm.py`, shared), and questions were sometimes checked as misquoted verses.
+- [ ] Recall without the model is now low for English and for some Arabic questions (they say "not found"). With the API key, Claude's Arabic/English search phrases should bring most back: re-run `eval/display_audit.py` then.
+
 ## Ideas if time allows
 
-- [ ] Add «بينات: أسئلة وأجوبة عن الإسلام» (dawa.center) once its usage terms are confirmed: ingest it into `data/corpus/` with its own passage kind.
+- [x] Add «بينات: أسئلة وأجوبة عن الإسلام» (dawa.center): `scripts/ingest_bayyinat.py`, passage kind `bayyinat` (built locally, git-ignored).
+- [x] Add icadb's two Q&A encyclopedias (`qa.jsonl`, 543 items).
+- [ ] Ask the reviewer whether the extracted Bayyinat text may be committed to the public repo (rights reserved). Until then it stays git-ignored.
+- [ ] English: icadb's Q&A cards have no translations. icadb's books (e.g. «الإسلام دين الفطرة والعقل والسعادة», «رسالة موجزة إلى ملحد», «من خلق الكون؟») do, in many languages: a candidate source for English answers.
 - [ ] Add Jamhara dictionary terms to `data/corpus/glossary.json`.
-- [ ] Dense embeddings next to BM25 (only if allowed and documented in `THIRD_PARTY.md`).
+- [x] Dense embeddings next to BM25: multilingual E5-large + LangChain (`features/rag/embeddings.py`), documented in `THIRD_PARTY.md`.
+- [ ] Use the evaluation set to compare BM25 alone (`SABEELI_EMBEDDINGS=0`) with the hybrid, and tune the fusion weights and the abstain threshold on the result.
+- [x] Glossary matching took «سنة» (year) for the term «السنة»: the bare alias is removed (the term still matches «السنة»).
+- [x] Level D without the model showed raw hadiths next to a personal question: now only the notice and the referral.
+- [x] The same hadith under two HadeethEnc ids was shown twice: deduplicated by text at retrieval.
+- [x] The model saw only the first 4,000 characters of a long Q&A/Bayyinat answer: it now gets the opening plus the lines matching the question.
+- [ ] Rebuild the vector index after the glossary change (`python scripts/build_embeddings.py`); not urgent, terms are 10 of 10,626 passages.

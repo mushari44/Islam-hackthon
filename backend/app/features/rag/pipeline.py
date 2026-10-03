@@ -3,7 +3,8 @@
 Safety properties enforced here, not left to the prompt:
   * Scripture shown to the user is rendered from the corpus by id ([[q:..]] / [[h:..]]
     markers); Arabic verse text the model writes itself is swapped for the marker or removed.
-  * Markers may only point at passages that were retrieved for this question.
+  * Markers may only point at passages that were retrieved for this question (or at the
+    Mushaf verses quoted inside a retrieved Q&A answer).
   * Personal-fatwa questions (level D) always carry the referral notice.
   * Without the model (no key, outage, refusal) the app still answers in
     sources-only mode: the closest approved passages, with no generated text.
@@ -18,20 +19,22 @@ from dataclasses import dataclass, field
 
 from ...core.claude import LLMUnavailable, get_claude
 from ...core.config import settings
-from ...core.textnorm import has_arabic, normalize_ar, tokens
-from . import assistant
+from ...core.textnorm import has_arabic, normalize_ar, skeleton, tokens
+from . import assistant, embeddings
 from .assistant import AnswerResult
-from .corpus import Passage, get_corpus
+from .corpus import ANSWER_KINDS, Passage, get_corpus
 from .quran_match import get_matcher, looks_like_quote
 
 log = logging.getLogger("sabeeli.pipeline")
 
-MARKER_RE = re.compile(r"\[\[(q:\d{1,3}:\d{1,3}|h:\d+|t:[a-z_]+)\]\]")
+MARKER_RE = re.compile(r"\[\[(q:\d{1,3}:\d{1,3}|h:\d+|t:[a-z_]+|qa:\d+|b:\d+)\]\]")
 QURAN_BRACKETS_RE = re.compile(r"﴿([^﴾]{3,600})﴾")
 QUOTE_RE = re.compile(r"[«\"“]([^»\"”]{8,600})[»\"”]")
 HARAKAT_RE = re.compile(r"[\u064B-\u0652]")
 
 MAX_QUESTION_CHARS = 2000
+# A question mark, or a word that only starts questions (not «ما»/«من», which also start verses).
+INTERROGATIVE_RE = re.compile(r"[؟?]|^\s*(هل|لماذا|كيف|متى|أين|اين|ماذا|ليش|ليه|وش|شو|ايش|إيش)\b")
 
 TEXT = {
     "greeting": {
@@ -54,6 +57,10 @@ TEXT = {
     "sources_only": {
         "ar": "هذه أقرب النصوص إلى سؤالك من المصادر المعتمدة. الشرح المولّد بالذكاء الاصطناعي غير متاح الآن، فأعرض النصوص كما هي من مصادرها.",
         "en": "These are the passages from the approved sources closest to your question. AI explanations are not available right now, so the texts are shown exactly as their sources publish them.",
+    },
+    "personal_no_model": {
+        "ar": "هذا سؤال عن حالتك الشخصية، والشرح المولّد بالذكاء الاصطناعي غير متاح الآن، فلن أعرض عليك نصوصاً قد تُفهم على أنها حكم في حالتك.",
+        "en": "This is a question about your own situation, and AI explanations aren't available right now, so I won't show texts that could be read as a ruling on it.",
     },
     "fatwa": {
         "ar": "سؤالك يتعلق بحالة شخصية، والحكم فيها فتوى يرجع فيها إلى عالم مؤهل أو جهة الإفتاء الرسمية في بلدك. ما سبق معلومات عامة فقط، ويمكنك التحدث مع داعية ليساعدك في معرفة من تسأل.",
@@ -181,11 +188,18 @@ def _quote_note(qc: dict) -> str:
     return "The user's quote was not found in the Mushaf; do not treat it as a verse."
 
 
+def _hadith_sig(p: Passage) -> str:
+    """The Prophet's words (the «...» part) as bare letters: the same hadith under two ids, with a
+    different chain or punctuation around it, gets the same signature."""
+    matn = re.search(r"«([^»]{10,})", p.data["text_ar"])
+    return re.sub(r"[^ء-ي]", "", skeleton(matn.group(1) if matn else p.data["text_ar"]))[:80]
+
+
 def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[Passage], list[dict]]:
     corpus = get_corpus()
     queries = [analysis.get("standalone_question") or question, question]
     queries += analysis.get("queries_ar", [])[:4] + analysis.get("queries_en", [])[:4] + analysis.get("terms", [])[:4]
-    raw = corpus.index.search(queries, k=30)
+    raw, dense, retriever = embeddings.search(queries, k=30)  # BM25 + E5 (fused), or BM25 alone
     q_tokens = set(tokens(question + " " + (analysis.get("standalone_question") or "")))
     max_idf = math.log(1 + len(corpus.index.ids))
     chosen: list[Passage] = []
@@ -203,12 +217,19 @@ def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[
             chosen.append(p)
             seen.add(p.id)
             trace.append({"id": p.id, "score": None, "coverage": None, "via": "glossary"})
-    per_kind = {"quran": 0, "hadith": 0, "term": 0}
-    limit = {"quran": 5, "hadith": 4, "term": 2}
+    # HadeethEnc lists some hadiths twice (e.g. «بني الإسلام على خمس»)
+    seen_text = {_hadith_sig(p) for p in chosen if p.kind == "hadith"}
+    per_kind = {"quran": 0, "hadith": 0, "term": 0, "qa": 0, "bayyinat": 0}
+    limit = {"quran": 5, "hadith": 4, "term": 2, "qa": 2, "bayyinat": 2}
     for pid, score, _ in raw:
         p = corpus.get(pid)
         if not p or pid in seen or per_kind[p.kind] >= limit[p.kind]:
             continue
+        if p.kind == "hadith":
+            sig = _hadith_sig(p)
+            if sig in seen_text:
+                continue
+            seen_text.add(sig)
         doc_terms = set(tokens(p.search_text()))
         idf = corpus.index.idf
         total = sum(idf.get(tk, max_idf) for tk in q_tokens) or 1.0
@@ -216,15 +237,16 @@ def retrieve(analysis: dict, question: str, quote_ids: list[str]) -> tuple[list[
         chosen.append(p)
         seen.add(pid)
         per_kind[p.kind] += 1
-        trace.append({"id": pid, "score": round(score, 2), "coverage": round(cov, 2), "via": "search"})
+        trace.append({"id": pid, "score": round(score, 4 if retriever == "hybrid" else 2), "coverage": round(cov, 2),
+                      "dense": dense.get(pid), "via": retriever})
         if len(chosen) >= settings.top_k + len(quote_ids):
             break
     return chosen, trace
 
 
-def _search_results(passages: list[Passage], lang: str) -> list[dict]:
+def _search_results(passages: list[Passage], lang: str, focus: set[str] | None = None) -> list[dict]:
     return [{"id": p.id, "source": p.url(lang) or p.id, "title": f"{p.id} | {p.title(lang)}",
-             "blocks": p.context_blocks(lang)} for p in passages]
+             "blocks": p.context_blocks(lang, focus=focus)} for p in passages]
 
 
 def _guard_scripture(text: str, allowed: set[str], trace: dict) -> str:
@@ -256,7 +278,7 @@ def _guard_scripture(text: str, allowed: set[str], trace: dict) -> str:
         corpus = get_corpus()
         for pid in allowed:
             p = corpus.get(pid)
-            if p and norm in normalize_ar(" ".join(p.context_blocks("ar") + p.context_blocks("en"))):
+            if p and norm in normalize_ar(" ".join(p.context_blocks("ar", full=True) + p.context_blocks("en", full=True))):
                 return m.group(0)
         trace.setdefault("unverified_quotes", []).append(span[:120])
         return span  # keep the words, drop the quotation marks: it is not a verified quote
@@ -284,8 +306,57 @@ def _clean_markers(text: str, allowed: set[str], trace: dict) -> str:
     return MARKER_RE.sub(repl, text)
 
 
-def _sources_only(passages: list[Passage], lang: str, show: int = 3) -> list[dict]:
-    picks = [p for p in passages if p.kind == "term"][:1] + [p for p in passages if p.kind in ("quran", "hadith")][:show]
+# What may be shown without the model. Precision first: no text is better than an unrelated one.
+# E5 similarities, checked by hand on 30 questions (docs/RAG-PLAN.md): an approved answer to the same
+# question scores >= 0.86, a verse or hadith on the point >= 0.85, while loosely related or unrelated
+# passages crowd 0.80-0.85. A word match alone is not enough (e.g. «دليل/وجود» matched an inheritance hadith).
+SHOW_ANSWER = 0.86       # an approved Q&A or Bayyinat answer
+SHOW_EXTRA = 0.89        # another passage next to that answer (rarely: the answer usually says it all;
+                         # at 0.88 «لا يقبل الله صلاة حائض إلا بخمار» joined a question about prayer during menses)
+SHOW_PASSAGE = 0.85      # a verse or hadith when no approved answer is close
+SHOW_WORDS = 0.65        # BM25-only installs (no E5): share of the question's words a passage must contain
+# A glossary card is shown only when the question asks what a term means, not whenever it names one.
+DEFINITION_RE = re.compile(r"(ما|ماذا)\s+(معنى|معني|تعريف|يعني|هو|هي)\b|^\s*(تعريف|معنى|معني)\b"
+                           r"|\bwhat\s+(is|are|does)\b|\bmeaning\s+of\b|\bdefine\b", re.I)
+
+
+def _asks_meaning(question: str, term: Passage) -> bool:
+    """«ما معنى التوحيد؟» or "What is Tawhid?": the question is about the term itself. "What are the five
+    pillars of Islam?" names a term but asks about something else."""
+    m = DEFINITION_RE.search(question)
+    if not m:
+        return False
+    rest = set(tokens(DEFINITION_RE.sub(" ", question)))
+    forms = set(tokens(" ".join([term.data["ar"], term.data["en"], *term.data.get("aliases", [])])))
+    return bool(rest) and rest <= forms | {"mean", "meaning", "islam", "اسلام", "دين"} and bool(rest & forms)
+
+
+def _sources_only(passages: list[Passage], lang: str, rtrace: list[dict], question: str = "",
+                  show: int = 3) -> list[dict]:
+    """The passages that answer the question, shown as they are; [] when none is close enough.
+
+    An approved answer (Q&A or Bayyinat), written for exactly this kind of question, leads and usually
+    stands alone; other verses and hadiths join it only when they are very close in meaning.
+    """
+    coverage = {r["id"]: r["coverage"] or 0 for r in rtrace}
+    dense = {r["id"]: r["dense"] for r in rtrace if r.get("dense") is not None}
+    terms = [p for p in passages if p.kind == "term" and _asks_meaning(question, p)][:1]
+    others = [p for p in passages if p.kind != "term"]
+    if dense:   # meaning decides
+        answers = sorted((p for p in others if p.kind in ANSWER_KINDS and dense.get(p.id, 0) >= SHOW_ANSWER),
+                         key=lambda p: -dense[p.id])
+        if answers:
+            picks = answers[:1] + [p for p in others if p.kind in ("quran", "hadith")
+                                   and dense.get(p.id, 0) >= SHOW_EXTRA][:2]
+        else:
+            picks = sorted((p for p in others if p.kind in ("quran", "hadith") and dense.get(p.id, 0) >= SHOW_PASSAGE),
+                           key=lambda p: -dense[p.id])[:show]
+    else:       # words only: they must cover most of the question
+        answers = sorted((p for p in others if p.kind in ANSWER_KINDS and coverage.get(p.id, 0) >= SHOW_WORDS),
+                         key=lambda p: -coverage[p.id])
+        picks = answers[:1] + [p for p in others if p.kind in ("quran", "hadith")
+                               and coverage.get(p.id, 0) >= SHOW_WORDS][:show]
+    picks = terms + picks
     segs = []
     for p in picks:
         segs.append({"text": f"\n[[{p.id}]]\n", "cites": [p.id]})
@@ -368,8 +439,8 @@ def ask(ctx: AskContext) -> dict:
         quote_texts.append(ocr["text"])
     if analysis.get("quoted_text"):
         quote_texts.append(analysis["quoted_text"])
-    if not quote_texts and has_arabic(question) and looks_like_quote(question):
-        quote_texts.append(question)
+    if not quote_texts and has_arabic(question) and looks_like_quote(question) and not INTERROGATIVE_RE.search(question):
+        quote_texts.append(question)   # «لماذا خلق الله الشر؟» is a question, not a misquoted verse
     qc = _quote_check(quote_texts)
     if qc and qc["status"] == "not_found" and qc["input"] == question:
         qc = None  # a plain Arabic question, not a quote
@@ -384,9 +455,12 @@ def ask(ctx: AskContext) -> dict:
     passages, rtrace = retrieve(analysis, question, quote_ids)
     timings["retrieve"] = round(time.perf_counter() - t2, 3)
     trace["retrieval"] = rtrace
-    allowed = {p.id for p in passages}
-    best_cov = max([r["coverage"] or 0 for r in rtrace if r["via"] == "search"] or [0])
+    allowed = {p.id for p in passages} | {vid for p in passages for vid in p.verse_refs()}
+    best_cov = max([r["coverage"] or 0 for r in rtrace if r["via"] in ("bm25", "hybrid")] or [0])
     trace["best_coverage"] = round(best_cov, 2)
+    best_dense = max([r.get("dense") or 0 for r in rtrace] or [0])
+    on_topic = best_dense >= embeddings.DENSE_STRONG  # a passage close in meaning, even with other words
+    trace["best_dense"] = round(best_dense, 3) if best_dense else None
 
     # 6. Answer
     t3 = time.perf_counter()
@@ -394,6 +468,9 @@ def ask(ctx: AskContext) -> dict:
     answer: AnswerResult | None = None
     kind = "answer"
     if llm and mode == "ai" and passages:
+        # the words of the question and its search phrases pick which parts of a long answer the model reads
+        focus = set(tokens(" ".join([question, analysis.get("standalone_question") or ""]
+                                    + analysis.get("queries_ar", []) + analysis.get("queries_en", []))))
         notes = []
         if qc:
             notes.append(_quote_note(qc))
@@ -403,11 +480,11 @@ def ask(ctx: AskContext) -> dict:
             notes.append("The user asks for evidence. Cite only evidence present in the results; if none fits, say so.")
         if level == "D":
             notes.append("Personal case: give general information only, no ruling, and recommend asking a qualified scholar.")
-        if best_cov < 0.35 and not quote_ids:
+        if best_cov < 0.35 and not quote_ids and not on_topic:
             notes.append("Retrieval confidence is low: the results may not answer the question. Abstain unless they clearly do.")
         try:
             answer = assistant.answer(llm, analysis.get("standalone_question") or question,
-                                      _search_results(passages, lang), level, lang, ctx.history, notes, ctx.max_words)
+                                      _search_results(passages, lang, focus), level, lang, ctx.history, notes, ctx.max_words)
         except LLMUnavailable as exc:
             log.warning("answer failed: %s", exc)
             mode = "sources_only"
@@ -426,9 +503,22 @@ def ask(ctx: AskContext) -> dict:
             segments.append({"text": text, "cites": cites})
         trace["model"] = answer.model
         trace["usage"] = answer.usage
+        if settings.strict_grounding:
+            # Only the approved package may speak: drop any model sentence that cites no passage
+            # (short connecting phrases such as "and" or "in short" are kept).
+            kept, removed = [], []
+            for s in segments:
+                words = len(MARKER_RE.sub("", s["text"]).split())
+                if not s["cites"] and not MARKER_RE.search(s["text"]) and words > settings.max_uncited_words:
+                    removed.append(s["text"].strip()[:200])
+                else:
+                    kept.append(s)
+            segments = kept
+            trace["removed_uncited"] = removed
         cited_any = any(s["cites"] for s in segments) or any(MARKER_RE.search(s["text"]) for s in segments)
         if not cited_any:
             kind = "abstain"
+            segments = [{"text": t("abstain", lang), "cites": []}]  # fixed text, nothing generated
         uncited = [s["text"].strip()[:140] for s in segments
                    if not s["cites"] and len(MARKER_RE.sub("", s["text"]).split()) >= 10]
         words_total = sum(len(MARKER_RE.sub("", s["text"]).split()) for s in segments) or 1
@@ -437,14 +527,22 @@ def ask(ctx: AskContext) -> dict:
         trace["cited_share"] = round(words_cited / words_total, 2)
     else:
         has_term = any(p.kind == "term" for p in passages)
-        if not passages or (best_cov < 0.3 and not quote_ids and not has_term):
+        if level == "D" and not quote_ids:
+            # Raw passages next to a personal question read like a ruling on it (e.g. a hadith about
+            # a slave marrying without his masters' leave, shown for «أتزوج دون علم أهلي»).
+            kind = "refer"
+            segments = [{"text": t("personal_no_model", lang), "cites": []}]
+        elif not passages or (best_cov < 0.3 and not quote_ids and not has_term and not on_topic):
             kind = "abstain"
             segments = [{"text": t("abstain", lang), "cites": []}]
         elif qc and qc["status"] in ("exact", "differs", "ambiguous"):
             kind = "sources"  # the quote check below shows the matching verse(s)
         else:
-            segments = _sources_only(passages, lang)
+            segments = _sources_only(passages, lang, rtrace, question)
             kind = "sources"
+            if not segments:   # nothing close enough to show: say so rather than show something unrelated
+                kind = "abstain"
+                segments = [{"text": t("abstain", lang), "cites": []}]
 
     # Quote-check verdict leads the answer when the user sent a verse.
     if qc:
@@ -464,7 +562,7 @@ def ask(ctx: AskContext) -> dict:
         notices.append({"type": "fatwa", "text": t("fatwa", lang)})
     elif level == "C":
         notices.append({"type": "disagreement", "text": t("disagreement", lang)})
-    if mode == "sources_only" and kind != "abstain":
+    if mode == "sources_only" and kind not in ("abstain", "refer"):
         notices.append({"type": "mode", "text": t("sources_only", lang)})
     if kind == "abstain" and segments and not segments[0]["text"].strip():
         segments = [{"text": t("abstain", lang), "cites": []}]
@@ -477,7 +575,7 @@ def ask(ctx: AskContext) -> dict:
     cards = {pid: corpus.get(pid).card(lang) for pid in used_ids if corpus.get(pid)}
     timings["total"] = round(time.perf_counter() - t0, 2)
     return {**base, "mode": mode, "kind": kind, "segments": segments, "cards": cards, "sources": used_ids,
-            "suggest_daai": level in ("C", "D") or kind == "abstain" or intent == "request_human"}
+            "suggest_daai": level in ("C", "D") or kind in ("abstain", "refer") or intent == "request_human"}
 
 
 def plain_text(answer: dict) -> str:

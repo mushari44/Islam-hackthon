@@ -21,11 +21,32 @@ def test_personal_case_gets_fatwa_notice(client, seeker):
     assert d["level"] == "D"
     assert any(n["type"] == "fatwa" for n in d["notices"])
     assert d["suggest_daai"] is True
+    # without the model, no raw texts next to a personal question: they would read like a ruling
+    assert d["kind"] == "refer" and d["cards"] == {} and not any(s["cites"] for s in d["segments"])
 
 
 def test_greeting(client, seeker):
     d = ask(client, seeker, "السلام عليكم")
     assert d["kind"] == "greeting"
+
+
+def test_same_hadith_under_two_ids_shown_once(client, seeker):
+    d = ask(client, seeker, "ما أركان الإسلام؟")
+    assert not {"h:65000", "h:66512"} <= set(d["sources"])          # «بني الإسلام على خمس» is listed twice
+    assert not {"h:65000", "h:66512"} <= {r["id"] for r in d["trace"]["retrieval"]}
+    from backend.app.features.rag import pipeline
+    from backend.app.features.rag.corpus import get_corpus
+    corpus = get_corpus()
+    picked, _ = pipeline.retrieve({"standalone_question": "بني الإسلام على خمس"}, "بني الإسلام على خمس",
+                                  ["h:65000"])
+    assert "h:66512" not in [p.id for p in picked] or "h:65000" not in [p.id for p in picked]
+
+
+def test_year_is_not_the_sunnah_term():
+    from backend.app.features.rag.corpus import get_corpus
+    corpus = get_corpus()
+    assert not corpus.find_terms("عمري ١٤ سنة وأخاف من أهلي")
+    assert [p.id for p in corpus.find_terms("ما هي السنة النبوية؟")] == ["t:sunnah"]
 
 
 def test_glossary_term_found(client, seeker):
@@ -53,3 +74,11 @@ def test_feedback_and_ownership(client, seeker):
 def test_source_lookup(client):
     card = client.get("/api/sources/q:12:108?lang=ar").json()
     assert card["kind"] == "quran" and card["aya"] == 108
+
+
+def test_english_link_only_for_translated_hadiths():
+    """HadeethEnc has no English page for untranslated hadiths, so the link must fall back to Arabic."""
+    from backend.app.features.rag.corpus import get_corpus
+    for p in get_corpus().passages.values():
+        if p.kind == "hadith" and not p.data["text_en"]:
+            assert p.url("en") == p.data["url_ar"]

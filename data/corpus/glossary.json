@@ -11,7 +11,7 @@
     {"key": "wahy", "ar": "الوحي", "en": "Revelation", "aliases": ["وحي", "revelation", "wahy"], "rule_ar": "يشرح بوصفه ما أوحاه الله إلى أنبيائه، مع تجنب استعمالات فضفاضة قد توهم الإلهام الشخصي."},
     {"key": "sharia", "ar": "الشريعة", "en": "Sharia / Islamic law and guidance", "aliases": ["شريعة", "الشريعه", "sharia", "shariah", "islamic law"], "rule_ar": "يشرح بحسب السياق، ولا يختزل في العقوبات أو القانون الجنائي."},
     {"key": "hadith", "ar": "الحديث", "en": "Hadith", "aliases": ["حديث", "hadith", "hadeeth", "ahadith"], "rule_ar": "ما نُقل عن النبي ﷺ من قول أو فعل أو تقرير ونحو ذلك، مع بيان درجة الثبوت عند الاستدلال."},
-    {"key": "sunnah", "ar": "السنة", "en": "Sunnah", "aliases": ["سنة", "السنه", "sunnah", "sunna"], "rule_ar": "هدي النبي ﷺ وطريقته، ويحدد المقصود بحسب السياق العلمي."},
+    {"key": "sunnah", "ar": "السنة", "en": "Sunnah", "aliases": ["السنه", "sunnah", "sunna"], "rule_ar": "هدي النبي ﷺ وطريقته، ويحدد المقصود بحسب السياق العلمي."},
     {"key": "fatwa", "ar": "الفتوى", "en": "Fatwa", "aliases": ["فتوى", "فتوي", "fatwa", "fatwas", "fatawa"], "rule_ar": "جواب شرعي يصدره مؤهل في واقعة أو سؤال، ولا يساوى بالمعلومة العامة."},
     {"key": "dawah", "ar": "الدعوة", "en": "Da‘wah / Invitation to Islam", "aliases": ["دعوة", "الدعوه", "dawah", "da'wah", "dawa"], "rule_ar": "التعريف بالإسلام والدعوة إليه بالحكمة، ويختار المقابل بحسب السياق والجمهور."}
   ]
