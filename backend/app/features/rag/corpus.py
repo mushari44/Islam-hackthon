@@ -74,8 +74,12 @@ class Passage:
         return glossary_source(lang)
 
     # ---- model context --------------------------------------------------
-    def context_blocks(self, lang: str) -> list[str]:
-        """Text blocks given to Claude as one search result (each block is citable)."""
+    def context_blocks(self, lang: str, focus: set[str] | None = None, full: bool = False) -> list[str]:
+        """Text blocks given to Claude as one search result (each block is citable).
+
+        focus: search tokens of the question; a long Q&A or Bayyinat answer then keeps the lines that
+        match them best instead of only its beginning. full: every line, no length budget.
+        """
         d = self.data
         if self.kind == "quran":
             blocks = [f"[Quran {d['sura']}:{d['aya']}] Reference Arabic text (display only, do not reproduce): {d['text_ar']}",
@@ -92,31 +96,50 @@ class Passage:
                     f"Explanation: {d['explanation_en'] or d['explanation_ar']}",
                     "Lessons: " + " ".join(d.get("hints_en") or d.get("hints_ar") or [])]
         if self.kind == "qa":
-            return self._answer_blocks([f"[Q&A {self.id}, {d['enc_en']}] السؤال: {d['question']}"], d["answer"])
+            return self._answer_blocks([f"[Q&A {self.id}, {d['enc_en']}] السؤال: {d['question']}"], d["answer"],
+                                       focus, full)
         if self.kind == "bayyinat":
             head = [f"[Bayyinat {self.id}] المسألة: {d['title']}", f"السؤال: {d['question']}"]
             if d.get("similar"):
                 head.append("عبارات مشابهة للسؤال: " + " / ".join(d["similar"]))
-            return self._answer_blocks(head, "مختصر الإجابة:\n" + d["short_answer"] + "\nالجواب التفصيلي:\n" + d["answer"])
+            head += ["مختصر الإجابة:"] + [x.strip() for x in d["short_answer"].split("\n") if x.strip()]
+            return self._answer_blocks(head, "الجواب التفصيلي:\n" + d["answer"], focus, full)
         return [f"Approved term: {d['ar']} = {d['en']}. Usage rule: {d['rule_ar']}"]
 
     @staticmethod
-    def _answer_blocks(head: list[str], answer: str) -> list[str]:
-        """The question, then the answer line by line (each line citable), cut at QA_CONTEXT_CHARS.
+    def _answer_blocks(head: list[str], answer: str, focus: set[str] | None = None, full: bool = False) -> list[str]:
+        """The question, then the answer line by line (each line citable), within QA_CONTEXT_CHARS.
 
+        A long answer keeps its opening lines (where the answer is usually stated), then the lines
+        that share the most words with the question, in their original order; "(…)" marks a gap.
         Verses inside the answer are already [[q:..]] markers pointing at the Mushaf, so the model
         can show them the same way it shows any verse.
         """
-        blocks = list(head)
+        lines = [x.strip() for x in answer.split("\n") if x.strip()]
+        if full or sum(len(x) for x in lines) <= QA_CONTEXT_CHARS:
+            return list(head) + lines
+        keep: set[int] = set()
         used = 0
-        for para in (x.strip() for x in answer.split("\n")):
-            if not para:
-                continue
-            if used + len(para) > QA_CONTEXT_CHARS:
+        for i in range(min(3, len(lines))):  # the opening lines
+            if used + len(lines[i]) <= QA_CONTEXT_CHARS:
+                keep.add(i)
+                used += len(lines[i])
+        if focus:
+            ranked = sorted(range(len(lines)), key=lambda i: (-len(focus & set(tokens(lines[i]))), i))
+        else:
+            ranked = list(range(len(lines)))
+        for i in ranked:
+            if i not in keep and used + len(lines[i]) <= QA_CONTEXT_CHARS:
+                keep.add(i)
+                used += len(lines[i])
+        blocks, last = list(head), -1
+        for i in sorted(keep):
+            if i != last + 1:
                 blocks.append("(…)")
-                break
-            blocks.append(para)
-            used += len(para)
+            blocks.append(lines[i])
+            last = i
+        if last != len(lines) - 1:
+            blocks.append("(…)")
         return blocks
 
     def verse_refs(self) -> list[str]:

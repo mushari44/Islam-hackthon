@@ -92,4 +92,8 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 - [ ] Add Jamhara dictionary terms to `data/corpus/glossary.json`.
 - [x] Dense embeddings next to BM25: multilingual E5-large + LangChain (`features/rag/embeddings.py`), documented in `THIRD_PARTY.md`.
 - [ ] Use the evaluation set to compare BM25 alone (`SABEELI_EMBEDDINGS=0`) with the hybrid, and tune the fusion weights and the abstain threshold on the result.
-- [ ] Glossary matching takes «سنة» (year) for the term «السنة» (e.g. «عمري ١٤ سنة» shows the Sunnah term card): match terms only with the article or in a religious context.
+- [x] Glossary matching took «سنة» (year) for the term «السنة»: the bare alias is removed (the term still matches «السنة»).
+- [x] Level D without the model showed raw hadiths next to a personal question: now only the notice and the referral.
+- [x] The same hadith under two HadeethEnc ids was shown twice: deduplicated by text at retrieval.
+- [x] The model saw only the first 4,000 characters of a long Q&A/Bayyinat answer: it now gets the opening plus the lines matching the question.
+- [ ] Rebuild the vector index after the glossary change (`python scripts/build_embeddings.py`); not urgent, terms are 10 of 10,626 passages.
