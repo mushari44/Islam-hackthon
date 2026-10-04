@@ -5,13 +5,24 @@ in Community whether their groups hear the news.
 """
 from __future__ import annotations
 
-from sqlalchemy import select
+from datetime import timedelta
+
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from ...core.db import Setting
+from ...core.db import Setting, utcnow
 from .models import GroupMessage, NewMuslim
 
 _COUNT_KEY = "new_muslims"
+# A da'i's confirmation the seeker never answers is deleted after this long (CLAUDE.md section 3), so nothing
+# about someone's religion stays on file without their own yes. The anonymous count keeps it.
+PENDING_DAYS = 7
+
+
+def expire_pending(db: Session) -> None:
+    db.execute(delete(NewMuslim).where(NewMuslim.status == "pending",
+                                       NewMuslim.created_at < utcnow() - timedelta(days=PENDING_DAYS)))
+    db.commit()
 
 
 def _bump_count(db: Session, by: int) -> None:
@@ -32,6 +43,7 @@ def new_muslim_total(db: Session) -> int:
 def mark_new_muslim(db: Session, sid: str, call_id: int, daai_id: int) -> str:
     """The da'i confirmed it. Returns the record's status: "pending" until the seeker answers, "shared" if they
     already agreed (after an earlier call)."""
+    expire_pending(db)
     row = db.scalars(select(NewMuslim).where(NewMuslim.session_id == sid)).first()
     if row is None:
         row = NewMuslim(session_id=sid, call_id=call_id, daai_id=daai_id)
@@ -57,6 +69,7 @@ def new_muslim_calls(db: Session, call_ids: list[int]) -> dict[int, str]:
     """{call_id: status} for the calls in which the da'i confirmed it (and the seeker hasn't declined)."""
     if not call_ids:
         return {}
+    expire_pending(db)
     rows = db.scalars(select(NewMuslim).where(NewMuslim.call_id.in_(call_ids))).all()
     return {r.call_id: r.status for r in rows}
 

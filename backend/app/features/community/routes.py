@@ -25,7 +25,7 @@ from ..auth.public import Daai, SeekerSession, account_gender, daai, optional_da
 from ..rag.public import answer_in_group
 from . import moderation
 from .models import RSVP, Group, GroupMember, GroupMessage, Meetup, NewMuslim
-from .public import remove_new_muslim
+from .public import expire_pending, remove_new_muslim
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("sabeeli.community")
@@ -334,6 +334,7 @@ def _new_muslim_view(db: Session, row: NewMuslim | None, ui: str) -> dict:
 @router.get("/community/new-muslim")
 def my_new_muslim(ui: str = "ar", me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
     """Whether a da'i confirmed this seeker embraced Islam, and whether they shared it with their groups."""
+    expire_pending(db)
     return _new_muslim_view(db, db.scalars(select(NewMuslim).where(NewMuslim.session_id == me.id)).first(), ui)
 
 
@@ -346,6 +347,7 @@ def answer_new_muslim(body: NewMuslimIn, ui: str = "ar", me: SeekerSession = Dep
                       db: Session = Depends(get_db)):
     """share=true: one welcome message in each group they are in now, and the badge next to their nickname.
     share=false (also later, to take it back): the record and the welcome messages are deleted."""
+    expire_pending(db)
     row = db.scalars(select(NewMuslim).where(NewMuslim.session_id == me.id)).first()
     if row is None:
         raise HTTPException(404, "nothing to answer")

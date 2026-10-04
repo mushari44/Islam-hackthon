@@ -115,3 +115,21 @@ def test_a_waiting_call_cannot_be_marked(client, seeker, daai_login):
     assert client.post(f"/api/daai/calls/{call['id']}/new-muslim", headers=daai_login("khalid")).status_code == 404
     client.post(f"/api/calls/{call['id']}/cancel", headers=h)
     assert client.post("/api/community/new-muslim", json={"share": True}, headers=h).status_code == 404
+
+
+def test_an_unanswered_confirmation_is_deleted_after_a_week(client, seeker, daai_login):
+    from datetime import timedelta
+
+    from backend.app.core.db import SessionLocal
+    from backend.app.features.community.models import NewMuslim
+
+    h = seeker_headers(seeker)
+    d = daai_login("khalid")
+    cid = _answered_call(client, h, d)
+    client.post(f"/api/daai/calls/{cid}/new-muslim", headers=d)
+    with SessionLocal() as db:
+        row = db.query(NewMuslim).filter_by(call_id=cid).one()
+        row.created_at -= timedelta(days=8)
+        db.commit()
+    assert client.get("/api/community/new-muslim", headers=h).json()["status"] == "none"
+    assert client.get(f"/api/daai/calls/{cid}", headers=d).json()["new_muslim"] is None
