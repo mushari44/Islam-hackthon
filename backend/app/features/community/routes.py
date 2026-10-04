@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import re
 import secrets
+import threading
 from datetime import datetime, timedelta, timezone
 from zoneinfo import available_timezones
 
@@ -27,6 +28,10 @@ from .models import RSVP, Group, GroupMember, GroupMessage, Meetup
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("sabeeli.community")
+# Check-then-write steps (meetup capacity, one booking per seeker, unique nicknames, the posting rate limit)
+# run under this lock, so two simultaneous requests can't both pass the check. The app runs as one process;
+# several workers would need database constraints instead.
+_write_lock = threading.Lock()
 
 BOT_NAME = {"ar": "سَبِيلي (مساعد آلي)", "en": "Sabeeli (AI assistant)"}
 # Posted when the assistant fails, so the asker isn't left waiting and the leader is asked to step in.
@@ -213,16 +218,17 @@ def join_group(gid: int, body: JoinIn, ui: str = "ar", me: SeekerSession = Depen
     nick = moderation.clean_nickname(body.nickname)
     if not moderation.nickname_ok(nick):
         raise HTTPException(400, "choose another nickname")
-    taken = db.scalars(select(GroupMember).where(GroupMember.group_id == gid, GroupMember.nickname == nick,
-                                                 GroupMember.left.is_(False), GroupMember.session_id != me.id)).first()
-    if taken:
-        raise HTTPException(409, "nickname taken in this group")
-    existing = _membership(db, gid, me.id) or _past_membership(db, gid, me.id)
-    if existing:
-        existing.nickname, existing.left = nick, False
-    else:
-        db.add(GroupMember(group_id=gid, session_id=me.id, nickname=nick))
-    db.commit()
+    with _write_lock:
+        taken = db.scalars(select(GroupMember).where(GroupMember.group_id == gid, GroupMember.nickname == nick,
+                                                     GroupMember.left.is_(False), GroupMember.session_id != me.id)).first()
+        if taken:
+            raise HTTPException(409, "nickname taken in this group")
+        existing = _membership(db, gid, me.id) or _past_membership(db, gid, me.id)
+        if existing:
+            existing.nickname, existing.left = nick, False
+        else:
+            db.add(GroupMember(group_id=gid, session_id=me.id, nickname=nick))
+        db.commit()
     return _group_view(db, g, ui, _membership(db, gid, me.id))
 
 
@@ -261,25 +267,26 @@ class PostIn(BaseModel):
 def post_message(gid: int, body: PostIn, tasks: BackgroundTasks, me: SeekerSession = Depends(seeker),
                  db: Session = Depends(get_db)):
     g = db.get(Group, gid)
-    member = _membership(db, gid, me.id)
-    if not g or not g.active or not member:
-        raise HTTPException(403, "join the group first")
-    if member.muted:
-        raise HTTPException(403, "muted")
-    since = (utcnow() - member.last_post_at).total_seconds() if member.last_post_at else None
-    verdict = moderation.check(body.text, since)
-    if not verdict.ok:
-        if verdict.reason == "abuse":
-            member.strikes += 1
-            if member.strikes >= moderation.STRIKES_TO_MUTE:
-                member.muted = True
-            db.commit()
-        raise HTTPException(422, verdict.reason)
-    msg = GroupMessage(group_id=gid, author_type="seeker", author_name=member.nickname, member_id=member.id,
-                       text=verdict.text)
-    member.last_post_at = utcnow()
-    db.add(msg)
-    db.commit()
+    with _write_lock:   # so simultaneous posts can't all slip past the rate limit (each @سبيلي is a model call)
+        member = _membership(db, gid, me.id)
+        if not g or not g.active or not member:
+            raise HTTPException(403, "join the group first")
+        if member.muted:
+            raise HTTPException(403, "muted")
+        since = (utcnow() - member.last_post_at).total_seconds() if member.last_post_at else None
+        verdict = moderation.check(body.text, since)
+        if not verdict.ok:
+            if verdict.reason == "abuse":
+                member.strikes += 1
+                if member.strikes >= moderation.STRIKES_TO_MUTE:
+                    member.muted = True
+                db.commit()
+            raise HTTPException(422, verdict.reason)
+        msg = GroupMessage(group_id=gid, author_type="seeker", author_name=member.nickname, member_id=member.id,
+                           text=verdict.text)
+        member.last_post_at = utcnow()
+        db.add(msg)
+        db.commit()
     if moderation.mentions_bot(verdict.text):
         question = moderation.strip_mention(verdict.text)
         if question:
@@ -464,28 +471,32 @@ def rsvp(mid: int, body: RsvpIn, ui: str = "ar", me: SeekerSession = Depends(see
         raise HTTPException(404, "not found")
     if (m.audience in ("women", "men") or m.age_group == "kids") and not body.confirm_audience:
         raise HTTPException(400, "please confirm the audience of this meetup")
-    existing = db.scalars(select(RSVP).where(RSVP.meetup_id == mid, RSVP.session_id == me.id,
-                                             RSVP.cancelled.is_(False))).first()
-    if existing:
-        return _meetup_view(db, m, ui, me.id)
-    if m.starts_at <= utcnow():
-        raise HTTPException(409, "meetup already started")
-    going = _going_counts(db, [mid]).get(mid, 0)
-    if going >= m.capacity and m.registration == "required":   # walk-in events only count who joined
-        raise HTTPException(409, "full")
     nick = moderation.clean_nickname(body.nickname)
-    if not moderation.nickname_ok(nick):
-        raise HTTPException(400, "choose another nickname")
-    db.add(RSVP(meetup_id=mid, session_id=me.id, nickname=nick, code=booking_code()))
-    db.commit()
+    with _write_lock:
+        existing = db.scalars(select(RSVP).where(RSVP.meetup_id == mid, RSVP.session_id == me.id,
+                                                 RSVP.cancelled.is_(False))).first()
+        if existing:
+            return _meetup_view(db, m, ui, me.id)
+        if m.starts_at <= utcnow():
+            raise HTTPException(409, "meetup already started")
+        going = _going_counts(db, [mid]).get(mid, 0)
+        if going >= m.capacity and m.registration == "required":   # walk-in events only count who joined
+            raise HTTPException(409, "full")
+        if not moderation.nickname_ok(nick):
+            raise HTTPException(400, "choose another nickname")
+        db.add(RSVP(meetup_id=mid, session_id=me.id, nickname=nick, code=booking_code()))
+        db.commit()
     return _meetup_view(db, m, ui, me.id)
 
 
 @router.post("/meetups/{mid}/cancel-rsvp")
 def cancel_rsvp(mid: int, me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
-    r = db.scalars(select(RSVP).where(RSVP.meetup_id == mid, RSVP.session_id == me.id, RSVP.cancelled.is_(False))).first()
-    if r:
+    # Every active booking, in case an older copy made two (the lock in rsvp() now stops that).
+    rows = db.scalars(select(RSVP).where(RSVP.meetup_id == mid, RSVP.session_id == me.id,
+                                         RSVP.cancelled.is_(False))).all()
+    for r in rows:
         r.cancelled = True
+    if rows:
         db.commit()
     return {"ok": True}
 

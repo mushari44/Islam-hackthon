@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import JSON, String, create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from .config import settings
 
@@ -34,10 +35,17 @@ class Setting(Base):
     value: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
-_connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
-engine = create_engine(settings.database_url, connect_args=_connect_args, pool_pre_ping=True)
+_SQLITE = settings.database_url.startswith("sqlite")
+# SQLite: a fresh connection per session (cheap for a local file) instead of a pool of 15. FastAPI runs each
+# request's dependencies and handler on different worker threads and a session keeps its connection between
+# them, so with a capped pool ~20 simultaneous requests could each hold one connection while waiting for a
+# thread, and every request then failed after 30 s ("QueuePool limit ... reached"). `timeout` makes a writer
+# wait for SQLite's single write lock instead of failing with "database is locked".
+_engine_args = ({"connect_args": {"check_same_thread": False, "timeout": 15}, "poolclass": NullPool}
+                if _SQLITE else {"pool_pre_ping": True})
+engine = create_engine(settings.database_url, **_engine_args)
 
-if settings.database_url.startswith("sqlite"):
+if _SQLITE:
     @event.listens_for(engine, "connect")
     def _sqlite_pragmas(dbapi_conn, _):  # noqa: ANN001
         cur = dbapi_conn.cursor()

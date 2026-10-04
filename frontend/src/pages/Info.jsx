@@ -1,7 +1,8 @@
 // About, Sources, Privacy, More and Not-found pages. Shared.
 import { api, forgetSeeker } from "../core/api.js";
 import { register, useI18n } from "../core/i18n.jsx";
-import { Icon, Notice, toast } from "../core/ui.jsx";
+import { Icon, Notice, errorText, toast } from "../core/ui.jsx";
+import { loadAccount } from "../features/account/public.js";
 
 register({
   ar: {
@@ -130,9 +131,16 @@ export function Sources() {
 export function Privacy() {
   const { t } = useI18n();
   const wipe = async () => {
-    try { await api.del("/api/me"); } catch { /* already gone */ }
+    try {
+      await api.del("/api/me");
+    } catch (err) {
+      // Only "no such session" means there is nothing left to delete; anything else (offline, a server
+      // error) must not be reported as deleted.
+      if (err.status !== 401 && err.status !== 404) { toast(errorText(err, t), "error"); return; }
+    }
     forgetSeeker();
     try { sessionStorage.clear(); } catch { /* ignore */ }
+    loadAccount();   // the account went with the data: the top bar must stop showing its name
     toast(t("priv.deleted"));
   };
   return (

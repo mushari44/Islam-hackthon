@@ -39,6 +39,8 @@ CLAIM_RE = re.compile(r"(حرام|حلال|باطل|صحيح|واجب|يجب|ف�
                       r"|\b(invalid|valid|haram|halal|must|forbidden|allowed|obligatory|sinful|sin|kufr|disbeliever|ruling)\b",
                       re.I)
 HARAKAT_RE = re.compile(r"[\u064B-\u0652]")
+# Arabic letters, harakat and spaces: what continues a verse typed inline (not Arabic punctuation such as ، ؛ ؟)
+ARABIC_RUN_CHAR = re.compile(r"[\u0621-\u063A\u0640-\u065F\u0670-\u06D3 \t]")
 # The model saying the sources don't cover the question («لم أجد في المصادر...», "the sources don't mention").
 # Such a sentence cites nothing, so grounding drops it; the app then shows its own fixed notice instead.
 # Matched on normalize_ar() text (ا for أ/إ, ي for ى, ه for ة), lower-cased.
@@ -57,7 +59,8 @@ LEADING_CONNECTOR_RE = re.compile(
 
 MAX_QUESTION_CHARS = 2000
 # A question mark, or a word that only starts questions (not «ما»/«من», which also start verses).
-INTERROGATIVE_RE = re.compile(r"[؟?]|^\s*(هل|لماذا|كيف|متى|أين|اين|ماذا|ليش|ليه|وش|شو|ايش|إيش)\b")
+INTERROGATIVE_RE = re.compile(r"[؟?]|^\s*(هل|لماذا|كيف|متى|أين|اين|ماذا|ليش|ليه|وش|شو|ايش|إيش"
+                              r"|حدثني|حدثنى|أخبرني|اخبرني|اشرح|إشرح|وضح|فسر|أريد|اريد|ابي|أبغى|ابغى|ابغي|عرفني)\b")
 
 TEXT = {
     "greeting": {
@@ -135,7 +138,7 @@ def t(key: str, lang: str) -> str:
 
 PERSONAL_AR = [r"هل يجوز (لي|ليا|لنا)", r"\b(ليا)\b", r"(يجوز|حرام|حلال)\s+(لي|علي|عليّ)", r"\bزوج(ي|تي)\b", r"\bطلاق(ي|ها)?\b",
                r"\bطلقني\b", r"\b(صلاتي|صيامي|زواجي|عقدي|وضوئي|طلاقي|ميراثي)\b", r"في حالتي", r"\bوضعي\b",
-               r"\bأنا\s+(مسلم|مسلمة|امرأة|رجل|متزوج|متزوجة|أعيش|اعيش|أعمل|اعمل|مريض|مريضة|مقيم|مقيمة)",
+               r"\bأنا\s+(متزوج|متزوجة|أعيش|اعيش|أعمل|اعمل|مريض|مريضة|مقيم|مقيمة)",
                r"ماذا (أفعل|افعل)", r"\bأبي\b.*\b(يجوز|حكم)",
                # «هل يجب علي صيام رمضان؟», «هل راتبي حرام؟», «كم نصيبي من الميراث؟»
                r"(يجب|يلزم)\s+(علي|عليّ)\b", r"\bيلزمني\b", r"\b(نصيبي|راتبي|دخلي|قرضي|تركتي)\b",
@@ -206,6 +209,21 @@ class AskContext:
     max_words: int = 180
 
 
+def _normalize_ocr(o) -> dict | None:
+    """The model's reading of a photo made safe to use and show: strings and lists of strings, capped (the
+    verse matcher is quadratic in length). The free-text description is the model's own words, so a
+    description carrying a ruling or vowelled (scripture-like) text is dropped rather than shown."""
+    if not isinstance(o, dict):
+        return None
+    text = o.get("text") if isinstance(o.get("text"), str) else ""
+    desc = o.get("description") if isinstance(o.get("description"), str) else ""
+    if CLAIM_RE.search(normalize_ar(desc)) or len(HARAKAT_RE.findall(desc)) > 5:
+        desc = ""
+    segs = o.get("quran_segments") if isinstance(o.get("quran_segments"), list) else []
+    return {"text": text.strip()[:1500], "description": desc.strip()[:300], "legible": o.get("legible") is True,
+            "quran_segments": [x.strip()[:600] for x in segs if isinstance(x, str) and x.strip()][:5]}
+
+
 def _normalize_analysis(a: dict) -> dict:
     """The model's analysis made safe to use: lists are lists of strings, the level is one of A-D, and so on.
     Structured output usually guarantees this, but not every model or provider enforces the schema."""
@@ -218,6 +236,7 @@ def _normalize_analysis(a: dict) -> dict:
     a["level"] = level if level in ("A", "B", "C", "D") else "B"
     for k in ("language", "intent", "quoted_text", "quoted_kind", "standalone_question", "clarify"):
         a[k] = a[k].strip() if isinstance(a.get(k), str) else ""
+    a["quoted_text"] = a["quoted_text"][:600]   # the verse matcher is quadratic in length
     for k in ("personal_case", "hostile", "asks_for_evidence"):
         a[k] = a.get(k) is True
     if a["intent"] not in ("question", "greeting", "thanks", "request_human", "off_topic"):
@@ -421,11 +440,23 @@ def _guard_scripture(text: str, allowed: set[str], trace: dict) -> str:
     text = QUOTE_RE.sub(quote, text)
 
     # Verse text typed without any brackets (7+ words following the Mushaf): the marker, or nothing.
-    for a, b in reversed(matcher.verse_runs(text)):
-        span = text[a:b]
+    # The span grows over the Arabic words joined to the run (up to punctuation or a line break): a
+    # misquoted verse matches the Mushaf only up to its first changed word, and the changed rest must not
+    # stay on screen as if it were part of the verse. The marker comes from the whole span when it matches,
+    # else from the exact run (joined intro words such as «قال تعالى» go too; the verse is still shown).
+    def exact_marker(span: str) -> str:
         found = matcher.match(span)
         exact = found and found[0].score >= 0.9 and not found[0].ambiguous
-        marker = "\n" + "\n".join(f"[[{i}]]" for i in found[0].ids) + "\n" if exact else ""
+        return "\n" + "\n".join(f"[[{i}]]" for i in found[0].ids) + "\n" if exact else ""
+
+    for a, b in reversed(matcher.verse_runs(text)):
+        core = text[a:b]
+        while a > 0 and ARABIC_RUN_CHAR.match(text[a - 1]):
+            a -= 1
+        while b < len(text) and ARABIC_RUN_CHAR.match(text[b]):
+            b += 1
+        span = text[a:b]
+        marker = exact_marker(span) or (exact_marker(core) if span != core else "")
         trace.setdefault("scripture_guard", []).append({"span": span[:80], "action": "marker" if marker else "removed"})
         text = text[:a] + marker + text[b:]
 
@@ -545,7 +576,7 @@ def _ask(ctx: AskContext) -> dict:
         if llm:
             try:
                 with timing.step("ocr", llm=True):
-                    ocr = assistant.ocr(llm, ctx.image, ctx.image_type or "image/jpeg", ctx.ui_lang)
+                    ocr = _normalize_ocr(assistant.ocr(llm, ctx.image, ctx.image_type or "image/jpeg", ctx.ui_lang))
             except LLMUnavailable as exc:
                 log.warning("ocr failed: %s", exc)
         if ocr is None:
@@ -612,8 +643,9 @@ def _ask(ctx: AskContext) -> dict:
         quote_texts.append(question)   # «لماذا خلق الله الشر؟» is a question, not a misquoted verse
     with timing.step("quote_check"):
         qc = _quote_check(quote_texts)
-    if qc and qc["status"] == "not_found" and qc["input"] == question:
-        qc = None  # a plain Arabic question, not a quote
+    if qc and qc["input"] == question and (qc["status"] == "not_found"
+                                            or (qc["status"] == "ambiguous" and qc["matches"][0]["score"] < 0.75)):
+        qc = None  # a plain Arabic question (or a loose phrase found in several verses), not a quote
     quote_ids: list[str] = []
     if qc and qc["matches"]:
         take = qc["matches"][:3] if qc["status"] == "ambiguous" else qc["matches"][:1]
@@ -705,7 +737,9 @@ def _ask(ctx: AskContext) -> dict:
                     kept.append(s)
                     continue
                 # a short line introducing the verse or hadith shown right after it («...قوله تعالى:»)
-                intro = (plain.rstrip().endswith(":") and words <= INTRO_MAX_WORDS
+                # It is never a claim: "Your marriage is invalid, Allah says:" would otherwise pass uncited.
+                intro = (plain.rstrip().endswith(":") and words <= (6 if level == "D" else INTRO_MAX_WORDS)
+                         and not CLAIM_RE.search(normalize_ar(plain))
                          and any(MARKER_RE.search(nxt["text"]) for nxt in segments[k:k + 3]))
                 # a short connecting phrase ("In short,"), never a claim, and at level D almost nothing
                 connector = (words <= (3 if level == "D" else settings.max_uncited_words)

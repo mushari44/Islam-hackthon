@@ -1,16 +1,18 @@
 // App shell and routes. Shared core: features plug in through the route table below.
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { LangProvider, useI18n } from "./core/i18n.jsx";
 import { match, useHashPath } from "./core/router.jsx";
 import { Icon, Logo, SheetHost, ToastHost } from "./core/ui.jsx";
 import { AccountButton, AccountPage } from "./features/account/index.js"; // Eman
 import { TalkPage } from "./features/calls/index.js";                  // Eman
 import { CommunityPage, GroupPage } from "./features/community/index.js"; // Mushari
-import { DaaiConsole } from "./features/daai/index.js";               // Eman
 import { AskPage } from "./features/rag/index.js";                      // Mushari
 import { VideosPage } from "./features/videos/index.js";               // Mushari
 import Home from "./pages/Home.jsx";
 import { About, More, NotFound, Privacy, Sources } from "./pages/Info.jsx";
+
+// Only da'is open the console: it loads on first visit instead of in every seeker's bundle.
+const DaaiConsole = lazy(() => import("./features/daai/index.js").then((m) => ({ default: m.DaaiConsole }))); // Eman
 
 const ROUTES = [
   { path: "/", nav: "home", page: Home },
@@ -90,7 +92,9 @@ function Shell() {
         </div>
       </header>
       <main className="main" id="main" tabIndex={-1}>
-        <Page key={path} params={params} query={query} theme={theme} setTheme={setTheme} />
+        <Suspense fallback={<div className="skeleton" style={{ height: 160 }} />}>
+          <Page key={path} params={params} query={query} theme={theme} setTheme={setTheme} />
+        </Suspense>
       </main>
       <footer className="footer">
         <div className="footer-inner">

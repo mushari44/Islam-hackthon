@@ -27,6 +27,7 @@ Tick a box when the task is merged. Keep the order unless the team agrees otherw
 
 ## Day 1: 4 October (content and answers)
 
+- [ ] **From the overnight audit** (`docs/AUDIT-2026-10-04.md`, section 4): short verses and hadith typed by the model pass the scripture guard (hadith shingle index, attribution phrases, English quotes); run retention purges on a timer; keep E5 loading off the request path.
 - [ ] **Evaluation set** `eval/cases.csv`: 60 synthetic cases, 30 Arabic and 30 English, split like the deck:
   - 20 photo/quote matching (clear text, unclear text, a verse quoted with a mistake);
   - 20 explanation and follow-up;

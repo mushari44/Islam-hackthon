@@ -69,23 +69,32 @@ export default function GroupPage({ params }) {
   usePolling(poll, 3000, [gid], Boolean(group && group.membership));
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages.length, waitingBot]);
 
+  // Enter pressed twice before the first post returns must not send the message twice.
+  const sending = useRef(false);
+  const botTimer = useRef(null);
+  useEffect(() => () => clearTimeout(botTimer.current), []);
+
   const post = async (e) => {
     e?.preventDefault();
     const v = text.trim();
-    if (!v) return;
+    if (!v || sending.current) return;
+    sending.current = true;
     try {
       const res = await api.post(`/api/groups/${gid}/messages`, { text: v, lang });
       setText("");
       if (res.redacted) toast(t("gr.redacted"));
       if (BOT_RX.test(v) && v.replace(BOT_RX, "").trim()) {
         setWaitingBot(true);
-        setTimeout(() => setWaitingBot(false), 60000);
+        clearTimeout(botTimer.current);   // an earlier question's timer must not hide this one's indicator
+        botTimer.current = setTimeout(() => setWaitingBot(false), 60000);
       }
       await poll();
     } catch (err) {
       const key = { abuse: "gr.err.abuse", too_fast: "gr.err.too_fast", too_long: "gr.err.too_long", muted: "gr.muted" }[err.detail];
       toast(key ? t(key) : errorText(err, t), "error");
       if (err.detail === "muted" || err.detail === "abuse") load();   // show the paused composer straight away
+    } finally {
+      sending.current = false;
     }
   };
 
