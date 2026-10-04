@@ -1,0 +1,7 @@
+# Vercel only builds the website: upload frontend/ and vercel.json, nothing else
+# (never .env with the API keys, the database, data/ or HACKTHON/).
+/*
+!frontend
+!vercel.json
+frontend/node_modules
+frontend/dist
