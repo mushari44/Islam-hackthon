@@ -83,8 +83,10 @@ function Shell() {
           </nav>
           <div className="top-actions">
             <AccountButton />
-            <a className="btn btn-ghost btn-sm hide-mobile" href="#/daai"><Icon name="users" />{t("nav.daai")}</a>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLang(lang === "ar" ? "en" : "ar")}><Icon name="globe" />{t("common.lang_toggle")}</button>
+            <a className="btn btn-ghost btn-sm hide-mobile" href="#/daai" aria-label={t("nav.daai")} title={t("nav.daai")}><Icon name="users" /><span className="btn-label">{t("nav.daai")}</span></a>
+            <button type="button" className="btn btn-ghost btn-sm lang-btn" onClick={() => setLang(lang === "ar" ? "en" : "ar")} aria-label={t("common.lang_toggle")} lang={lang === "ar" ? "en" : "ar"}>
+              <Icon name="globe" /><span className="btn-label">{t("common.lang_toggle")}</span><span className="btn-short" aria-hidden="true">{t("common.lang_short")}</span>
+            </button>
             <button type="button" className="icon-btn" aria-label={t("common.theme")} title={t("common.theme")} onClick={() => setTheme(isDark ? "light" : "dark")}>
               <Icon name={isDark ? "sun" : "moon"} size={20} />
             </button>

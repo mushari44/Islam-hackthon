@@ -1,7 +1,7 @@
 /* Shared pages: home, about, sources, privacy, more, da'i console shell. */
 
 .hide-mobile { }
-@media (max-width: 860px) { .hide-mobile { display: none; } }
+@media (max-width: 1024px) { .hide-mobile { display: none; } }
 
 .feature { display: flex; flex-direction: column; gap: 8px; }
 .feature h3 { margin: 4px 0 0; }
@@ -223,6 +223,23 @@ a.home-row:hover { border-color: var(--border-strong); transform: translateY(-2p
   .home-stat strong { font-size: 1.2rem; }
   .home-vid-grid { gap: 10px; }
 }
+/* small phones: the three stops stack, and the path runs down beside them */
+@media (max-width: 480px) {
+  .journey { grid-template-columns: 1fr; gap: 2px; padding: 10px; }
+  .journey::before {
+    inset-inline: auto; inset-inline-start: 39px; top: 40px; bottom: 40px; width: 2px; height: auto;
+    background-image: linear-gradient(180deg, var(--mint-500) 55%, transparent 0); background-size: 2px 9px;
+    transform-origin: top; animation-name: draw-path-down;
+  }
+  .stop { flex-direction: row; align-items: center; gap: 14px; padding: 8px; text-align: start; }
+  .stop:hover { transform: none; }
+  .stop-node { width: 46px; height: 46px; }
+  .stop-text { align-items: flex-start; }
+  .stop-text strong { font-size: 1rem; }
+  .stop-text > span { font-size: .82rem; }
+  .stop-text > .stop-live { min-height: 1.4em; margin-block-start: 2px; }
+}
+@keyframes draw-path-down { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @media (prefers-reduced-motion: reduce) {
   .home > *, .fade-in, .journey::before, .live-dot { animation: none; }
   .stop:hover, a.home-row:hover { transform: none; }
