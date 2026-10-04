@@ -94,6 +94,12 @@ class Settings:
     # Privacy: seeker chat turns are deleted after this many hours.
     retention_hours: int = int(os.getenv("RETENTION_HOURS", "24"))
 
+    # Sites on another origin allowed to call the API, e.g. the frontend on Vercel:
+    # CORS_ORIGINS=https://sabeeli.vercel.app (comma separated). CORS_ORIGIN_REGEX also admits Vercel preview
+    # links, e.g. https://sabeeli-.*\.vercel\.app. Empty = same origin only (FastAPI serves the build).
+    cors_origins: list[str] = field(default_factory=lambda: [o.rstrip("/") for o in _list("CORS_ORIGINS")])
+    cors_origin_regex: str = os.getenv("CORS_ORIGIN_REGEX", "")
+
     # Demo data (synthetic accounts, groups and meetups) for judges and local runs.
     seed_demo: bool = _bool("SEED_DEMO", True)
 

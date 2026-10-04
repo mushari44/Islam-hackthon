@@ -1,6 +1,12 @@
 // HTTP client. Shared core.
 // Seekers get an anonymous session token (localStorage); da'is a signed token (sessionStorage).
 
+// Where the API lives. Empty (the default) = same origin, as when FastAPI serves the build or Vite proxies it.
+// A frontend hosted on its own (Vercel) sets VITE_API_URL at build time, e.g. https://sabeeli.onrender.com
+const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+/** Full URL for an API path ("/api/..."), for fetch calls and plain links such as .ics downloads. */
+export function apiUrl(path) { return API_BASE + path; }
+
 const SEEKER_KEY = "sabeeli.seeker";
 const DAAI_KEY = "sabeeli.daai";
 
@@ -18,7 +24,7 @@ let sessionPromise = null;
 export async function seekerToken() {
   let tok = read("seeker", SEEKER_KEY);
   if (tok) return tok;
-  sessionPromise ||= fetch("/api/session", { method: "POST" })
+  sessionPromise ||= fetch(apiUrl("/api/session"), { method: "POST" })
     .then((r) => { if (!r.ok) throw new ApiError(r.status, "session"); return r.json(); })
     .then((d) => {
       write("seeker", SEEKER_KEY, d.token);
@@ -48,7 +54,7 @@ async function request(method, path, { body, form, as = "seeker", retry = true }
   else if (body !== undefined) { headers["Content-Type"] = "application/json"; payload = JSON.stringify(body); }
   let res;
   try {
-    res = await fetch(path, { method, headers, body: payload });
+    res = await fetch(apiUrl(path), { method, headers, body: payload });
   } catch {
     throw new ApiError(0, "offline");
   }
@@ -75,6 +81,7 @@ export const api = {
 };
 
 export function wsUrl(path) {
+  if (API_BASE) return API_BASE.replace(/^http/, "ws") + path;
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   return `${proto}//${location.host}${path}`;
 }

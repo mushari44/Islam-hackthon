@@ -33,6 +33,8 @@ Open http://localhost:8000. For frontend development, run `npm run dev` in `fron
 
 **Demo accounts** (synthetic, created on first start): da'i console at `#/daai`, users `khalid`, `maryam`, `yusuf` and `reviewer` (reviewer can run the referral experiment). The password is the value of `DEMO_PASSWORD` in `.env` (`sabeeli-demo` by default). Change it before deploying.
 
+**Deploying:** the website goes on Vercel and the API on Render; see [docs/DEPLOY.md](docs/DEPLOY.md).
+
 To try a call locally, open the app in two browsers: in one, sign in as a da'i and switch on "Available"; in the other, go to **تحدّث**.
 
 The corpus is already in `data/corpus/`, except «بينات»: its publisher reserves the rights, so each copy builds it from the package's link with `pip install pymupdf` and `python scripts/ingest_bayyinat.py` (the app works without it). To refresh the rest from the official APIs, run `python scripts/ingest_quran.py`, `python scripts/ingest_hadith.py` and `python scripts/ingest_icadb.py`.
