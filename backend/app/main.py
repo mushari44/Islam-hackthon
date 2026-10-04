@@ -9,6 +9,7 @@ import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -57,6 +58,13 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Sabeeli", version="0.1.0", docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=lifespan)
 # The JS bundle is ~350 kB and answers carry their source cards: compressed, about a third of that on the wire.
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+# A frontend on its own host (Vercel) calls the API cross-origin. Auth travels in headers (X-Seeker,
+# Authorization), never cookies, so no credentials mode is needed.
+if settings.cors_origins or settings.cors_origin_regex:
+    app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
+                       allow_origin_regex=settings.cors_origin_regex or None,
+                       allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+                       allow_headers=["Authorization", "Content-Type", "X-Seeker"], max_age=600)
 
 app.include_router(auth_routes.router)
 app.include_router(rag_routes.router)
