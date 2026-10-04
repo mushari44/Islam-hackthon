@@ -12,7 +12,9 @@ services:
       - key: SEED_DEMO
         value: "1"
       - key: DEMO_PASSWORD
-        value: sabeeli-demo
+        generateValue: true # random and private (read it in Render > Environment); the README's default would let anyone sign in as reviewer (admin)
+      - key: CORS_ORIGINS
+        sync: false         # the Vercel site, e.g. https://sabeeli.vercel.app (no trailing slash)
       - key: SABEELI_OFFLINE
         value: "0"          # without a key below the app still runs, in sources-only mode
       - key: OPENROUTER_API_KEY

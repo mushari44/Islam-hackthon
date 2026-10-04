@@ -2,7 +2,7 @@
 import "./strings.js";
 import "./community.css";
 import { useEffect, useState } from "react";
-import { api } from "../../core/api.js";
+import { api, apiUrl } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
 import { Icon, errorText, openSheet, toast } from "../../core/ui.jsx";
@@ -271,7 +271,7 @@ function Booked({ m, close }) {
         <a className="btn btn-accent" href={m.online_url} target="_blank" rel="noopener noreferrer"><Icon name="external" />{t("com.open_link")}</a>
       )}
       <div className="row booked-actions">
-        <a className="btn" href={`/api/meetups/${m.id}/ics`} download><Icon name="calendar" />{t("com.add_cal")}</a>
+        <a className="btn" href={apiUrl(`/api/meetups/${m.id}/ics`)} download><Icon name="calendar" />{t("com.add_cal")}</a>
         <button type="button" className="btn btn-primary" onClick={() => { close(); navigate("/community?tab=mine"); }}>
           <Icon name="arrow" />{t("com.see_mine")}
         </button>
