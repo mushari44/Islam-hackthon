@@ -64,3 +64,14 @@
 
 .share-chat { gap: 4px; }
 .share-chat p { margin: 0; padding-inline-start: 28px; }
+
+/* Audio: level bar, device pickers, "turn on sound" button */
+.mic-level { width: min(220px, 70%); height: 6px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; }
+.mic-level span {
+  display: block; height: 100%; width: 100%; background: var(--mint-400); transform: scaleX(0);
+  transform-origin: left center; transition: transform .08s linear;
+}
+[dir="rtl"] .mic-level span { transform-origin: right center; }
+.call-devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; width: 100%; margin-top: 6px; text-align: start; }
+.call-devices select { width: 100%; }
+.call-sound { animation: pulse 1.8s var(--ease) infinite; }
