@@ -1,5 +1,7 @@
 """Optional seeker accounts: sign up, sign in on another device, recover, delete. Owner: Eman."""
 
+ABOUT = {"gender": "f", "age_band": "25_34"}     # sex and age band are required at sign-up
+
 
 def new_device(client):
     token = client.post("/api/session").json()["token"]
@@ -13,12 +15,12 @@ def test_account_follows_the_seeker_across_devices(client):
     client.post(f"/api/meetups/{meetup['id']}/rsvp", json={"nickname": "زائر"}, headers=phone)
     assert client.get("/api/account", headers=phone).json()["account"] is None
 
-    made = client.post("/api/account/signup", json={"username": "salam_1", "password": "long-pass-1"}, headers=phone)
+    made = client.post("/api/account/signup", json={"username": "salam_1", "password": "long-pass-1", **ABOUT}, headers=phone)
     assert made.status_code == 200 and len(made.json()["recovery_code"]) == 14
     code = made.json()["recovery_code"]
     # the same name can't be taken twice, whatever the case
     other, _ = new_device(client)
-    assert client.post("/api/account/signup", json={"username": "SALAM_1", "password": "long-pass-2"},
+    assert client.post("/api/account/signup", json={"username": "SALAM_1", "password": "long-pass-2", **ABOUT},
                        headers=other).status_code == 409
 
     laptop, laptop_token = new_device(client)
@@ -57,11 +59,11 @@ def test_account_follows_the_seeker_across_devices(client):
 def test_signup_rules_and_lockout(client):
     h, _ = new_device(client)
     for bad in ["ab", "has space", "12345", "a" * 25]:
-        assert client.post("/api/account/signup", json={"username": bad, "password": "long-pass-1"},
+        assert client.post("/api/account/signup", json={"username": bad, "password": "long-pass-1", **ABOUT},
                            headers=h).status_code == 422
-    assert client.post("/api/account/signup", json={"username": "short_pw", "password": "short"},
+    assert client.post("/api/account/signup", json={"username": "short_pw", "password": "short", **ABOUT},
                        headers=h).status_code == 422
-    assert client.post("/api/account/signup", json={"username": "نور_الهدى", "password": "long-pass-1"},
+    assert client.post("/api/account/signup", json={"username": "نور_الهدى", "password": "long-pass-1", **ABOUT},
                        headers=h).status_code == 200
     other, _ = new_device(client)
     codes = [client.post("/api/account/signin", json={"username": "نور_الهدى", "password": "wrong-pass"},
@@ -71,7 +73,7 @@ def test_signup_rules_and_lockout(client):
 
 def test_call_room_accepts_a_signed_in_device(client, daai_login):
     phone, _ = new_device(client)
-    client.post("/api/account/signup", json={"username": "caller_9", "password": "long-pass-1"}, headers=phone)
+    client.post("/api/account/signup", json={"username": "caller_9", "password": "long-pass-1", **ABOUT}, headers=phone)
     laptop, laptop_token = new_device(client)
     client.post("/api/account/signin", json={"username": "caller_9", "password": "long-pass-1"}, headers=laptop)
     d = daai_login("khalid")
@@ -90,14 +92,14 @@ def test_forgot_password_by_email(client, monkeypatch):
     monkeypatch.setattr(mailer, "send", lambda to, subject, body: sent.append((to, body)) or True)
 
     h, _ = new_device(client)
-    assert client.post("/api/account/signup", json={"username": "maily", "password": "long-pass-1", "email": "bad"},
+    assert client.post("/api/account/signup", json={"username": "maily", "password": "long-pass-1", "email": "bad", **ABOUT},
                        headers=h).status_code == 422
     made = client.post("/api/account/signup", json={"username": "maily", "password": "long-pass-1",
-                                                    "email": "Maily@Example.com"}, headers=h).json()
+                                                    "email": "Maily@Example.com", **ABOUT}, headers=h).json()
     assert made["account"]["email"] == "maily@example.com"
     other, _ = new_device(client)
     assert client.post("/api/account/signup", json={"username": "maily2", "password": "long-pass-1",
-                                                    "email": "maily@example.com"}, headers=other).status_code == 409
+                                                    "email": "maily@example.com", **ABOUT}, headers=other).status_code == 409
 
     # same answer for an unknown account, and nothing is sent
     assert client.post("/api/account/forgot", json={"login": "nobody_here"}).json() == {"via": "email"}
@@ -129,7 +131,7 @@ def test_signing_out_on_the_sign_up_device_hides_the_account(client):
     """The browser that made the account files its data under the account; after sign-out its token stops
     working, so the next person on that device starts fresh instead of seeing the account's chats."""
     home, _ = new_device(client)
-    client.post("/api/account/signup", json={"username": "shared_pc", "password": "long-pass-1"}, headers=home)
+    client.post("/api/account/signup", json={"username": "shared_pc", "password": "long-pass-1", **ABOUT}, headers=home)
     client.post("/api/ask", data={"question": "سؤال خاص", "lang": "ar"}, headers=home)
     assert client.post("/api/account/signout", headers=home).status_code == 200
     assert client.get("/api/ask/history", headers=home).status_code == 401

@@ -56,9 +56,11 @@ EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
 RESET_TTL = timedelta(minutes=15)
 _failures: dict[str, list[float]] = {}     # username_key -> recent failed sign-in times
 MAX_FAILURES, FAILURE_WINDOW = 5, 600
-# Optional age bands a seeker may give. A band, never a birth date, so the account still can't identify anyone.
-AGE_BANDS = ("", "u18", "18_24", "25_34", "35_44", "45_54", "55p")
-GENDERS = ("", "m", "f")          # "" = not given
+# Every account gives its sex and an age band (the seeker picks them; there is no "prefer not to say"), so groups
+# and meetups for women, men or an age group can be suggested. A band, never a birth date, so the account still
+# can't identify anyone. Accounts made before this have "" until their owner picks one.
+AGE_BANDS = ("u18", "18_24", "25_34", "35_44", "45_54", "55p")
+GENDERS = ("m", "f")
 COUNTRY = re.compile(r"^[A-Z]{2}$")
 
 
@@ -127,16 +129,16 @@ def _find(db: Session, login: str) -> SeekerAccount | None:
 
 
 class SignupIn(BaseModel):
-    """Only the username and password are required. Everything else is optional and has a default:
-    language "ar", and "" (not given) for country, city, age band and sex."""
+    """Username, password, sex and age band are required. The rest is optional, with defaults: language "ar",
+    and "" (not given) for email, country and city."""
     username: str = Field(max_length=24)
     password: str = Field(min_length=8, max_length=200)
     email: str = Field(default="", max_length=254)
     lang: str = "ar"
     country: str = Field(default="", max_length=2)
     city: str = Field(default="", max_length=64)
-    age_band: str = ""
-    gender: str = ""
+    age_band: str
+    gender: str
 
     @field_validator("email")
     @classmethod
@@ -274,8 +276,8 @@ class AccountIn(BaseModel):
     city: str | None = Field(default=None, max_length=64)
     lang: str | None = None
     email: str | None = Field(default=None, max_length=254)   # "" removes it
-    age_band: str | None = None                               # one of AGE_BANDS; "" removes it
-    gender: str | None = None                                 # m | f; "" removes it
+    age_band: str | None = None                               # one of AGE_BANDS (it can be changed, not removed)
+    gender: str | None = None                                 # m | f (it can be changed, not removed)
 
     @field_validator("email")
     @classmethod

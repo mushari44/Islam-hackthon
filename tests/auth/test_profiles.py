@@ -7,18 +7,22 @@ from sqlalchemy import create_engine, inspect, text
 from backend.app.core import db as core_db
 
 
+ABOUT = {"gender": "m", "age_band": "35_44"}     # required at sign-up
+
+
 def new_device(client):
     return {"X-Seeker": client.post("/api/session").json()["token"]}
 
 
-def test_seeker_age_band_is_optional_and_checked(client):
+def test_seeker_age_band_is_required_and_checked(client):
     h = new_device(client)
-    acc = client.post("/api/account/signup", json={"username": "age_test", "password": "long-pass-1"}, headers=h)
-    assert acc.json()["account"]["age_band"] == ""
+    acc = client.post("/api/account/signup", json={"username": "age_test", "password": "long-pass-1", **ABOUT}, headers=h)
+    assert acc.json()["account"]["age_band"] == "35_44"
     res = client.post("/api/account/profile", json={"age_band": "25_34", "country": "SA", "city": "الرياض"}, headers=h)
     assert res.json()["account"].items() >= {"age_band": "25_34", "country": "SA", "city": "الرياض"}.items()
     assert client.post("/api/account/profile", json={"age_band": "31"}, headers=h).status_code == 422
-    assert client.post("/api/account/profile", json={"age_band": ""}, headers=h).json()["account"]["age_band"] == ""
+    # there is no "prefer not to say": the age band can be changed, not removed
+    assert client.post("/api/account/profile", json={"age_band": ""}, headers=h).status_code == 422
     # anonymous use keeps working: no account, nothing asked
     assert client.post("/api/account/profile", json={"age_band": "u18"}, headers=new_device(client)).status_code == 403
 
@@ -93,11 +97,17 @@ def test_missing_columns_are_added(tmp_path, monkeypatch):
     assert core_db.add_missing_columns() == []      # running it again changes nothing
 
 
-def test_signup_takes_language_place_age_and_sex_with_defaults(client):
-    bare = client.post("/api/account/signup", json={"username": "defaults_1", "password": "long-pass-1"},
+def test_signup_needs_sex_and_age_and_takes_language_and_place(client):
+    # the seeker picks their sex and age band: there is no "prefer not to say"
+    for missing in ({}, {"gender": "m"}, {"age_band": "18_24"}, {"gender": "", "age_band": "18_24"},
+                    {"gender": "m", "age_band": ""}):
+        res = client.post("/api/account/signup", headers=new_device(client),
+                          json={"username": "missing_1", "password": "long-pass-1", **missing})
+        assert res.status_code == 422, missing
+    bare = client.post("/api/account/signup", json={"username": "defaults_1", "password": "long-pass-1", **ABOUT},
                        headers=new_device(client)).json()["account"]
     assert {k: bare[k] for k in ("lang", "country", "city", "age_band", "gender")} == \
-        {"lang": "ar", "country": "", "city": "", "age_band": "", "gender": ""}
+        {"lang": "ar", "country": "", "city": "", "age_band": "35_44", "gender": "m"}
 
     h = new_device(client)
     full = client.post("/api/account/signup", headers=h, json={
@@ -107,10 +117,10 @@ def test_signup_takes_language_place_age_and_sex_with_defaults(client):
         {"lang": "en", "country": "GB", "city": "London", "age_band": "18_24", "gender": "f"}
     assert client.post("/api/account/profile", json={"gender": "m", "lang": "ar"}, headers=h).json()["account"] \
         .items() >= {"gender": "m", "lang": "ar"}.items()
-    assert client.post("/api/account/profile", json={"gender": ""}, headers=h).json()["account"]["gender"] == ""
+    assert client.post("/api/account/profile", json={"gender": ""}, headers=h).status_code == 422
 
     for bad in ({"lang": "xx"}, {"gender": "x"}, {"age_band": "30"}, {"country": "G1"}):
         res = client.post("/api/account/signup", headers=new_device(client),
-                          json={"username": "bad_1", "password": "long-pass-1", **bad})
+                          json={"username": "bad_1", "password": "long-pass-1", **ABOUT, **bad})
         assert res.status_code == 422, bad
     assert client.post("/api/account/profile", json={"gender": "x"}, headers=h).status_code == 422

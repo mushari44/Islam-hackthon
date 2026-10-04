@@ -6,6 +6,9 @@ from backend.app.core.db import SessionLocal, utcnow
 from backend.app.features.rag.models import ChatTurn, purge_expired
 
 
+ABOUT = {"gender": "f", "age_band": "25_34"}     # sex and age band are required at sign-up
+
+
 def device(client):
     return {"X-Seeker": client.post("/api/session").json()["token"]}
 
@@ -17,7 +20,7 @@ def test_signed_in_chats_follow_the_account(client):
     assert hist["saved"] is False and [t["turn_id"] for t in hist["turns"]] == [asked["turn_id"]]
     assert hist["turns"][0]["answer"]["kind"] == asked["kind"] and "trace" not in hist["turns"][0]["answer"]
 
-    client.post("/api/account/signup", json={"username": "chat_keeper", "password": "long-pass-1"}, headers=phone)
+    client.post("/api/account/signup", json={"username": "chat_keeper", "password": "long-pass-1", **ABOUT}, headers=phone)
     laptop = device(client)
     client.post("/api/account/signin", json={"username": "chat_keeper", "password": "long-pass-1"}, headers=laptop)
     client.post("/api/ask", data={"question": "What is zakat?", "lang": "en"}, headers=laptop)
@@ -51,7 +54,7 @@ def test_old_saved_chats_stay_out_of_a_new_question(client):
     """Saved turns from earlier days show in the history, but aren't fed to the model or the referral card."""
     from backend.app.features.rag.models import recent_turns
     h = device(client)
-    client.post("/api/account/signup", json={"username": "old_chats", "password": "long-pass-1"}, headers=h)
+    client.post("/api/account/signup", json={"username": "old_chats", "password": "long-pass-1", **ABOUT}, headers=h)
     turn = client.post("/api/ask", data={"question": "سؤال قديم", "lang": "ar"}, headers=h).json()["turn_id"]
     db = SessionLocal()
     try:

@@ -30,15 +30,17 @@ export default function CommunityPage({ query }) {
   const [city, setCity] = useState(account?.city || "");
   const [audience, setAudience] = useState(AUDIENCE_FROM_GENDER[account?.gender] || "");
   const [age, setAge] = useState(AGE_FROM_BAND[account?.age_band] || "");
-  // A signed-in seeker first sees what suits their city, sex and age; they can still pick "all".
-  const [placed, setPlaced] = useState(Boolean(account));
+  // A signed-in seeker first sees what suits their city, sex and age (again after they change them); they can still
+  // pick "all".
+  const who = account ? [account.username, account.country, account.city, account.gender, account.age_band].join("|") : "";
+  const [placed, setPlaced] = useState(who);
   useEffect(() => {
-    if (account && !placed) {
+    if (who && who !== placed) {
       setCountry(account.country || ""); setCity(account.city || "");
       setAudience(AUDIENCE_FROM_GENDER[account.gender] || ""); setAge(AGE_FROM_BAND[account.age_band] || "");
-      setPlaced(true);
+      setPlaced(who);
     }
-  }, [account, placed]);
+  }, [who, placed]); // eslint-disable-line react-hooks/exhaustive-deps
   const ages = tab === "groups" ? GROUP_AGE_GROUPS : AGE_GROUPS;
   const ageValue = age && ages.includes(age) ? age : "";   // there are no children's groups
   const [places, setPlaces] = useState([]);
