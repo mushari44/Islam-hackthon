@@ -1,7 +1,7 @@
 /* Smooth look: the app floats on a backdrop with a faint eight-point star pattern (pearl by day, navy by night),
    under a glass top bar, and every page sits on one rounded sheet. Pages and cards ease in.
-   The home page (the one with .hero) keeps the original theme, so every rule is scoped to
-   body:not(:has(.hero)). Shared: change with both owners' agreement. Loaded after tokens/base/pages. */
+   The home page uses the same look, so the bar and backdrop don't change when you move between pages.
+   Shared: change with both owners' agreement. Loaded after tokens/base/pages. */
 
 html { scroll-behavior: smooth; }
 
@@ -16,7 +16,7 @@ html { scroll-behavior: smooth; }
     linear-gradient(165deg, #F8F9FE 0%, #EEF0FA 55%, #E5E8F5 100%);
   --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%23161D48' stroke-opacity='.06' stroke-width='1.2'%3E%3Cpath d='M60 18l12 30 30 12-30 12-12 30-12-30-30-12 30-12z'/%3E%3Cpath d='M30 30h60v60H30z' transform='rotate(45 60 60)'/%3E%3Ccircle cx='60' cy='60' r='9'/%3E%3C/svg%3E");
   --bar-bg: rgba(255, 255, 255, .74); --bar-border: rgba(22, 29, 72, .08); --bar-shadow: 0 12px 32px rgba(22, 29, 72, .08);
-  --bar-fg: var(--navy-800); --bar-muted: var(--navy-500); --bar-tag: var(--text-faint); --bar-hover: rgba(22, 29, 72, .06);
+  --bar-fg: var(--navy-800); --bar-muted: var(--navy-500); --bar-hover: rgba(22, 29, 72, .06);
   --bar-current-bg: var(--navy-800); --bar-current-fg: #FFFFFF; --logo-glow: 0 6px 18px rgba(22, 29, 72, .22);
   --sheet-bg: #FFFFFF; --sheet-border: rgba(22, 29, 72, .07); --sheet-shadow: 0 30px 80px rgba(22, 29, 72, .10), 0 2px 6px rgba(22, 29, 72, .04);
   --foot-fg: var(--navy-500); --foot-link: var(--navy-700);
@@ -31,7 +31,7 @@ html { scroll-behavior: smooth; }
       linear-gradient(165deg, #0B1030 0%, #161D48 48%, #1E1B5E 100%);
     --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%23ffffff' stroke-opacity='.055' stroke-width='1.2'%3E%3Cpath d='M60 18l12 30 30 12-30 12-12 30-12-30-30-12 30-12z'/%3E%3Cpath d='M30 30h60v60H30z' transform='rotate(45 60 60)'/%3E%3Ccircle cx='60' cy='60' r='9'/%3E%3C/svg%3E");
     --bar-bg: rgba(255, 255, 255, .07); --bar-border: rgba(255, 255, 255, .12); --bar-shadow: 0 10px 30px rgba(5, 8, 30, .35);
-    --bar-fg: #FFFFFF; --bar-muted: var(--lav-100); --bar-tag: var(--peri-300); --bar-hover: rgba(255, 255, 255, .10);
+    --bar-fg: #FFFFFF; --bar-muted: var(--lav-100); --bar-hover: rgba(255, 255, 255, .10);
     --bar-current-bg: var(--mint-400); --bar-current-fg: var(--navy-900); --logo-glow: 0 0 22px rgba(201, 210, 255, .35);
     --sheet-bg: var(--bg); --sheet-border: rgba(255, 255, 255, .08); --sheet-shadow: 0 30px 80px rgba(5, 8, 30, .45);
     --foot-fg: var(--peri-300); --foot-link: var(--lav-100);
@@ -46,14 +46,14 @@ html { scroll-behavior: smooth; }
       linear-gradient(165deg, #0B1030 0%, #161D48 48%, #1E1B5E 100%);
     --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%23ffffff' stroke-opacity='.055' stroke-width='1.2'%3E%3Cpath d='M60 18l12 30 30 12-30 12-12 30-12-30-30-12 30-12z'/%3E%3Cpath d='M30 30h60v60H30z' transform='rotate(45 60 60)'/%3E%3Ccircle cx='60' cy='60' r='9'/%3E%3C/svg%3E");
     --bar-bg: rgba(255, 255, 255, .07); --bar-border: rgba(255, 255, 255, .12); --bar-shadow: 0 10px 30px rgba(5, 8, 30, .35);
-    --bar-fg: #FFFFFF; --bar-muted: var(--lav-100); --bar-tag: var(--peri-300); --bar-hover: rgba(255, 255, 255, .10);
+    --bar-fg: #FFFFFF; --bar-muted: var(--lav-100); --bar-hover: rgba(255, 255, 255, .10);
     --bar-current-bg: var(--mint-400); --bar-current-fg: var(--navy-900); --logo-glow: 0 0 22px rgba(201, 210, 255, .35);
     --sheet-bg: var(--bg); --sheet-border: rgba(255, 255, 255, .08); --sheet-shadow: 0 30px 80px rgba(5, 8, 30, .45);
     --foot-fg: var(--peri-300); --foot-link: var(--lav-100);
     --tabbar-bg: var(--surface); --tabbar-shadow: 0 -10px 30px rgba(5, 8, 30, .18);
 }
 
-body:not(:has(.hero)) {
+body {
   --radius: 20px;
   --radius-lg: 30px;
   background-color: var(--page-base);
@@ -63,44 +63,43 @@ body:not(:has(.hero)) {
 }
 
 /* ---------- frosted top bar ---------- */
-body:not(:has(.hero)) .topbar { top: 12px; background: transparent; backdrop-filter: none; border: 0; padding-inline: 16px; }
-body:not(:has(.hero)) .topbar-inner {
+body .topbar { top: 12px; background: transparent; backdrop-filter: none; border: 0; padding-inline: 16px; }
+body .topbar-inner {
   margin-block-start: 12px; border-radius: 26px;
   background: var(--bar-bg); border: 1px solid var(--bar-border);
   backdrop-filter: saturate(1.5) blur(16px); -webkit-backdrop-filter: saturate(1.5) blur(16px);
   box-shadow: var(--bar-shadow);
 }
-body:not(:has(.hero)) .topbar .brand, body:not(:has(.hero)) .topbar .brand-name { color: var(--bar-fg); }
-body:not(:has(.hero)) .topbar .brand-tag { color: var(--bar-tag); }
-body:not(:has(.hero)) .topbar .brand-mark { border-radius: 14px; box-shadow: var(--logo-glow); }
-body:not(:has(.hero)) .topbar .nav a { color: var(--bar-muted); }
-body:not(:has(.hero)) .topbar .nav a:hover { background: var(--bar-hover); color: var(--bar-fg); }
-body:not(:has(.hero)) .topbar .nav a[aria-current="page"] { background: var(--bar-current-bg); color: var(--bar-current-fg); }
-body:not(:has(.hero)) .topbar .btn-ghost { --btn-fg: var(--bar-fg); }
-body:not(:has(.hero)) .topbar .btn-ghost:hover { background: var(--bar-hover); box-shadow: none; }
-body:not(:has(.hero)) .topbar .icon-btn { color: var(--bar-muted); }
-body:not(:has(.hero)) .topbar .icon-btn:hover { background: var(--bar-hover); color: var(--bar-fg); }
+body .topbar .brand, body .topbar .brand-name { color: var(--bar-fg); }
+body .topbar .brand-mark { border-radius: 14px; box-shadow: var(--logo-glow); }
+body .topbar .nav a { color: var(--bar-muted); }
+body .topbar .nav a:hover { background: var(--bar-hover); color: var(--bar-fg); }
+body .topbar .nav a[aria-current="page"] { background: var(--bar-current-bg); color: var(--bar-current-fg); }
+body .topbar .btn-ghost { --btn-fg: var(--bar-fg); }
+body .topbar .btn-ghost:hover { background: var(--bar-hover); box-shadow: none; }
+body .topbar .icon-btn { color: var(--bar-muted); }
+body .topbar .icon-btn:hover { background: var(--bar-hover); color: var(--bar-fg); }
 
 /* ---------- the page sheet ---------- */
-body:not(:has(.hero)) .main {
+body .main {
   margin-block: 22px 28px; width: calc(100% - 32px); padding: 36px 40px 56px;
   background: var(--sheet-bg); border-radius: var(--radius-lg);
   border: 1px solid var(--sheet-border);
   box-shadow: var(--sheet-shadow);
 }
 .main:focus { outline: none; }
-body:not(:has(.hero)) .main > * { animation: rise .5s var(--ease) both; }
-body:not(:has(.hero)) .main > *:nth-child(2) { animation-delay: .05s; }
-body:not(:has(.hero)) .main > *:nth-child(3) { animation-delay: .1s; }
-body:not(:has(.hero)) .main > *:nth-child(4) { animation-delay: .15s; }
-body:not(:has(.hero)) .main > *:nth-child(n+5) { animation-delay: .2s; }
+body .main > * { animation: rise .5s var(--ease) both; }
+body .main > *:nth-child(2) { animation-delay: .05s; }
+body .main > *:nth-child(3) { animation-delay: .1s; }
+body .main > *:nth-child(4) { animation-delay: .15s; }
+body .main > *:nth-child(n+5) { animation-delay: .2s; }
 
-body:not(:has(.hero)) .footer { border-top: 0; color: var(--foot-fg); }
-body:not(:has(.hero)) .footer a { color: var(--foot-link); }
+body .footer { border-top: 0; color: var(--foot-fg); }
+body .footer a { color: var(--foot-link); }
 
 /* ---------- softer surfaces and motion ---------- */
-body:not(:has(.hero)) .card { border-radius: var(--radius); transition: transform .3s var(--ease), box-shadow .3s var(--ease), border-color .3s; }
-body:not(:has(.hero)) article.card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+body .card { border-radius: var(--radius); transition: transform .3s var(--ease), box-shadow .3s var(--ease), border-color .3s; }
+body article.card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .btn { transition: transform .2s var(--ease), box-shadow .25s var(--ease), background .25s, color .25s; }
 .chip, .tabs button, .nav a, .icon-btn { transition: background .25s var(--ease), color .25s, border-color .25s, box-shadow .25s; }
 .input, .textarea, .select { transition: border-color .2s, box-shadow .2s; }
@@ -112,18 +111,18 @@ body:not(:has(.hero)) article.card:hover { transform: translateY(-3px); box-shad
 .tabs button { white-space: nowrap; flex: none; }
 
 @media (max-width: 860px) {
-  body:not(:has(.hero)) .topbar { top: 8px; padding-inline: 10px; }
-  body:not(:has(.hero)) .topbar-inner { margin-block-start: 8px; border-radius: 22px; }
-  body:not(:has(.hero)) .main { width: calc(100% - 16px); padding: 22px 16px 120px; margin-block: 14px 16px; border-radius: 24px; }
-  body:not(:has(.hero)) .tabbar {
+  body .topbar { top: 8px; padding-inline: 10px; }
+  body .topbar-inner { margin-block-start: 8px; border-radius: 22px; }
+  body .main { width: calc(100% - 16px); padding: 22px 16px 120px; margin-block: 14px 16px; border-radius: 24px; }
+  body .tabbar {
     border-top: 0; border-radius: 22px 22px 0 0; background: var(--tabbar-bg); box-shadow: var(--tabbar-shadow);
     backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  body:not(:has(.hero)) .main > * { animation: none; }
-  body:not(:has(.hero)) article.card:hover { transform: none; }
+  body .main > * { animation: none; }
+  body article.card:hover { transform: none; }
 }
 
 /* Glows: soft grey in the light theme, mint in the dark theme. */
@@ -144,5 +143,4 @@ body:not(:has(.hero)) article.card:hover { transform: translateY(-3px); box-shad
   --glow-backdrop: rgba(46, 242, 194, .10);
   --verse-edge: color-mix(in srgb, var(--mint-500) 30%, var(--border));
 }
-.hero::after { background: radial-gradient(circle, var(--glow), transparent 70%); }
 .verse-card { border-color: var(--verse-edge); }

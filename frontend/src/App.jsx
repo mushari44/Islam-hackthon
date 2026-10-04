@@ -64,7 +64,7 @@ function Shell() {
   useEffect(() => {
     const h1 = document.querySelector("main h1");
     const name = t("app.name");
-    document.title = h1 && h1.textContent !== name ? `${h1.textContent} · ${name}` : `${name} · ${t("app.tag")}`;
+    document.title = h1 && h1.textContent !== name ? `${h1.textContent} · ${name}` : name;
   });
 
   return (
@@ -74,7 +74,7 @@ function Shell() {
         <div className="topbar-inner">
           <a className="brand" href="#/" aria-label={t("app.name")}>
             <Logo />
-            <span><span className="brand-name">{t("app.name")}</span><span className="brand-tag">{t("app.tag")}</span></span>
+            <span className="brand-name">{t("app.name")}</span>
           </a>
           <nav className="nav" aria-label="main">
             {NAV.map((n) => (

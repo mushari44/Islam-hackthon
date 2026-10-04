@@ -71,7 +71,6 @@ export function useI18n() {
 register({
   ar: {
     "app.name": "سَبِيلي",
-    "app.tag": "معرفة تُنير، وصحبة تُعين",
     "nav.home": "الرئيسية", "nav.ask": "اسأل", "nav.talk": "تحدّث", "nav.community": "المجتمع", "nav.more": "المزيد",
     "nav.daai": "لوحة الداعية", "nav.about": "عن سَبِيلي", "nav.sources": "المصادر", "nav.privacy": "الخصوصية",
     "common.close": "إغلاق", "common.cancel": "إلغاء", "common.save": "حفظ", "common.send": "إرسال", "common.back": "رجوع",
@@ -91,7 +90,6 @@ register({
   },
   en: {
     "app.name": "Sabeeli",
-    "app.tag": "Knowledge that enlightens, company that supports",
     "nav.home": "Home", "nav.ask": "Ask", "nav.talk": "Talk", "nav.community": "Community", "nav.more": "More",
     "nav.daai": "Da'i console", "nav.about": "About", "nav.sources": "Sources", "nav.privacy": "Privacy",
     "common.close": "Close", "common.cancel": "Cancel", "common.save": "Save", "common.send": "Send", "common.back": "Back",
