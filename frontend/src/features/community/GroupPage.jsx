@@ -7,6 +7,7 @@ import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
 import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
 import { Answer } from "../rag/public.js";
+import { NewMuslimPrompt } from "./NewMuslim.jsx";
 import { Rules, openJoin } from "./shared.jsx";
 
 const BOT_RX = /@\s?(سبيلي|سَبِيلي|sabeeli)/i;
@@ -14,6 +15,14 @@ const BOT_RX = /@\s?(سبيلي|سَبِيلي|sabeeli)/i;
 /** One message bubble; `tools` lets the da'i console add moderation buttons. */
 export function GroupMessage({ m, mine = false, tools = null }) {
   const { t, fmtAgo } = useI18n();
+  if (m.author_type === "system") {   // e.g. the welcome when a member shares that they embraced Islam
+    return (
+      <div className="g-msg system">
+        <p dir="auto">{m.text}</p>
+        {tools}
+      </div>
+    );
+  }
   const cls = m.author_type === "bot" ? "bot" : m.author_type === "daai" ? "leader" : mine ? "mine" : "member";
   let body;
   if (m.deleted) body = <p className="faint">{t("gr.deleted")}</p>;
@@ -25,6 +34,7 @@ export function GroupMessage({ m, mine = false, tools = null }) {
         <strong>{mine ? t("gr.you") : m.author}</strong>
         {m.author_type === "daai" && <span className="badge badge-mint">{t("gr.leader")}</span>}
         {m.author_type === "bot" && <span className="badge badge-purple">{t("gr.bot")}</span>}
+        {m.new_muslim && <span className="badge badge-mint">{t("gnm.badge")}</span>}
         <span className="faint">{fmtAgo(m.at)}</span>
       </div>
       {body}
@@ -110,6 +120,7 @@ export default function GroupPage({ params }) {
         <h1>{group.title}</h1>
         <p>{group.description}</p>
       </div>
+      {member && <NewMuslimPrompt onChange={() => { lastId.current = 0; poll(); }} />}
       <div className="group-layout">
         <section className="group-main">
           {!member ? (

@@ -21,10 +21,11 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ...core.db import SessionLocal, get_db, iso, utcnow
-from ..auth.public import Daai, SeekerSession, daai, optional_daai, optional_seeker, seeker
+from ..auth.public import Daai, SeekerSession, account_gender, daai, optional_daai, optional_seeker, seeker
 from ..rag.public import answer_in_group
 from . import moderation
-from .models import RSVP, Group, GroupMember, GroupMessage, Meetup
+from .models import RSVP, Group, GroupMember, GroupMessage, Meetup, NewMuslim
+from .public import expire_pending, remove_new_muslim
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("sabeeli.community")
@@ -102,10 +103,21 @@ def _group_view(db: Session, g: Group, lang: str, me: GroupMember | None = None,
             "membership": {"id": me.id, "nickname": me.nickname, "muted": me.muted} if me else None}
 
 
-def _message_view(m: GroupMessage) -> dict:
+def _message_view(m: GroupMessage, new_muslims: set[int] = frozenset()) -> dict:
     return {"id": m.id, "author_type": m.author_type, "author": m.author_name, "member_id": m.member_id,
             "text": "" if m.deleted else m.text, "deleted": m.deleted, "payload": {} if m.deleted else m.payload,
-            "reply_to": m.reply_to, "needs_leader": m.needs_leader, "at": iso(m.created_at)}
+            "reply_to": m.reply_to, "needs_leader": m.needs_leader, "at": iso(m.created_at),
+            "new_muslim": m.author_type == "seeker" and m.member_id in new_muslims}
+
+
+def _new_muslim_members(db: Session, member_ids: set[int]) -> set[int]:
+    """Which of these members shared that they embraced Islam (their posts carry a "new Muslim" badge)."""
+    member_ids.discard(None)
+    if not member_ids:
+        return set()
+    rows = db.execute(select(GroupMember.id).join(NewMuslim, NewMuslim.session_id == GroupMember.session_id)
+                      .where(GroupMember.id.in_(member_ids), NewMuslim.status == "shared")).all()
+    return {r[0] for r in rows}
 
 
 def _membership(db: Session, gid: int, sid: str) -> GroupMember | None:
@@ -255,7 +267,8 @@ def group_messages(gid: int, after: int = 0, me: SeekerSession | None = Depends(
         msgs = db.scalars(q.where(GroupMessage.id > after).order_by(GroupMessage.id).limit(MESSAGES_PAGE)).all()
     else:   # first load: the newest page, so a long conversation opens at its end
         msgs = list(reversed(db.scalars(q.order_by(GroupMessage.id.desc()).limit(MESSAGES_PAGE)).all()))
-    return [_message_view(m) for m in msgs]
+    badged = _new_muslim_members(db, {m.member_id for m in msgs if m.author_type == "seeker"})
+    return [_message_view(m, badged) for m in msgs]
 
 
 class PostIn(BaseModel):
@@ -291,7 +304,71 @@ def post_message(gid: int, body: PostIn, tasks: BackgroundTasks, me: SeekerSessi
         question = moderation.strip_mention(verdict.text)
         if question:
             tasks.add_task(_bot_reply, gid, question, msg.id, "ar" if body.lang == "ar" else "en")
-    return {**_message_view(msg), "redacted": verdict.redacted}
+    return {**_message_view(msg, _new_muslim_members(db, {member.id})), "redacted": verdict.redacted}
+
+
+# ---------------------------------------------------------------------------
+# "Became Muslim": the da'i confirms it in the call (features/calls), the seeker decides here whether their
+# groups hear the news. Nothing is announced and no badge shows without the seeker's own yes.
+# ---------------------------------------------------------------------------
+
+def _welcome_text(lang: str, nick: str, gender: str) -> str:
+    if lang == "ar":
+        if gender == "f":
+            return f"🎉 بشرى سارّة: أعلنت {nick} إسلامها. حيّاها الله في أسرتنا، ونسأل الله لها الثبات."
+        return f"🎉 بشرى سارّة: أعلن {nick} إسلامه. حيّاه الله في أسرتنا، ونسأل الله له الثبات."
+    return f"🎉 Good news: {nick} has embraced Islam. Welcome to the family, and may Allah keep them steadfast."
+
+
+def _new_muslim_view(db: Session, row: NewMuslim | None, ui: str) -> dict:
+    if row is None:
+        return {"status": "none"}
+    d = db.get(Daai, row.daai_id)
+    groups = db.scalars(select(Group.title).join(GroupMember, GroupMember.group_id == Group.id)
+                        .where(GroupMember.session_id == row.session_id, GroupMember.left.is_(False),
+                               Group.active.is_(True)).order_by(Group.id)).all()
+    return {"status": row.status, "daai": d.public(_ui(ui))["name"] if d else "", "groups": list(groups),
+            "announced": len(row.announced or [])}
+
+
+@router.get("/community/new-muslim")
+def my_new_muslim(ui: str = "ar", me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
+    """Whether a da'i confirmed this seeker embraced Islam, and whether they shared it with their groups."""
+    expire_pending(db)
+    return _new_muslim_view(db, db.scalars(select(NewMuslim).where(NewMuslim.session_id == me.id)).first(), ui)
+
+
+class NewMuslimIn(BaseModel):
+    share: bool
+
+
+@router.post("/community/new-muslim")
+def answer_new_muslim(body: NewMuslimIn, ui: str = "ar", me: SeekerSession = Depends(seeker),
+                      db: Session = Depends(get_db)):
+    """share=true: one welcome message in each group they are in now, and the badge next to their nickname.
+    share=false (also later, to take it back): the record and the welcome messages are deleted."""
+    expire_pending(db)
+    row = db.scalars(select(NewMuslim).where(NewMuslim.session_id == me.id)).first()
+    if row is None:
+        raise HTTPException(404, "nothing to answer")
+    if not body.share:
+        remove_new_muslim(db, me.id)
+        return {"status": "none"}
+    if row.status != "shared":
+        gender = account_gender(db, me.id)
+        with _write_lock:
+            posted = []
+            for member, g in db.execute(select(GroupMember, Group).join(Group, Group.id == GroupMember.group_id)
+                                        .where(GroupMember.session_id == me.id, GroupMember.left.is_(False),
+                                               Group.active.is_(True))).all():
+                msg = GroupMessage(group_id=g.id, author_type="system", author_name="", member_id=member.id,
+                                   text=_welcome_text(g.lang, member.nickname, gender), payload={"kind": "new_muslim"})
+                db.add(msg)
+                db.flush()
+                posted.append(msg.id)
+            row.status, row.answered_at, row.announced = "shared", utcnow(), posted
+            db.commit()
+    return _new_muslim_view(db, row, ui)
 
 
 # ---------------------------------------------------------------------------

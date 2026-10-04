@@ -13,7 +13,7 @@
 }
 
 /* Call log */
-.log-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
+.log-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--gap); }
 .log-stat { display: flex; flex-direction: column; gap: 4px; padding-block: 14px; }
 .log-stat strong { font-size: 1.5rem; line-height: 1.2; }
 .log-stat svg { color: var(--primary); }
@@ -25,6 +25,7 @@
 .log-table tbody tr:last-child td { border-block-end: 0; }
 .log-note { white-space: normal; min-width: 180px; max-width: 280px; }
 @media (max-width: 760px) { .log-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.nm-row { gap: 6px; flex-wrap: nowrap; }
 
 /* Da'i accounts (reviewer) */
 .admin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
