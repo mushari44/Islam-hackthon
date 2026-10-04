@@ -80,7 +80,7 @@ Then open a pull request into `main` on GitHub (`https://github.com/mushari44/Is
 - **Videos come only from IslamHouse** (listed on page 9 of the scholarly package). They play from IslamHouse's own URLs (their CDN, or a privacy-mode YouTube embed when that is all they publish), every card links back to the item's IslamHouse page, and titles and descriptions are shown exactly as published. Never re-host the media, never generate or summarise video text with a model, and never cite a video in an answer (answers cite the approved corpus only).
 - **No personal fatwa.** Level D questions get general information and a referral. The `fatwa` notice must stay.
 - Use **synthetic data only**: no real seekers' chats, names or photos in the repo, tests, evals or prompts. Demo accounts are marked "(demo)".
-- Don't infer or store anything about a user's religion or other sensitive traits. Seekers stay anonymous.
+- Don't infer or store anything about a user's religion or other sensitive traits. Seekers stay anonymous. One exception, approved by Mushari for the "new Muslim" feature: when a da'i confirms in a call that a seeker embraced Islam, a pending record is kept until the seeker answers (at most 7 days). It is shown or announced only if they agree, and deleted if they decline, never answer or later hide it. Without their yes, only an anonymous count is kept.
 - Every tool, model, dataset and service you add goes into `THIRD_PARTY.md` with its licence.
 
 ## 4. Running things

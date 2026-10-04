@@ -16,5 +16,11 @@ def account_session_ids() -> Select:
     return select(SeekerAccount.session_id)
 
 
-__all__ = ["Daai", "SeekerSession", "account_session_ids", "admin", "daai", "daai_from_token", "optional_daai",
+def account_gender(db, sid: str) -> str:
+    """The sex ("m" or "f") a seeker account gave, or "" for an anonymous session, so a message about them
+    can use the right Arabic grammar."""
+    return db.scalar(select(SeekerAccount.gender).where(SeekerAccount.session_id == sid)) or ""
+
+
+__all__ = ["Daai", "SeekerSession", "account_gender", "account_session_ids", "admin", "daai", "daai_from_token", "optional_daai",
            "optional_seeker", "seeker", "seeker_id", "seeker_key"]

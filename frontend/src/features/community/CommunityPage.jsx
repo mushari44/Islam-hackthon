@@ -8,6 +8,7 @@ import { navigate } from "../../core/router.jsx";
 import { Icon, errorText } from "../../core/ui.jsx";
 import { useAccount } from "../account/public.js";
 import MyActivities from "./MyActivities.jsx";
+import { NewMuslimPrompt } from "./NewMuslim.jsx";
 import { GroupCard, MeetupCard } from "./cards.jsx";
 import { AGE_GROUPS, FORMATS, GROUP_AGE_GROUPS, SERIES, countryName, useNow } from "./shared.jsx";
 
@@ -84,6 +85,7 @@ export default function CommunityPage({ query }) {
   return (
     <>
       <div className="page-head"><h1>{t("com.title")}</h1><p>{t("com.lead")}</p></div>
+      <NewMuslimPrompt manage />
       <div className="row spread com-bar">
         <div className="tabs" role="tablist">
           {[["groups", "com.groups"], ["meetups", "com.meetups"], ["mine", "com.mine"]].map(([k, label]) => (

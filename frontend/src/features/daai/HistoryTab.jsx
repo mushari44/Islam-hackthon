@@ -8,6 +8,7 @@ import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
 import { openSharedChat } from "./CallsTab.jsx";
+import NewMuslimButton from "./NewMuslimButton.jsx";
 
 function duration(n, t, fmtNum) {
   if (n == null) return "—";
@@ -54,6 +55,7 @@ function HistoryTab() {
         <Stat icon="clock" value={fmtNum(s.minutes)} label={t("dl.minutes")} />
         <Stat icon="check" value={s.rated ? t("dl.of", { a: fmtNum(s.no_reexplain), b: fmtNum(s.rated) }) : "—"} label={t("dl.no_reexplain")} />
         <Stat icon="heart" value={s.avg_rating != null ? `${fmtNum(s.avg_rating)} / ${fmtNum(5)}` : "—"} label={t("dl.rating")} />
+        <Stat icon="sparkle" value={fmtNum(s.new_muslims || 0)} label={t("nm.stat")} />
       </div>
 
       <section className="card stack">
@@ -74,7 +76,7 @@ function HistoryTab() {
             <table className="log-table">
               <thead>
                 <tr>
-                  <th>{t("dl.when")}</th><th>{t("dl.lang")}</th><th>{t("dl.length")}</th><th>{t("dl.arm")}</th>
+                  <th>{t("dl.when")}</th><th>{t("dl.lang")}</th><th>{t("dl.length")}</th><th>{t("nm.col")}</th><th>{t("dl.arm")}</th>
                   <th>{t("dl.understood")}</th><th>{t("dl.reexplain")}</th><th>{t("dl.accurate")}</th>
                   <th>{t("dl.stars")}</th><th>{t("dl.chat")}</th><th>{t("dl.note")}</th>
                 </tr>
@@ -85,6 +87,7 @@ function HistoryTab() {
                     <td>{fmtDate(c.accepted_at, { weekday: "short", day: "numeric", month: "short" })} · {fmtTime(c.accepted_at)}</td>
                     <td>{langName(c.lang)}</td>
                     <td>{duration(c.duration_seconds, t, fmtNum)}</td>
+                    <td><NewMuslimButton callId={c.id} status={c.new_muslim ?? null} compact /></td>
                     <td><span className="badge badge-purple">{t(`dc.arm.${c.referral_mode}`)}</span></td>
                     <td>{duration(c.seconds_to_understand, t, fmtNum)}</td>
                     <td><YesNo value={c.reexplain_needed} good={false} /></td>

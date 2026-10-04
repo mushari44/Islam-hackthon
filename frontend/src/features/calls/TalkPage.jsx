@@ -6,6 +6,7 @@ import { api, seekerToken } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
 import { Icon, Notice, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { NewMuslimPrompt } from "../community/public.js";
 import CallPanel, { Clock, useClock } from "./CallPanel.jsx";
 
 const ACTIVE = "sabeeli.call";
@@ -132,6 +133,9 @@ function Ended({ id, daai, onAgain }) {
   const [rated, setRated] = useState(false);
   const rate = async (n) => { await api.post(`/api/calls/${id}/rate`, { rating: n }).catch(() => {}); setRated(true); };
   return (
+    <>
+    {/* the da'i may confirm the seeker embraced Islam during the call or just after it */}
+    <NewMuslimPrompt poll />
     <div className="card stack center">
       <h3>{t("talk.ended")}</h3>
       <p className="muted">{t("talk.rate")}</p>
@@ -146,6 +150,7 @@ function Ended({ id, daai, onAgain }) {
         {daai && <button type="button" className="btn" onClick={() => onAgain(daai.id, daai.lang)}><Icon name="talk" />{t("talk.again_same", { name: daai.name })}</button>}
       </div>
     </div>
+    </>
   );
 }
 
