@@ -84,6 +84,8 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 | POST | `/api/meetups/{mid}/cancel-rsvp` | seeker | – | `{ok: true}` |
 | GET | `/api/meetups/{mid}/ics` | none | – | `text/calendar` attachment (linked with a plain `<a href download>`); `STATUS:CANCELLED` once the host cancels. For an online meetup the location is "Online" and the link is left out (this file is public) |
 | GET | `/api/community/mine` | seeker | `?ui=` | `{meetups: [Meetup], groups: [Group]}`: meetups this browser or account booked (not cancelled by them) starting from 30 days ago on, by start time (so recent past ones come first), including ones the host cancelled (`status: cancelled`, without the online link), with `my_rsvp` and, for online ones, the link; and the groups they are a member of |
+| GET | `/api/community/new-muslim` | seeker | `?ui=` | `{status: none\|pending\|shared, daai?, groups?: [title], announced?: int}`: whether a da'i confirmed in a call that I embraced Islam. `pending` = waiting for my answer; `daai` is their name, `groups` the groups I'm in now |
+| POST | `/api/community/new-muslim` | seeker | `?ui=`; `{share: bool}` | `share: true` posts one welcome message (`author_type: system`, `payload.kind: new_muslim`) in each group I'm in, and my posts then carry `new_muslim: true`; repeating it posts nothing new. `share: false` (also later, to take it back) deletes the record and those welcome messages: `{status: "none"}`. 404 if no da'i confirmed it |
 | GET | `/api/daai/meetups` | daai | `?ui=` | `[Meetup + attendees: [nickname]]` (meetups I host, in any status) |
 | POST | `/api/daai/meetups` | daai | `?ui=`; `{title: 3–160, description?, lang: 2–3 lowercase letters, country?: ≤ 64, city: 2–64, venue: 3–200, starts_at: ISO 8601 (no offset = UTC), duration_min: 15–480 (default 90), capacity: 2–500 (default 20), audience: all\|women\|men\|families, registration?: required\|open, age_group?, series?, group_id?: int\|null, public_venue: true, format?: in_person\|online (default in_person), online_url?: https link ≤ 500, tz?: the venue's IANA zone name such as `Asia/Riyadh` (an unknown one is stored as `""`)}`. An online meetup needs `online_url` and no place (`country`, `city`, `venue` and `public_venue` are ignored) and can't be for children (`age_group: kids`); one in person needs `city`, `venue` and `public_venue: true` | Meetup (with `online_url`). 400 if the format is bad, an online meetup has no https link or is for children, one in person has no public venue, city or venue, the time has passed, the audience or type is bad, or the group isn't yours |
 | POST | `/api/daai/meetups/{mid}/cancel` | daai (host) | – | `{ok: true}` |
@@ -123,8 +125,10 @@ Search: every word must appear in the title, description, presenters or topic; t
 | POST | `/api/daai/requests/{cid}/accept` | daai | – | DaaiCall. 404 if it doesn't match me, 409 `already taken or no longer waiting` |
 | GET | `/api/daai/calls/{cid}` | daai (assigned) | – | DaaiCall |
 | POST | `/api/daai/calls/{cid}/understood` | daai (assigned) | – | `{ok: true}` |
+| POST | `/api/daai/calls/{cid}/new-muslim` | daai (assigned; call accepted or ended) | – | `{new_muslim: "pending"\|"shared"}`: the seeker embraced Islam in this call. The seeker is then asked whether to share it with their groups; nothing is announced without their yes. An anonymous total is kept even if they decline |
+| DELETE | `/api/daai/calls/{cid}/new-muslim` | daai (assigned) | – | `{new_muslim: null}`. Undo a mistaken press; 409 once the seeker has answered |
 | POST | `/api/daai/calls/{cid}/end` | daai (assigned) | `{reexplain_needed?: bool\|null, card_accurate?: bool\|null, note?: string}` (note cut to 500 chars) | `{ok: true}`. Ends the call if it is accepted and stores the feedback |
-| GET | `/api/daai/calls` | daai | `?month=YYYY-MM` (default this month) | `{month, months, calls: [{id, lang, accepted_at, ended_at, duration_seconds, seconds_to_understand, referral_mode, reexplain_needed, card_accurate, seeker_rating, note, has_chat}], summary: {calls, minutes, no_reexplain, rated, avg_rating}}`: the calls I answered that month, newest first. `has_chat` means the seeker shared an Ask chat; `GET /api/daai/calls/{cid}` returns it (`chat`, null once they delete it). 400 for a bad month |
+| GET | `/api/daai/calls` | daai | `?month=YYYY-MM` (default this month) | `{month, months, calls: [{id, lang, accepted_at, ended_at, duration_seconds, seconds_to_understand, referral_mode, reexplain_needed, card_accurate, seeker_rating, note, has_chat, new_muslim}], summary: {calls, minutes, no_reexplain, rated, avg_rating, new_muslims}}`: the calls I answered that month, newest first. `has_chat` means the seeker shared an Ask chat; `GET /api/daai/calls/{cid}` returns it (`chat`, null once they delete it). 400 for a bad month |
 | GET | `/api/daai/experiment` | daai | – | `{enabled, arms: {<model\|template\|none\|direct>: {calls, no_reexplain_rate, card_accurate_rate, median_seconds_to_understand}}, waiting_now}` |
 | POST | `/api/daai/experiment` | admin | `{enabled: bool}` | `{enabled}`. 403 `admin only` |
 
@@ -240,8 +244,11 @@ Limits after cleaning: `question`, `context` and `unclear` ≤ 600 chars, `langu
 
 ```json
 {"id": 7, "status": "accepted", "lang": "en", "card": "ReferralCard or null", "card_sources": {"q:2:256": "source card"},
- "chat": "[shared turn] or null", "referral_mode": "model|template|none|direct", "accepted_at": "…Z", "understood": false}
+ "chat": "[shared turn] or null", "referral_mode": "model|template|none|direct", "accepted_at": "…Z", "understood": false,
+ "new_muslim": null}
 ```
+
+`new_muslim` is `null`, `"pending"` (the da'i confirmed the seeker embraced Islam; the seeker hasn't answered) or `"shared"` (they shared it with their groups). It goes back to `null` if the seeker declines.
 
 `chat` is `null` unless the seeker ticked "share this chat"; then it is `[{question, had_image, created_at, answer: Answer}]`, oldest first (the same saved answers the Ask page shows, without `trace`). It holds only the turns that existed when the seeker agreed, and becomes `null` if they delete that conversation.
 
@@ -278,10 +285,12 @@ Limits after cleaning: `question`, `context` and `unclear` ≤ 600 chars, `langu
 ```json
 {"id": 901, "author_type": "bot", "author": "Sabeeli (AI assistant)", "member_id": null, "text": "…",
  "deleted": false, "payload": {"segments": [], "cards": {}, "sources": [], "notices": [], "kind": "answer",
- "level": "B", "mode": "ai", "quote_check": null, "lang": "en"}, "reply_to": 900, "needs_leader": false, "at": "…Z"}
+ "level": "B", "mode": "ai", "quote_check": null, "lang": "en"}, "reply_to": 900, "needs_leader": false, "at": "…Z",
+ "new_muslim": false}
 ```
 
-- `author_type`: `seeker` | `daai` | `bot` (the model also allows `system`). `member_id` is set only for seekers.
+- `author_type`: `seeker` | `daai` | `bot` | `system`. `member_id` is set for seekers, and for a `system` welcome message (`payload: {kind: "new_muslim"}`) it is the member being welcomed.
+- `new_muslim` is true on a seeker's posts when they chose to share that they embraced Islam (show a badge next to their nickname).
 - `payload` is `{}` except on bot answers. For bot answers, render `payload` with the Answer component, **not** `text`: `text` is the joined raw segment text and still contains the markers.
 - `needs_leader` is true for bot answers at level C or D, or when the bot abstained. A deleted message has `text: ""` and `payload: {}`.
 

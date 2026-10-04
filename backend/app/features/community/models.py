@@ -90,9 +90,28 @@ class RSVP(Base):
     cancelled: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class NewMuslim(Base):
+    """A da'i confirmed in a call that this seeker embraced Islam.
+
+    Religion is sensitive, so the row only lives on with the seeker's own consent: it starts as "pending", the
+    seeker then either shares the news (status "shared": a "new Muslim" badge next to their nickname and one
+    welcome message in each group they are in) or declines, which deletes the row and its announcements. The
+    only thing kept without them is an anonymous count (see public.py)."""
+    __tablename__ = "new_muslim"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(64), unique=True)
+    call_id: Mapped[int] = mapped_column(Integer, index=True)
+    daai_id: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(8), default="pending")   # pending | shared
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    announced: Mapped[list] = mapped_column(JSON, default=list)          # GroupMessage ids of the welcome messages
+
+
 @on_session_delete
 def _purge_session(db: Session, sid: str) -> None:
     db.execute(delete(RSVP).where(RSVP.session_id == sid))
+    db.execute(delete(NewMuslim).where(NewMuslim.session_id == sid))
     # Group posts stay readable for others, but are no longer linked to the browser.
     for m in db.scalars(select(GroupMember).where(GroupMember.session_id == sid)).all():
         m.session_id, m.left = "deleted", True
@@ -107,6 +126,9 @@ def _merge_session(db: Session, from_sid: str, to_sid: str) -> None:
     for m in db.scalars(select(GroupMember).where(GroupMember.session_id == from_sid)).all():
         if m.group_id not in groups:
             m.session_id = to_sid
+    if db.scalars(select(NewMuslim).where(NewMuslim.session_id == to_sid)).first() is None:
+        for n in db.scalars(select(NewMuslim).where(NewMuslim.session_id == from_sid)).all():
+            n.session_id = to_sid
     meetups = set(db.scalars(select(RSVP.meetup_id).where(RSVP.session_id == to_sid, RSVP.cancelled.is_(False))).all())
     for r in db.scalars(select(RSVP).where(RSVP.session_id == from_sid)).all():
         if r.meetup_id not in meetups:

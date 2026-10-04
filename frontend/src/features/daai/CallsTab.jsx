@@ -7,6 +7,7 @@ import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
 import { CallPanel } from "../calls/public.jsx";
 import { Answer, SourceCard } from "../rag/public.js";
+import NewMuslimButton from "./NewMuslimButton.jsx";
 
 // Arabic counts change form with the number (1, 2, 3-10, 11+), so pick the right string.
 function callCount(n, t, fmtNum) {
@@ -124,6 +125,7 @@ function CardView({ call }) {
         <button type="button" className="btn btn-accent" disabled={understood} onClick={mark}>
           <Icon name="check" />{understood ? t("dc.understood_done") : t("dc.understood")}
         </button>
+        <NewMuslimButton callId={call.id} status={call.new_muslim ?? null} />
       </div>
     </section>
   );
@@ -154,6 +156,7 @@ function Feedback({ id, hadCard, onDone }) {
       {hadCard && <div className="field"><label>{t("dc.accurate")}</label>{pick("acc", acc, setAcc, true, t("dc.accurate"))}</div>}
       <div className="field"><label htmlFor="dc-note">{t("dc.note")}</label>
         <textarea id="dc-note" className="textarea" rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} /></div>
+      <div className="field"><label>{t("nm.after_call")}</label><div className="row"><NewMuslimButton callId={id} /></div></div>
       <div className="row"><button type="submit" className="btn btn-primary">{t("dc.submit")}</button></div>
     </form>
   );

@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from ...core.config import settings
 from ...core.db import Setting, get_db, iso, utcnow
 from ..auth.public import Daai, SeekerSession, admin, daai, seeker
+from ..community.public import mark_new_muslim, new_muslim_calls, unmark_new_muslim
 from ..rag.public import shared_conversation, source_card
 from .models import CallMessage, CallRequest, Referral
 
@@ -276,7 +277,32 @@ def daai_call(cid: int, me: Daai = Depends(daai), db: Session = Depends(get_db))
     return {"id": call.id, "status": call.status, "lang": call.lang, "card": card, "card_sources": sources,
             "chat": chat or None, "referral_mode": ref.mode if ref else "direct",
             "accepted_at": iso(call.accepted_at),
-            "understood": bool(call.understood_at)}
+            "understood": bool(call.understood_at),
+            "new_muslim": new_muslim_calls(db, [call.id]).get(call.id)}
+
+
+def _own_answered_call(db: Session, cid: int, me: Daai) -> CallRequest:
+    call = db.get(CallRequest, cid)
+    if not call or call.daai_id != me.id or call.status not in ("accepted", "ended"):
+        raise HTTPException(404, "not found")
+    return call
+
+
+@router.post("/daai/calls/{cid}/new-muslim")
+def confirm_new_muslim(cid: int, me: Daai = Depends(daai), db: Session = Depends(get_db)):
+    """The da'i confirms the seeker embraced Islam in this call (during it or afterwards). Community then asks
+    the seeker whether to share the news with their groups; nothing is announced without their yes."""
+    call = _own_answered_call(db, cid, me)
+    return {"new_muslim": mark_new_muslim(db, call.session_id, call.id, me.id)}
+
+
+@router.delete("/daai/calls/{cid}/new-muslim")
+def undo_new_muslim(cid: int, me: Daai = Depends(daai), db: Session = Depends(get_db)):
+    """Pressed by mistake: the da'i can take it back until the seeker has answered."""
+    _own_answered_call(db, cid, me)
+    if not unmark_new_muslim(db, cid, me.id):
+        raise HTTPException(409, "the seeker already answered")
+    return {"new_muslim": None}
 
 
 @router.post("/daai/calls/{cid}/understood")
@@ -334,6 +360,7 @@ def daai_call_log(month: str = "", me: Daai = Depends(daai), db: Session = Depen
     refs = {r.id: r for r in db.scalars(select(Referral).where(
         Referral.id.in_([c.referral_id for c in calls if c.referral_id])))} if calls else {}
     modes = {rid: r.mode for rid, r in refs.items()}
+    converted = new_muslim_calls(db, [c.id for c in calls])
 
     def secs(a, b):
         return int((b - a).total_seconds()) if a and b else None
@@ -344,7 +371,8 @@ def daai_call_log(month: str = "", me: Daai = Depends(daai), db: Session = Depen
               "referral_mode": modes.get(c.referral_id, "direct") if c.referral_id else "direct",
               "reexplain_needed": c.reexplain_needed, "card_accurate": c.card_accurate,
               "seeker_rating": c.seeker_rating, "note": c.daai_note,
-              "has_chat": bool(c.referral_id in refs and refs[c.referral_id].share_chat)} for c in calls]
+              "has_chat": bool(c.referral_id in refs and refs[c.referral_id].share_chat),
+              "new_muslim": converted.get(c.id)} for c in calls]
     rated = [i for i in items if i["reexplain_needed"] is not None]
     stars = [i["seeker_rating"] for i in items if i["seeker_rating"]]
     return {"month": f"{year:04d}-{mon:02d}", "months": months, "calls": items,
@@ -352,6 +380,7 @@ def daai_call_log(month: str = "", me: Daai = Depends(daai), db: Session = Depen
                         "minutes": round(sum(i["duration_seconds"] or 0 for i in items) / 60),
                         "no_reexplain": sum(1 for i in rated if not i["reexplain_needed"]),
                         "rated": len(rated),
+                        "new_muslims": len(converted),
                         "avg_rating": round(sum(stars) / len(stars), 1) if stars else None}}
 
 # ---------------------------------------------------------------------------

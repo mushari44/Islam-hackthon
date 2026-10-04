@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, toast } from "../../core/ui.jsx";
-import { COUNTRIES, countryName } from "../community/public.js";
+import { COUNTRIES, NewMuslimPrompt, countryName } from "../community/public.js";
 import { AboutFields, CompleteAbout, needsAbout } from "./fields.jsx";
 import { setAccount, useAccount } from "./store.js";
 
@@ -362,6 +362,7 @@ export default function AccountPage() {
             <CompleteAbout account={account} />
           </section>
         )}
+        <NewMuslimPrompt manage />
         <Activity />
         <SavedChats />
         {!needsAbout(account) && <AboutCard account={account} />}
