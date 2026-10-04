@@ -13,7 +13,7 @@ import { VideoCard } from "../features/videos/public.js";
 
 register({
   ar: {
-    "home.lead": "اكتب ما يثير تساؤلك، وتصلك إجابة من مصادر موثوقة مع ذكرها.",
+    "home.tag": "معرفة تُنير، وصحبة تُعين",
     "home.ask_label": "سؤالك", "home.ask_ph": "مثلاً: ما معنى التوحيد؟", "home.ask_go": "اسأل",
     "home.try": "جرّب:",
     "home.ex1": "ما أركان الإسلام؟", "home.ex2": "كيف أتوضأ؟", "home.ex3": "من هو النبي محمد ﷺ؟",
@@ -32,7 +32,7 @@ register({
     "home.stat_q": "آية بتفسيرها", "home.stat_h": "حديث مشروح", "home.stat_qa": "سؤال وجواب", "home.trust_more": "تعرّف على المصادر",
   },
   en: {
-    "home.lead": "Write what makes you wonder, and get an answer from trusted sources, with the sources named.",
+    "home.tag": "Knowledge that enlightens, company that supports",
     "home.ask_label": "Your question", "home.ask_ph": "e.g. What does tawhid mean?", "home.ask_go": "Ask",
     "home.try": "Try:",
     "home.ex1": "What are the pillars of Islam?", "home.ex2": "How do I make wudu?", "home.ex3": "Who is Prophet Muhammad ﷺ?",
@@ -268,7 +268,7 @@ export default function Home() {
       <section className="home-hero">
         <div className="hero-text">
           <h1 className="hero-title">{t("app.name")}</h1>
-          <p className="hero-lead">{t("home.lead")}</p>
+          <p className="hero-tag">{t("home.tag")}</p>
           <AskBox />
         </div>
         <div className="hero-side">

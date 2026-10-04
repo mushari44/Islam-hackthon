@@ -1,54 +1,33 @@
-/* Smooth look: the app floats on a backdrop with a faint eight-point star pattern (pearl by day, navy by night),
-   under a glass top bar, and every page sits on one rounded sheet. Pages and cards ease in.
-   The home page uses the same look, so the bar and backdrop don't change when you move between pages.
+/* Smooth look: a plain page (white by day, navy by night) under a frosted top bar that runs the full width,
+   with the content in one fluid column. No backdrop picture shows around the content. Pages and cards ease in.
    Shared: change with both owners' agreement. Loaded after tokens/base/pages. */
 
 html { scroll-behavior: smooth; }
 
-/* Day theme: a pearl-lavender backdrop with the star pattern in faint navy, a frosted white bar and a white sheet.
-   Night theme: deep navy backdrop, glass bar, mint accents. Colours live in the variables below. */
+/* Day theme: white page, frosted white bar. Night theme: navy page, glass bar, mint accents. Colours live below. */
 :root {
-  --page-base: #EEF0FA;
-  --backdrop:
-    radial-gradient(900px 520px at 88% -10%, rgba(142, 153, 204, .38), transparent 65%),
-    radial-gradient(760px 520px at -5% 35%, rgba(203, 207, 230, .70), transparent 70%),
-    radial-gradient(600px 420px at 70% 110%, rgba(168, 174, 217, .30), transparent 70%),
-    linear-gradient(165deg, #F8F9FE 0%, #EEF0FA 55%, #E5E8F5 100%);
-  --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%23161D48' stroke-opacity='.06' stroke-width='1.2'%3E%3Cpath d='M60 18l12 30 30 12-30 12-12 30-12-30-30-12 30-12z'/%3E%3Cpath d='M30 30h60v60H30z' transform='rotate(45 60 60)'/%3E%3Ccircle cx='60' cy='60' r='9'/%3E%3C/svg%3E");
   --bar-bg: rgba(255, 255, 255, .74); --bar-border: rgba(22, 29, 72, .08); --bar-shadow: 0 12px 32px rgba(22, 29, 72, .08);
   --bar-fg: var(--navy-800); --bar-muted: var(--navy-500); --bar-hover: rgba(22, 29, 72, .06);
   --bar-current-bg: var(--navy-800); --bar-current-fg: #FFFFFF; --logo-glow: 0 6px 18px rgba(22, 29, 72, .22);
-  --sheet-bg: #FFFFFF; --sheet-border: rgba(22, 29, 72, .07); --sheet-shadow: 0 30px 80px rgba(22, 29, 72, .10), 0 2px 6px rgba(22, 29, 72, .04);
+  --page-bg: #FFFFFF;
   --foot-fg: var(--navy-500); --foot-link: var(--navy-700);
   --tabbar-bg: rgba(255, 255, 255, .9); --tabbar-shadow: 0 -10px 30px rgba(22, 29, 72, .08);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --page-base: #0B1030;
-    --backdrop:
-      radial-gradient(900px 520px at 85% -8%, rgba(97, 80, 234, .38), transparent 65%),
-      radial-gradient(700px 480px at 0% 30%, rgba(46, 242, 194, .10), transparent 70%),
-      linear-gradient(165deg, #0B1030 0%, #161D48 48%, #1E1B5E 100%);
-    --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%23ffffff' stroke-opacity='.055' stroke-width='1.2'%3E%3Cpath d='M60 18l12 30 30 12-30 12-12 30-12-30-30-12 30-12z'/%3E%3Cpath d='M30 30h60v60H30z' transform='rotate(45 60 60)'/%3E%3Ccircle cx='60' cy='60' r='9'/%3E%3C/svg%3E");
     --bar-bg: rgba(255, 255, 255, .07); --bar-border: rgba(255, 255, 255, .12); --bar-shadow: 0 10px 30px rgba(5, 8, 30, .35);
     --bar-fg: #FFFFFF; --bar-muted: var(--lav-100); --bar-hover: rgba(255, 255, 255, .10);
     --bar-current-bg: var(--mint-400); --bar-current-fg: var(--navy-900); --logo-glow: 0 0 22px rgba(201, 210, 255, .35);
-    --sheet-bg: var(--bg); --sheet-border: rgba(255, 255, 255, .08); --sheet-shadow: 0 30px 80px rgba(5, 8, 30, .45);
+    --page-bg: var(--bg);
     --foot-fg: var(--peri-300); --foot-link: var(--lav-100);
     --tabbar-bg: var(--surface); --tabbar-shadow: 0 -10px 30px rgba(5, 8, 30, .18);
   }
 }
 :root[data-theme="dark"] {
-    --page-base: #0B1030;
-    --backdrop:
-      radial-gradient(900px 520px at 85% -8%, rgba(97, 80, 234, .38), transparent 65%),
-      radial-gradient(700px 480px at 0% 30%, rgba(46, 242, 194, .10), transparent 70%),
-      linear-gradient(165deg, #0B1030 0%, #161D48 48%, #1E1B5E 100%);
-    --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%23ffffff' stroke-opacity='.055' stroke-width='1.2'%3E%3Cpath d='M60 18l12 30 30 12-30 12-12 30-12-30-30-12 30-12z'/%3E%3Cpath d='M30 30h60v60H30z' transform='rotate(45 60 60)'/%3E%3Ccircle cx='60' cy='60' r='9'/%3E%3C/svg%3E");
     --bar-bg: rgba(255, 255, 255, .07); --bar-border: rgba(255, 255, 255, .12); --bar-shadow: 0 10px 30px rgba(5, 8, 30, .35);
     --bar-fg: #FFFFFF; --bar-muted: var(--lav-100); --bar-hover: rgba(255, 255, 255, .10);
     --bar-current-bg: var(--mint-400); --bar-current-fg: var(--navy-900); --logo-glow: 0 0 22px rgba(201, 210, 255, .35);
-    --sheet-bg: var(--bg); --sheet-border: rgba(255, 255, 255, .08); --sheet-shadow: 0 30px 80px rgba(5, 8, 30, .45);
+    --page-bg: var(--bg);
     --foot-fg: var(--peri-300); --foot-link: var(--lav-100);
     --tabbar-bg: var(--surface); --tabbar-shadow: 0 -10px 30px rgba(5, 8, 30, .18);
 }
@@ -56,19 +35,13 @@ html { scroll-behavior: smooth; }
 body {
   --radius: 20px;
   --radius-lg: 30px;
-  background-color: var(--page-base);
-  background-image: var(--star), var(--backdrop);
-  background-attachment: fixed, fixed;
-  background-size: 120px 120px, cover;
+  background: var(--page-bg);
 }
 
-/* ---------- frosted top bar ---------- */
-body .topbar { top: 12px; background: transparent; backdrop-filter: none; border: 0; padding-inline: 16px; }
-body .topbar-inner {
-  margin-block-start: 12px; border-radius: 26px;
-  background: var(--bar-bg); border: 1px solid var(--bar-border);
+/* ---------- frosted top bar, full width ---------- */
+body .topbar {
+  background: var(--bar-bg); border-bottom: 1px solid var(--bar-border);
   backdrop-filter: saturate(1.5) blur(16px); -webkit-backdrop-filter: saturate(1.5) blur(16px);
-  box-shadow: var(--bar-shadow);
 }
 body .topbar .brand, body .topbar .brand-name { color: var(--bar-fg); }
 body .topbar .brand-mark { border-radius: 14px; box-shadow: var(--logo-glow); }
@@ -80,13 +53,8 @@ body .topbar .btn-ghost:hover { background: var(--bar-hover); box-shadow: none; 
 body .topbar .icon-btn { color: var(--bar-muted); }
 body .topbar .icon-btn:hover { background: var(--bar-hover); color: var(--bar-fg); }
 
-/* ---------- the page sheet ---------- */
-body .main {
-  margin-block: 22px 28px; width: calc(100% - 32px); padding: 36px 40px 56px;
-  background: var(--sheet-bg); border-radius: var(--radius-lg);
-  border: 1px solid var(--sheet-border);
-  box-shadow: var(--sheet-shadow);
-}
+/* ---------- the page ---------- */
+body .main { padding-block: 32px 64px; }
 .main:focus { outline: none; }
 body .main > * { animation: rise .5s var(--ease) both; }
 body .main > *:nth-child(2) { animation-delay: .05s; }
@@ -111,20 +79,11 @@ body article.card:hover { transform: translateY(-3px); box-shadow: var(--shadow)
 .tabs button { white-space: nowrap; flex: none; }
 
 @media (max-width: 1024px) {
-  body .topbar { top: 8px; padding-inline: 10px; }
-  body .topbar-inner { margin-block-start: 8px; border-radius: 22px; }
-  body .main { width: calc(100% - 16px); padding: 22px 16px 120px; margin-block: 14px 16px; border-radius: 24px; }
+  body .main { padding-block: 22px 120px; }
   body .tabbar {
     border-top: 0; border-radius: 22px 22px 0 0; background: var(--tabbar-bg); box-shadow: var(--tabbar-shadow);
     backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   }
-}
-@media (min-width: 600px) and (max-width: 1024px) {
-  body .main { padding-inline: 28px; }   /* tablets: more room inside the sheet */
-}
-@media (max-width: 420px) {
-  body .topbar { padding-inline: 6px; }
-  body .main { width: calc(100% - 12px); padding-inline: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
