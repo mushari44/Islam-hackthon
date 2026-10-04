@@ -244,9 +244,10 @@ function TalkedNote({ calls }) {
   );
 }
 
-export default function AskPage() {
+export default function AskPage({ query = {} }) {
   const { t, lang } = useI18n();
-  const [open] = useState(loadOpen);
+  // A question typed on the home page (#/ask?q=...) starts a new chat instead of joining the open one.
+  const [open] = useState(() => (query.q ? { conv: null, items: [] } : loadOpen()));
   const [conv, setConv] = useState(open.conv);
   const [chat, setChat] = useState(open.items);
   const [convs, setConvs] = useState(null);
@@ -343,6 +344,16 @@ export default function AskPage() {
       inputRef.current?.focus();
     }
   };
+
+  // Ask the home page's question once, then drop it from the address so a reload doesn't ask it again.
+  const asked = useRef(false);
+  useEffect(() => {
+    const q = (query.q || "").trim();
+    if (!q || asked.current) return;
+    asked.current = true;
+    window.history.replaceState(null, "", "#/ask");
+    submit(q.slice(0, 1000));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onFile = (e) => {
     const f = e.target.files[0];
