@@ -22,6 +22,12 @@
 .account-card .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; overflow: visible; }
 .account-card .tabs button { white-space: normal; padding: 8px 6px; line-height: 1.3; font-size: .9rem; }
 
-/* Optional "About me" fields in the sign-up form */
+/* "About me" fields in the sign-up form */
 .about-fields { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin: 0; min-inline-size: 0; }
 .about-fields legend { font-weight: 600; padding-inline: 6px; }
+
+/* An older account without sex or age band: a dot on the top-bar button, and the question first on the account page */
+.account-btn { position: relative; }
+.account-dot { position: absolute; inset-block-start: 4px; inset-inline-end: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--mint-400); }
+.complete-about { border-color: var(--mint-400); }
+.complete-about h3 { display: flex; align-items: center; gap: 8px; margin: 0; }

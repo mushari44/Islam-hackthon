@@ -1,5 +1,6 @@
 // Seeker account page: sign in, sign up, recover, and "my account". Owner: Eman.
-// Accounts are optional: a username and password, plus an optional email, place and age band (see features/auth on the backend).
+// Accounts are optional: a username, a password, the seeker's sex and age band, and an optional email and place
+// (see features/auth on the backend).
 import "./strings.js";
 import "./account.css";
 import { useEffect, useState } from "react";
@@ -7,6 +8,7 @@ import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, toast } from "../../core/ui.jsx";
 import { COUNTRIES, countryName } from "../community/public.js";
+import { AboutFields, CompleteAbout, needsAbout } from "./fields.jsx";
 import { setAccount, useAccount } from "./store.js";
 
 function accError(err, t) {
@@ -25,41 +27,7 @@ function Field({ id, label, hint, ...props }) {
   );
 }
 
-// Optional profile fields; keep in step with AGE_BANDS, GENDERS and DAAI_LANGUAGES in backend/app/features/auth/routes.py.
-const AGE_BANDS = ["u18", "18_24", "25_34", "35_44", "45_54", "55p"];
-const LANGS = ["ar", "en"];
 const ORDERED = ["SA", ...COUNTRIES.filter((c) => c !== "SA")];
-
-/** Language, sex and age band: used by the sign-up form and the "About me" card. Each one is optional
- * except the language, which defaults to the interface language. */
-function AboutFields({ f, set, prefix }) {
-  const { t, langName } = useI18n();
-  return (
-    <div className="grid grid-2">
-      <div className="field">
-        <label htmlFor={`${prefix}-lang`}>{t("acc.lang")}</label>
-        <select id={`${prefix}-lang`} className="select" value={f.lang} onChange={set("lang")}>
-          {LANGS.map((l) => <option key={l} value={l}>{langName(l)}</option>)}
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor={`${prefix}-gender`}>{t("acc.gender")}</label>
-        <select id={`${prefix}-gender`} className="select" value={f.gender} onChange={set("gender")}>
-          <option value="">{t("acc.not_say")}</option>
-          <option value="m">{t("acc.gender_m")}</option>
-          <option value="f">{t("acc.gender_f")}</option>
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor={`${prefix}-age`}>{t("acc.age")}</label>
-        <select id={`${prefix}-age`} className="select" value={f.age_band} onChange={set("age_band")}>
-          <option value="">{t("acc.not_say")}</option>
-          {AGE_BANDS.map((b) => <option key={b} value={b}>{t(`acc.age.${b}`)}</option>)}
-        </select>
-      </div>
-    </div>
-  );
-}
 
 /** Country and city (city only once a country is chosen); cities other members use are suggested. */
 function PlaceFields({ f, setF, prefix }) {
@@ -72,7 +40,7 @@ function PlaceFields({ f, setF, prefix }) {
       <div className="field">
         <label htmlFor={`${prefix}-country`}>{t("acc.country")}</label>
         <select id={`${prefix}-country`} className="select" value={f.country} onChange={(e) => setF({ ...f, country: e.target.value, city: "" })}>
-          <option value="">{t("acc.not_say")}</option>
+          <option value="">{t("acc.no_country")}</option>
           {ORDERED.map((c) => <option key={c} value={c}>{countryName(c, lang)}</option>)}
         </select>
       </div>
@@ -90,7 +58,7 @@ function SignedOut() {
   const { t, lang, setLang } = useI18n();
   const [mode, setMode] = useState("signin");          // signin | signup | forgot
   const [step, setStep] = useState("ask");             // forgot: ask -> email (code sent) | recovery (use backup code)
-  // Defaults: the interface language, and "prefer not to say" for everything else.
+  // The interface language by default; sex and age band are left for the seeker to pick (no default, no "prefer not to say").
   const [f, setF] = useState({ username: "", password: "", email: "", code: "", lang, country: "", city: "", age_band: "", gender: "" });
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -242,7 +210,9 @@ function AboutCard({ account }) {
       <AboutFields f={f} set={set} prefix="ab" />
       {f.age_band === "u18" && <p className="small muted">{t("acc.age_minor")}</p>}
       <div className="row">
-        <button type="submit" className="btn btn-primary" disabled={JSON.stringify(f) === JSON.stringify(saved)}><Icon name="check" />{t("acc.save")}</button>
+        <button type="submit" className="btn btn-primary" disabled={JSON.stringify(f) === JSON.stringify(saved) || !f.gender || !f.age_band}>
+          <Icon name="check" />{t("acc.save")}
+        </button>
       </div>
     </form>
   );
@@ -386,9 +356,15 @@ export default function AccountPage() {
         <div><h1>{t("acc.welcome", { u: account.username })}</h1><p>{t("acc.since", { d: fmtDate(account.created_at, { month: "long", year: "numeric" }) })}</p></div>
       </div>
       <div className="stack">
+        {needsAbout(account) && (
+          <section className="card stack complete-about">
+            <h3><Icon name="users" />{t("acc.complete_title")}</h3>
+            <CompleteAbout account={account} />
+          </section>
+        )}
         <Activity />
         <SavedChats />
-        <AboutCard account={account} />
+        {!needsAbout(account) && <AboutCard account={account} />}
         <PlaceCard account={account} />
         <EmailCard account={account} />
         <Security />

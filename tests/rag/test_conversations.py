@@ -8,6 +8,9 @@ from backend.app.features.rag import routes as rag_routes
 from backend.app.features.rag.models import ChatTurn
 
 
+ABOUT = {"gender": "f", "age_band": "25_34"}     # sex and age band are required at sign-up
+
+
 def device(client):
     return {"X-Seeker": client.post("/api/session").json()["token"]}
 
@@ -64,7 +67,7 @@ def test_the_model_only_sees_the_open_chat(client, monkeypatch):
 
 def test_signing_in_brings_this_browsers_chats(client):
     home = device(client)
-    client.post("/api/account/signup", json={"username": "conv_owner", "password": "long-pass-1"}, headers=home)
+    client.post("/api/account/signup", json={"username": "conv_owner", "password": "long-pass-1", **ABOUT}, headers=home)
     mine = ask(client, home, "ما معنى التوحيد؟")["conversation_id"]
 
     laptop = device(client)
@@ -77,7 +80,7 @@ def test_signing_in_brings_this_browsers_chats(client):
     assert client.get(f"/api/conversations/{before}", headers=home).json()["turns"][0]["question"] == "ما الزكاة؟"
 
     # a browser already signed in to one account brings nothing of that account into another
-    client.post("/api/account/signup", json={"username": "conv_other", "password": "long-pass-1"}, headers=device(client))
+    client.post("/api/account/signup", json={"username": "conv_other", "password": "long-pass-1", **ABOUT}, headers=device(client))
     client.post("/api/account/signin", json={"username": "conv_other", "password": "long-pass-1"}, headers=home)
     assert client.get("/api/conversations", headers=home).json()["conversations"] == []
     client.post("/api/account/signin", json={"username": "conv_owner", "password": "long-pass-1"}, headers=home)

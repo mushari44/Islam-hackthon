@@ -28,8 +28,8 @@ Other backend features use auth only through `backend/app/features/auth/public.p
 | GET | `/api/account` | seeker | – | `{account: Account\|null}` (null when this browser isn't signed in) |
 | POST | `/api/account/signout` | seeker | – | `{ok: true}`. On the browser that created the account, the token then answers 401 everywhere (its session is the account's home), so the client starts a fresh anonymous session and the next person on that device can't see the account's data |
 | POST | `/api/account/signin` | seeker | `{username, password}` | `{account: Account}`. From an anonymous browser, what it did before signing in (Ask conversations, calls and referrals, group memberships and RSVPs) moves to the account (`SESSION_MERGERS`), like at sign-up; a browser already signed in to another account brings nothing over. 403 wrong username or password, 429 after 5 failures in 10 minutes |
-| POST | `/api/account/signup` | seeker | `{username, password, email?, lang?, country?, city?, age_band?, gender?}` | `{account: Account, recovery_code}`. Only `username` and `password` are required. Defaults: `lang` `"ar"`, and `""` (not given) for the rest. The web app no longer shows `recovery_code` (older accounts can still use theirs with `/api/account/recover`); a forgotten password is reset by email, which needs `SMTP_HOST`. 409 `username taken` / `email taken`, 422 on bad input |
-| POST | `/api/account/profile` | seeker (signed in) | `{country?, city?, lang?, email?, age_band?, gender?}` | `{account: Account}`. `lang` is `ar`\|`en`; `country` a 2-letter code; `age_band` one of `"" u18 18_24 25_34 35_44 45_54 55p`; `gender` `""`\|`m`\|`f`. `""` removes a value, 422 otherwise. A new `country` without `city` clears the city |
+| POST | `/api/account/signup` | seeker | `{username, password, age_band, gender, email?, lang?, country?, city?}` | `{account: Account, recovery_code}`. `username`, `password`, `age_band` (`u18 18_24 25_34 35_44 45_54 55p`) and `gender` (`m`\|`f`) are required: there is no "prefer not to say". Defaults: `lang` `"ar"`, and `""` (not given) for `email`, `country` and `city`. The web app no longer shows `recovery_code` (older accounts can still use theirs with `/api/account/recover`); a forgotten password is reset by email, which needs `SMTP_HOST`. 409 `username taken` / `email taken`, 422 on bad input |
+| POST | `/api/account/profile` | seeker (signed in) | `{country?, city?, lang?, email?, age_band?, gender?}` | `{account: Account}`. `lang` is `ar`\|`en`; `country` a 2-letter code; `age_band` one of `u18 18_24 25_34 35_44 45_54 55p`; `gender` `m`\|`f` (these two can be changed but not removed). `""` removes `email`, `country` or `city`; 422 for anything else not listed. A new `country` without `city` clears the city |
 | GET | `/api/daai/me` | daai | – | Profile |
 | POST | `/api/daai/availability` | daai | `{available: bool}` | Profile |
 | POST | `/api/daai/profile` | daai | `{name?, name_en?, languages?, bio?, bio_en?, gender?: "m"\|"f", country?: "XX"\|"", city?}` | Profile. Fields left out stay as they are; a new `country` without `city` clears the city. 422 on bad input |
@@ -261,7 +261,7 @@ Limits after cleaning: `question`, `context` and `unclear` ≤ 600 chars, `langu
  "created_at": "…Z"}
 ```
 
-Every field after `username` is optional. Defaults: `lang` `"ar"`; `email`, `country`, `city`, `age_band` and `gender` `""` (not given). There is no birth date, real name or phone number.
+`age_band` and `gender` are set at sign-up; an account made before they were required has `""` until its owner picks them (the app asks on the next visit). `email`, `country` and `city` are optional (`""` = not given); `lang` defaults to `"ar"`. There is no birth date, real name or phone number.
 
 ### Group
 
