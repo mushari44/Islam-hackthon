@@ -1,5 +1,7 @@
 # secrets and local data
 .env
+.env.local
+.vercel
 data/sabeeli.db*
 data/cache/
 data/raw/
