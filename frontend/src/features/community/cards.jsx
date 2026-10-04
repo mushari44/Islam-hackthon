@@ -1,6 +1,6 @@
 // Group and meetup cards, used on the community lists and under My activities. Owner: Mushari (community).
 import { useState } from "react";
-import { api } from "../../core/api.js";
+import { api, apiUrl } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
 import { Icon, errorText, toast } from "../../core/ui.jsx";
@@ -59,7 +59,7 @@ function MeetupActions({ m, w, reload, account }) {
           <Icon name="external" />{t(w.live || w.soon ? "com.join_now" : "com.open_link")}
         </a>
       )}
-      {!w.live && <a className="btn btn-sm" href={`/api/meetups/${m.id}/ics`} download><Icon name="calendar" />{t("com.add_cal")}</a>}
+      {!w.live && <a className="btn btn-sm" href={apiUrl(`/api/meetups/${m.id}/ics`)} download><Icon name="calendar" />{t("com.add_cal")}</a>}
       {!w.live && (asking ? (
         <span className="row cancel-ask">
           <span className="small">{t(open ? "com.leave_q" : "com.cancel_q")}</span>
