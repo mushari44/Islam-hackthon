@@ -36,3 +36,20 @@
   content: ""; position: absolute; inset-inline-start: -9px; inset-block: 8px; border-inline-start: 1px solid var(--border);
 }
 @media (max-width: 420px) { .top-actions .account-btn { margin-inline-start: 8px; } .top-actions .account-btn::before { inset-inline-start: -6px; } }
+
+/* The signed-in seeker's menu under their name (the usual account dropdown). */
+.account-menu { position: relative; display: flex; }
+.account-pop {
+  position: absolute; inset-inline-end: 0; inset-block-start: calc(100% + 8px); z-index: 70; min-width: 210px;
+  display: flex; flex-direction: column; padding: 6px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); animation: rise .18s var(--ease);
+}
+.account-pop-name { margin: 0 0 4px; padding: 8px 12px; font-weight: 700; border-block-end: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; }
+.account-pop a, .account-pop button {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-radius: 10px; background: none;
+  color: var(--text); font: inherit; text-align: start; text-decoration: none; cursor: pointer;
+}
+.account-pop a:hover, .account-pop button:hover, .account-pop a:focus-visible, .account-pop button:focus-visible { background: var(--bg-soft); outline: none; }
+.account-pop svg { width: 18px; height: 18px; color: var(--text-muted); }
+.account-pop .account-pop-out { color: var(--danger); margin-block-start: 4px; border-block-start: 1px solid var(--border); border-radius: 0 0 10px 10px; }
+.account-pop .account-pop-out svg { color: currentColor; }

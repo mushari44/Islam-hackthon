@@ -10,7 +10,7 @@ import { navigate, useHashPath } from "../../core/router.jsx";
 import { Icon, errorText, toast } from "../../core/ui.jsx";
 import { COUNTRIES, NewMuslimPrompt, countryName } from "../community/public.js";
 import { AboutFields, CompleteAbout, needsAbout } from "./fields.jsx";
-import { setAccount, setDaaiToken, useAccount } from "./store.js";
+import { setAccount, setDaaiToken, signOutSeeker, useAccount } from "./store.js";
 
 function accError(err, t) {
   if (err && err.status === 422) return t("acc.err.invalid");
@@ -122,7 +122,7 @@ export function SignInCard({ role: preset, onDaaiSignIn, next }) {
       {!signup && !account && (
         <div className="tabs tabs-fit auth-role" role="radiogroup" aria-label={t("acc.role_label")}>
           {[["user", "acc.role_user"], ["daai", "acc.role_daai"]].map(([r, k]) => (
-            <button key={r} type="button" role="radio" aria-checked={role === r} aria-selected={role === r} onClick={() => pick(r)}>{t(k)}</button>
+            <button key={r} type="button" role="radio" aria-checked={role === r} onClick={() => pick(r)}>{t(k)}</button>
           ))}
         </div>
       )}
@@ -167,13 +167,17 @@ export function SignInCard({ role: preset, onDaaiSignIn, next }) {
   );
 }
 
+// Every form below disables its button while it saves, so a double click can't send it twice.
 function EmailCard({ account }) {
   const { t } = useI18n();
   const [email, setEmail] = useState(account.email || "");
+  const [busy, setBusy] = useState(false);
   const save = async (e) => {
     e.preventDefault();
+    setBusy(true);
     try { setAccount((await api.post("/api/account/profile", { email })).account); toast(t("acc.saved"), "success"); }
     catch (err) { toast(accError(err, t), "error"); }
+    finally { setBusy(false); }
   };
   return (
     <form className="card stack" onSubmit={save}>
@@ -182,7 +186,7 @@ function EmailCard({ account }) {
       <div className="row email-row">
         <input id="acc-email-edit" className="input" type="email" dir="ltr" aria-label={t("acc.email_title")} autoComplete="email"
           maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} />
-        <button type="submit" className="btn btn-primary" disabled={email === (account.email || "")}><Icon name="check" />{t("acc.save")}</button>
+        <button type="submit" className="btn btn-primary" disabled={busy || email === (account.email || "")}><Icon name="check" />{t("acc.save")}</button>
       </div>
     </form>
   );
@@ -191,17 +195,21 @@ function EmailCard({ account }) {
 function PlaceCard({ account }) {
   const { t } = useI18n();
   const [f, setF] = useState({ country: account.country || "", city: account.city || "" });
+  const [busy, setBusy] = useState(false);
+  const unchanged = f.country === (account.country || "") && f.city === (account.city || "");
   const save = async (e) => {
     e.preventDefault();
+    setBusy(true);
     try { setAccount((await api.post("/api/account/profile", f)).account); toast(t("acc.saved"), "success"); }
     catch (err) { toast(accError(err, t), "error"); }
+    finally { setBusy(false); }
   };
   return (
     <form className="card stack" onSubmit={save}>
       <h3>{t("acc.place")}</h3>
       <p className="small muted">{t("acc.place_lead")}</p>
       <PlaceFields f={f} setF={setF} prefix="acc" />
-      <div className="row"><button type="submit" className="btn btn-primary"><Icon name="check" />{t("acc.save")}</button></div>
+      <div className="row"><button type="submit" className="btn btn-primary" disabled={busy || unchanged}><Icon name="check" />{t("acc.save")}</button></div>
     </form>
   );
 }
@@ -210,15 +218,18 @@ function AboutCard({ account }) {
   const { t, setLang } = useI18n();
   const saved = { lang: account.lang || "ar", gender: account.gender || "", age_band: account.age_band || "" };
   const [f, setF] = useState(saved);
+  const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const save = async (e) => {
     e.preventDefault();
+    setBusy(true);
     try {
       const r = await api.post("/api/account/profile", f);
       setLang(r.account.lang);
       setAccount(r.account);
       toast(t("acc.saved"), "success");
     } catch (err) { toast(accError(err, t), "error"); }
+    finally { setBusy(false); }
   };
   return (
     <form className="card stack" onSubmit={save}>
@@ -227,7 +238,7 @@ function AboutCard({ account }) {
       <AboutFields f={f} set={set} prefix="ab" />
       {f.age_band === "u18" && <p className="small muted">{t("acc.age_minor")}</p>}
       <div className="row">
-        <button type="submit" className="btn btn-primary" disabled={JSON.stringify(f) === JSON.stringify(saved) || !f.gender || !f.age_band}>
+        <button type="submit" className="btn btn-primary" disabled={busy || JSON.stringify(f) === JSON.stringify(saved) || !f.gender || !f.age_band}>
           <Icon name="check" />{t("acc.save")}
         </button>
       </div>
@@ -253,7 +264,7 @@ function Activity() {
           {data.events.length ? (
             <ul className="activity-list">
               {data.events.map((m) => (
-                <li key={m.id}><Icon name="calendar" size={16} /><a href="#/community?tab=meetups">{m.title}</a>
+                <li key={m.id}><Icon name="calendar" size={16} /><a href="#/community?tab=mine">{m.title}</a>
                   <span className="faint">{fmtDate(m.starts_at, { day: "numeric", month: "short" })}</span></li>
               ))}
             </ul>
@@ -309,21 +320,20 @@ function Security() {
   const { t } = useI18n();
   const [pw, setPw] = useState({ password: "", new_password: "" });
   const [del, setDel] = useState(null);
+  const [busy, setBusy] = useState("");   // "password" | "delete" while that request runs
   const change = async (e) => {
     e.preventDefault();
+    setBusy("password");
     try { await api.post("/api/account/password", pw); setPw({ password: "", new_password: "" }); toast(t("acc.password_changed"), "success"); }
     catch (err) { toast(accError(err, t), "error"); }
+    finally { setBusy(""); }
   };
-  const signout = async () => {
-    await api.post("/api/account/signout", {}).catch(() => {});
-    try { sessionStorage.removeItem("sabeeli.chat"); } catch { /* ignore */ }   // the saved chat stays in the account
-    setAccount(null);
-    toast(t("acc.signed_out"));
-  };
+  const signout = async () => { await signOutSeeker(); toast(t("acc.signed_out")); };
   const remove = async (e) => {
     e.preventDefault();
+    setBusy("delete");
     try { await api.post("/api/account/delete", { password: del }); setAccount(null); toast(t("acc.deleted")); }
-    catch (err) { toast(accError(err, t), "error"); }
+    catch (err) { toast(accError(err, t), "error"); setBusy(""); }
   };
   return (
     <section className="card stack">
@@ -333,7 +343,7 @@ function Security() {
           value={pw.password} onChange={(e) => setPw({ ...pw, password: e.target.value })} />
         <Field id="acc-new" type="password" label={t("acc.new_password")} hint={t("acc.password_hint")} autoComplete="new-password"
           required minLength={8} value={pw.new_password} onChange={(e) => setPw({ ...pw, new_password: e.target.value })} />
-        <div className="row"><button type="submit" className="btn"><Icon name="lock" />{t("acc.change_password")}</button></div>
+        <div className="row"><button type="submit" className="btn" disabled={busy === "password"}><Icon name="lock" />{t("acc.change_password")}</button></div>
       </form>
       <div className="row spread account-actions">
         <button type="button" className="btn btn-danger-soft" onClick={signout}><Icon name="logout" />{t("acc.signout")}</button>
@@ -345,7 +355,7 @@ function Security() {
           <Field id="acc-del" type="password" label={t("acc.delete_confirm")} autoComplete="current-password" required
             value={del} onChange={(e) => setDel(e.target.value)} />
           <div className="row">
-            <button type="submit" className="btn btn-danger"><Icon name="trash" />{t("acc.do_delete")}</button>
+            <button type="submit" className="btn btn-danger" disabled={busy === "delete"}><Icon name="trash" />{t("acc.do_delete")}</button>
             <button type="button" className="btn btn-ghost" onClick={() => setDel(null)}>{t("common.cancel")}</button>
           </div>
         </form>

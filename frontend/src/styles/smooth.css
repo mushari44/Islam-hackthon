@@ -120,6 +120,10 @@ body article.card:hover { transform: translateY(-3px); box-shadow: var(--shadow)
   .tabbar a[aria-current="page"] svg { background: color-mix(in srgb, var(--mint-400) 32%, transparent); }
 }
 
+/* The chosen tab or option in every tab row is green, like the current page in the top bar. */
+.tabs button[aria-selected="true"], .tabs button[aria-checked="true"] { background: var(--mint-400); color: var(--navy-900); box-shadow: var(--shadow-sm); }
+.tabs button:not([aria-selected="true"]):not([aria-checked="true"]):hover { color: var(--text); background: color-mix(in srgb, var(--mint-400) 14%, transparent); }
+
 /* Short choice rows (2-3 options) share the full width on phones and wrap their labels, instead of cutting the last one off. */
 @media (max-width: 600px) {
   .tabs.tabs-fit { display: flex; width: 100%; border-radius: 18px; }

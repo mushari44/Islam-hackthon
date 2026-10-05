@@ -1,4 +1,5 @@
 // About, Sources, Privacy, More and Not-found pages. Shared.
+import { useState } from "react";
 import { api, forgetSeeker } from "../core/api.js";
 import { register, useI18n } from "../core/i18n.jsx";
 import { Icon, Notice, errorText, toast } from "../core/ui.jsx";
@@ -37,6 +38,8 @@ register({
     "priv.6": "تُرسل الأسئلة إلى نموذج Gemma عبر OpenRouter لتوليد الإجابة، وإلى مزوّدين لا يحفظون الطلبات ولا يدرّبون عليها فقط.",
     "priv.7": "المقاطع المرئية وصورها تُحمَّل من خوادم دار الإسلام مباشرة، كأي زيارة لموقعهم. ولا يحفظ سَبِيلي ما تبحث عنه ولا ما تشاهده.",
     "priv.delete": "احذف بياناتي الآن", "priv.deleted": "حُذفت بياناتك من الخادم وبدأت جلسة جديدة.",
+    "priv.delete_q": "تُحذف محادثاتك وطلبات الاتصال وحجوزاتك ومجموعاتك من الخادم، ولا يمكن التراجع.",
+    "priv.delete_q_account": "يُحذف معها حسابك «{u}» وكل ما فيه، ولا يمكن التراجع.", "priv.delete_yes": "نعم، احذف كل شيء",
     "more.title": "المزيد", "more.lang": "اللغة", "more.theme": "المظهر", "more.light": "فاتح", "more.dark": "داكن", "more.auto": "تلقائي",
   },
   en: {
@@ -71,6 +74,8 @@ register({
     "priv.6": "Questions are sent to the Gemma model through OpenRouter to write answers, only to providers that neither store requests nor train on them.",
     "priv.7": "Videos and their thumbnails load straight from IslamHouse's servers, like any visit to their site. Sabeeli doesn't save what you search for or what you watch.",
     "priv.delete": "Delete my data now", "priv.deleted": "Your data was deleted from the server and a new session started.",
+    "priv.delete_q": "Your chats, call requests, bookings and groups are deleted from the server. This can't be undone.",
+    "priv.delete_q_account": "Your account «{u}» and everything in it go too. This can't be undone.", "priv.delete_yes": "Yes, delete everything",
     "more.title": "More", "more.lang": "Language", "more.theme": "Theme", "more.light": "Light", "more.dark": "Dark", "more.auto": "Auto",
   },
 });
@@ -118,7 +123,7 @@ export function Sources() {
         {SOURCES.map(([k, url]) => (
           <div className="card row spread" key={k}>
             <p style={{ margin: 0, flex: 1 }}>{t(k)}</p>
-            {url && <a className="btn btn-sm" href={url} target="_blank" rel="noopener noreferrer" aria-label={t("src.open")}><Icon name="external" /></a>}
+            {url && <a className="btn btn-sm" href={url} target="_blank" rel="noopener noreferrer" aria-label={`${t("src.open")}: ${t(k)}`} title={t("src.open")}><Icon name="external" /></a>}
           </div>
         ))}
       </div>
@@ -130,14 +135,19 @@ export function Sources() {
 
 export function Privacy() {
   const { t } = useI18n();
+  const { account } = useAccount();
+  const [sure, setSure] = useState(false);   // deleting can't be undone, so it takes a second, explicit click
+  const [busy, setBusy] = useState(false);
   const wipe = async () => {
+    setBusy(true);
     try {
       await api.del("/api/me");
     } catch (err) {
       // Only "no such session" means there is nothing left to delete; anything else (offline, a server
       // error) must not be reported as deleted.
-      if (err.status !== 401 && err.status !== 404) { toast(errorText(err, t), "error"); return; }
+      if (err.status !== 401 && err.status !== 404) { setBusy(false); toast(errorText(err, t), "error"); return; }
     }
+    setBusy(false); setSure(false);
     forgetSeeker();
     try { sessionStorage.clear(); } catch { /* ignore */ }
     loadAccount();   // the account went with the data: the top bar must stop showing its name
@@ -149,7 +159,19 @@ export function Privacy() {
       <ul className="priv-list">
         {["priv.1", "priv.2", "priv.3", "priv.4", "priv.5", "priv.6", "priv.7"].map((k) => <li key={k}><Icon name="shield" size={22} /><span>{t(k)}</span></li>)}
       </ul>
-      <div className="section"><button type="button" className="btn btn-danger" onClick={wipe}><Icon name="trash" />{t("priv.delete")}</button></div>
+      <div className="section">
+        {sure ? (
+          <div className="card stack danger-zone" role="alertdialog" aria-labelledby="priv-q">
+            <p id="priv-q" style={{ margin: 0 }}>
+              {t("priv.delete_q")}{account && <> <strong>{t("priv.delete_q_account", { u: account.username })}</strong></>}
+            </p>
+            <div className="row">
+              <button type="button" className="btn btn-danger" disabled={busy} onClick={wipe}><Icon name="trash" />{t("priv.delete_yes")}</button>
+              <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setSure(false)}>{t("common.cancel")}</button>
+            </div>
+          </div>
+        ) : <button type="button" className="btn btn-danger-soft" onClick={() => setSure(true)}><Icon name="trash" />{t("priv.delete")}</button>}
+      </div>
     </>
   );
 }
@@ -171,15 +193,15 @@ export function More({ theme, setTheme }) {
         {link("#/daai", "users", daai ? "nav.daai" : "footer.daai")}
         <div className="card stack">
           <strong>{t("more.lang")}</strong>
-          <div className="tabs tabs-fit">
+          <div className="tabs tabs-fit" role="radiogroup" aria-label={t("more.lang")}>
             {[["ar", "العربية"], ["en", "English"]].map(([l, label]) => (
-              <button key={l} type="button" aria-selected={lang === l} onClick={() => setLang(l)}>{label}</button>
+              <button key={l} type="button" role="radio" lang={l} aria-checked={lang === l} onClick={() => setLang(l)}>{label}</button>
             ))}
           </div>
           <strong>{t("more.theme")}</strong>
-          <div className="tabs tabs-fit">
+          <div className="tabs tabs-fit" role="radiogroup" aria-label={t("more.theme")}>
             {[["auto", "more.auto"], ["light", "more.light"], ["dark", "more.dark"]].map(([v, k]) => (
-              <button key={v} type="button" aria-selected={theme === v} onClick={() => setTheme(v)}>{t(k)}</button>
+              <button key={v} type="button" role="radio" aria-checked={theme === v} onClick={() => setTheme(v)}>{t(k)}</button>
             ))}
           </div>
         </div>

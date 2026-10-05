@@ -19,6 +19,13 @@ export function loadAccount() {
   return loading;
 }
 
+/** Sign the seeker out on this device. Their saved chats stay in the account; only this tab's open chat is dropped. */
+export async function signOutSeeker() {
+  await api.post("/api/account/signout", {}).catch(() => {});
+  try { sessionStorage.removeItem("sabeeli.chat"); } catch { /* ignore */ }
+  setAccount(null);
+}
+
 /** const { account, loaded } = useAccount(); account is null when signed out. */
 export function useAccount() {
   const [s, set] = useState(state);

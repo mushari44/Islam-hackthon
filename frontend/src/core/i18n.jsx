@@ -46,6 +46,12 @@ export function LangProvider({ children }) {
       lang,
       setLang,
       t: (key, vars) => translate(lang, key, vars),
+      // Counted text: "key.one", "key.two", "key.few", "key.many" (CLDR plural forms) when this language has them,
+      // else "key". {n} is the formatted number. Arabic needs all of them; English needs only "key.one".
+      tn: (key, n, vars = {}) => {
+        const form = `${key}.${new Intl.PluralRules(lang).select(n)}`;
+        return translate(lang, dict[lang][form] !== undefined ? form : key, { ...vars, n: new Intl.NumberFormat(loc).format(n) });
+      },
       fmtNum: (n) => new Intl.NumberFormat(loc).format(n),
       fmtDate: (iso, opts = { weekday: "long", day: "numeric", month: "long" }) => new Intl.DateTimeFormat(loc, opts).format(new Date(iso)),
       fmtTime: (iso) => new Intl.DateTimeFormat(loc, { hour: "numeric", minute: "2-digit" }).format(new Date(iso)),
@@ -80,7 +86,7 @@ register({
     "common.optional": "اختياري", "common.continue": "متابعة", "common.done": "تم",
     "footer.ai": "سَبِيلي مساعد بالذكاء الاصطناعي، وليس عالماً ولا مفتياً. المصادر تظهر مع كل إجابة.",
     "footer.challenge": "مشروع في تحدي الذكاء الاصطناعي في خدمة المحتوى الإسلامي 2026",
-    "footer.links": "روابط الموقع", "footer.daai": "دخول الدعاة",
+    "footer.links": "روابط الموقع", "footer.daai": "دخول الدعاة", "nav.main_label": "القائمة الرئيسية",
     "nf.title": "الصفحة غير موجودة", "nf.lead": "ربما تغيّر الرابط أو كُتب خطأ. ارجع إلى الرئيسية أو اسأل سؤالك مباشرة.",
     "unit.s": "{n} ث", "unit.m": "{n} د",
     "err.full": "اكتمل العدد.", "err.nickname taken in this group": "هذا الاسم مستخدم في المجموعة، اختر غيره.",
@@ -101,7 +107,7 @@ register({
     "common.optional": "optional", "common.continue": "Continue", "common.done": "Done",
     "footer.ai": "Sabeeli is an AI assistant, not a scholar or a mufti. Sources are shown with every answer.",
     "footer.challenge": "A project in the AI Challenge Serving Islamic Content 2026",
-    "footer.links": "Site links", "footer.daai": "Da'i sign-in",
+    "footer.links": "Site links", "footer.daai": "Da'i sign-in", "nav.main_label": "Main menu",
     "nf.title": "Page not found", "nf.lead": "The link may have changed or been mistyped. Go back home or ask your question directly.",
     "unit.s": "{n}s", "unit.m": "{n} min",
     "err.full": "This meetup is full.", "err.nickname taken in this group": "That nickname is taken in this group; choose another.",

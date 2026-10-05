@@ -3,7 +3,7 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { LangProvider, useI18n } from "./core/i18n.jsx";
 import { match, useHashPath } from "./core/router.jsx";
 import { Icon, Logo, SheetHost, ToastHost } from "./core/ui.jsx";
-import { AccountButton, AccountPage } from "./features/account/index.js"; // Eman
+import { AccountButton, AccountPage, useDaaiSignedIn } from "./features/account/index.js"; // Eman
 import { TalkPage } from "./features/calls/index.js";                  // Eman
 import { CommunityPage, GroupPage } from "./features/community/index.js"; // Mushari
 import { AskPage } from "./features/rag/index.js";                      // Mushari
@@ -52,6 +52,7 @@ function Shell() {
   const { t, lang, setLang } = useI18n();
   const { path, query } = useHashPath();
   const { theme, setTheme, isDark } = useTheme();
+  const daai = useDaaiSignedIn();
   let route = null;
   let params = {};
   for (const r of ROUTES) {
@@ -76,7 +77,7 @@ function Shell() {
             <Logo />
             <span className="brand-name">{t("app.name")}</span>
           </a>
-          <nav className="nav" aria-label="main">
+          <nav className="nav" aria-label={t("nav.main_label")}>
             {NAV.map((n) => (
               <a key={n.key} href={n.href} aria-current={current === n.key ? "page" : undefined}><Icon name={n.icon} />{t(`nav.${n.key}`)}</a>
             ))}
@@ -103,13 +104,13 @@ function Shell() {
             <a href="#/about">{t("nav.about")}</a>
             <a href="#/sources">{t("nav.sources")}</a>
             <a href="#/privacy">{t("nav.privacy")}</a>
-            <a href="#/daai">{t("footer.daai")}</a>
+            <a href="#/daai">{t(daai ? "nav.daai" : "footer.daai")}</a>
           </nav>
           <p className="footer-note">{t("footer.ai")}</p>
           <p className="footer-note">© {t("app.name")} · {t("footer.challenge")}</p>
         </div>
       </footer>
-      <nav className="tabbar" aria-label="tabs">
+      <nav className="tabbar" aria-label={t("nav.main_label")}>
         {[...NAV, { key: "more", href: "#/more", icon: "more" }].map((n) => (
           <a key={n.key} href={n.href} aria-current={current === n.key ? "page" : undefined}><Icon name={n.icon} size={22} /><span>{t(`nav.${n.key}`)}</span></a>
         ))}
