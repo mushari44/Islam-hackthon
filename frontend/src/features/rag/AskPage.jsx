@@ -225,7 +225,7 @@ function ChatList({ convs, current, calls, saved, onOpen, onDelete, inSheet = fa
           })}
         </ul>
       )}
-      <p className="small faint">{saved ? <><Icon name="lock" size={14} /> {t("ask.saved_note")}</> : <>{t("ask.anon_note")} <a href="#/account">{t("ask.sign_in")}</a></>}</p>
+      <p className="small faint">{saved ? <><Icon name="lock" size={14} /> {t("ask.saved_note")}</> : <>{t("ask.anon_note")} <a href="#/account?next=%2Fask">{t("ask.sign_in")}</a></>}</p>
     </div>
   );
 }

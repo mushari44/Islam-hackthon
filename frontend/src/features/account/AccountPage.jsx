@@ -67,8 +67,9 @@ const DAAI_ERRORS = { 401: "acc.err.daai_bad", 403: "acc.err.daai_disabled", 429
  * password go to the matching sign-in. Only seekers can sign up here; da'i accounts are added by the reviewer.
  * role ("user" | "daai") preselects the switch, else the way this device signed in last time.
  * onDaaiSignIn(me) runs after a da'i signs in; without it the card opens the da'i console.
+ * next: where a seeker goes after signing in (the page that sent them here), else their account.
  */
-export function SignInCard({ role: preset, onDaaiSignIn }) {
+export function SignInCard({ role: preset, onDaaiSignIn, next }) {
   const { t, lang, setLang } = useI18n();
   const { account } = useAccount();
   const { path } = useHashPath();
@@ -102,7 +103,7 @@ export function SignInCard({ role: preset, onDaaiSignIn }) {
       setAccount(r.account);
       rememberRole("user");
       toast(t("acc.welcome", { u: r.account.username }), "success");
-      if (!path.startsWith("/account")) navigate("/account");
+      if (next) navigate(next); else if (!path.startsWith("/account")) navigate("/account");
     } catch (err) {
       toast(daai ? (DAAI_ERRORS[err.status] ? t(DAAI_ERRORS[err.status]) : errorText(err, t)) : accError(err, t), "error");
     } finally {
@@ -359,8 +360,10 @@ export default function AccountPage({ query = {} }) {
   if (!loaded) return null;
   if (!account) {
     const role = ["user", "daai"].includes(query.as) ? query.as : undefined;   // #/account?as=daai opens on "da'i"
+    // #/account?next=/ask brings the seeker back to that page once signed in (only paths inside this site).
+    const next = /^\/(?![/\\])/.test(query.next || "") ? query.next : undefined;
     return (
-      <div className="auth-page"><SignInCard role={role} /></div>
+      <div className="auth-page"><SignInCard role={role} next={next} /></div>
     );
   }
   return (

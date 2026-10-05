@@ -14,7 +14,7 @@ export default function MyActivities({ data, reload, account, browse }) {
   const past = data.meetups.filter(over).reverse();
   return (
     <div className="stack mine">
-      {!account && <Notice icon="lock">{t("com.mine_device")} <a href="#/account">{t("com.mine_signin")}</a></Notice>}
+      {!account && <Notice icon="lock">{t("com.mine_device")} <a href="#/account?next=%2Fcommunity%3Ftab%3Dmine">{t("com.mine_signin")}</a></Notice>}
       <section className="stack">
         <h2 className="mine-h"><Icon name="calendar" />{t("com.mine_upcoming")}</h2>
         {upcoming.length

@@ -3,7 +3,7 @@
 import "./strings.js";
 import { useEffect } from "react";
 import { useI18n } from "../../core/i18n.jsx";
-import { useHashPath } from "../../core/router.jsx";
+import { currentPath, useHashPath } from "../../core/router.jsx";
 import { Icon, openSheet } from "../../core/ui.jsx";
 import { CompleteAbout, needsAbout } from "./fields.jsx";
 import { useAccount, useDaaiSignedIn } from "./store.js";
@@ -23,8 +23,10 @@ export function AccountButton() {
     const timer = setTimeout(() => openSheet({ title: t("acc.complete_title"), render: (close) => <CompleteAbout account={account} close={close} /> }));
     return () => clearTimeout(timer);
   }, [missing]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Signed out, the button opens the sign-in card, which /daai shows too (with "da'i" picked).
-  const href = account ? "#/account" : daai ? "#/daai" : "#/account";
+  // Signed out, the button opens the sign-in card (which /daai shows too, with "da'i" picked) and, from any other
+  // page, brings the seeker back there afterwards.
+  const back = ["/", "/account", "/daai"].includes(path) ? "" : `?next=${encodeURIComponent(currentPath())}`;
+  const href = account ? "#/account" : daai ? "#/daai" : `#/account${back}`;
   const here = account ? path.startsWith("/account") : daai ? path.startsWith("/daai") : path.startsWith("/account") || path.startsWith("/daai");
   const label = account ? account.username : daai ? t("acc.daai_console") : t("acc.signin_btn");
   return (
