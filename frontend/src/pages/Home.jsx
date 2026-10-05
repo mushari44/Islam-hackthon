@@ -29,6 +29,7 @@ register({
     "home.members": "{n} عضو",
     "home.videos_t": "مرئيات من دار الإسلام", "home.videos_all": "كل المرئيات",
     "home.trust_t": "كل إجابة من مصادر معتمدة", "home.trust_d": "لا يظهر للمستخدم إلا ما له مصدر، ونصوص القرآن والحديث تُعرض كما هي في المصدر.",
+    "home.nm_label": "مسلم جديد على سَبِيلي", "home.nm_note": "أعلنوا إسلامهم مع دعاتنا، واختاروا أن يشاركوا البشرى مع مجموعاتهم.",
     "home.stat_q": "آية بتفسيرها", "home.stat_h": "حديث مشروح", "home.stat_qa": "سؤال وجواب", "home.trust_more": "تعرّف على المصادر",
   },
   en: {
@@ -48,6 +49,7 @@ register({
     "home.members": "{n} members",
     "home.videos_t": "Videos from IslamHouse", "home.videos_all": "All videos",
     "home.trust_t": "Every answer comes from approved sources", "home.trust_d": "Only sourced text reaches you, and Quran and hadith text is shown exactly as in the source.",
+    "home.nm_label": "new Muslims on Sabeeli", "home.nm_note": "They embraced Islam with our da'is and chose to share the good news with their groups.",
     "home.stat_q": "verses with tafsir", "home.stat_h": "explained hadiths", "home.stat_qa": "questions and answers", "home.trust_more": "About the sources",
   },
 });
@@ -228,6 +230,23 @@ function Videos() {
   );
 }
 
+/** How many people shared that they embraced Islam here: one total, no names. Hidden until there is one. */
+function NewMuslims({ stats }) {
+  const { t, fmtNum } = useI18n();
+  const n = stats?.new_muslims || 0;
+  if (!n) return null;
+  return (
+    <section className="home-nm fade-in" aria-label={t("home.nm_label")}>
+      <span className="home-nm-icon" aria-hidden="true">🎉</span>
+      <strong className="home-nm-num">{fmtNum(n)}</strong>
+      <div>
+        <h2>{t("home.nm_label")}</h2>
+        <p>{t("home.nm_note")}</p>
+      </div>
+    </section>
+  );
+}
+
 function Trust({ corpus }) {
   const { t, fmtNum } = useI18n();
   const stats = [["quran_verses", "stat_q"], ["hadiths", "stat_h"], ["qa", "stat_qa"]];
@@ -263,6 +282,7 @@ export default function Home() {
   const avail = useLive("/api/availability");
   const meetups = useLive(`/api/meetups?ui=${lang}&audience=${audience}`);
   const groups = useLive(`/api/groups?ui=${lang}&audience=${audience}`);
+  const community = useLive("/api/community/stats");
   return (
     <div className="home">
       <section className="home-hero">
@@ -282,6 +302,7 @@ export default function Home() {
       </section>
       <Journey corpus={corpus} avail={avail} meetups={meetups} groups={groups} />
       <Community meetups={meetups} groups={groups} />
+      <NewMuslims stats={community} />
       <Trust corpus={corpus} />
       <Videos />
     </div>
