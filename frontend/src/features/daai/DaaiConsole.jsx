@@ -30,15 +30,21 @@ function Login({ onLogin }) {
     }
   };
   return (
-    <>
-      <div className="page-head"><h1>{t("dai.title")}</h1><p>{t("dai.lead")}</p></div>
-      <form className="card stack login-card" onSubmit={submit}>
-        <div className="field"><label htmlFor="du">{t("dai.user")}</label><input id="du" className="input" autoComplete="username" required value={user} onChange={(e) => setUser(e.target.value)} /></div>
-        <div className="field"><label htmlFor="dp">{t("dai.pass")}</label><input id="dp" className="input" type="password" autoComplete="current-password" required value={pass} onChange={(e) => setPass(e.target.value)} /></div>
-        <div className="row"><button type="submit" className="btn btn-primary"><Icon name="lock" />{t("dai.login")}</button></div>
-        <p className="faint">{t("dai.demo")}</p>
-      </form>
-    </>
+    <div className="auth-page">
+      <section className="card auth-card" aria-labelledby="dai-title">
+        <div className="auth-head">
+          <span className="auth-icon" aria-hidden="true"><Icon name="users" size={22} /></span>
+          <h1 id="dai-title">{t("dai.title")}</h1>
+          <p className="muted">{t("dai.lead")}</p>
+        </div>
+        <form className="stack" onSubmit={submit}>
+          <div className="field"><label htmlFor="du">{t("dai.user")}</label><input id="du" className="input" autoComplete="username" required value={user} onChange={(e) => setUser(e.target.value)} /></div>
+          <div className="field"><label htmlFor="dp">{t("dai.pass")}</label><input id="dp" className="input" type="password" autoComplete="current-password" required value={pass} onChange={(e) => setPass(e.target.value)} /></div>
+          <button type="submit" className="btn btn-primary btn-block">{t("dai.login")}</button>
+        </form>
+        <p className="auth-switch faint small">{t("dai.demo")}</p>
+      </section>
+    </div>
   );
 }
 

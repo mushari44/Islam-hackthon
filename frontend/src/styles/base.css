@@ -56,6 +56,11 @@ p { margin: 0 0 .8em; }
 .footer { border-top: 1px solid var(--border); color: var(--text-muted); font-size: .85rem; }
 .footer-inner { max-width: var(--page-w); margin: 0 auto; padding: 18px var(--gutter) 96px; display: flex; flex-wrap: wrap; gap: 8px 22px; }
 .footer a { color: var(--text-muted); }
+.footer-inner { flex-direction: column; gap: 8px; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 6px 22px; font-weight: 600; }
+.footer-links a { text-decoration: none; }
+.footer-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.footer-note { margin: 0; }
 
 /* Header widths: the full bar (nav labels + labelled buttons) needs ~1240px. Below that the buttons
    on the end become icons; at tablet width and below (<=1024px) the nav moves to the bottom tab bar. */

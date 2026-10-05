@@ -1,17 +1,4 @@
 /* Seeker account. Owner: Eman. */
-/* Sign-in / sign-up: one card centred on the page, the usual width of a login form. */
-.auth-page { display: flex; justify-content: center; padding-block: clamp(8px, 4vh, 48px); }
-.auth-card { width: 100%; max-width: 420px; padding: clamp(20px, 4vw, 32px); display: flex; flex-direction: column; gap: 20px; }
-.auth-card.is-signup { max-width: 560px; }
-.auth-head { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.auth-head h1 { margin: 0; font-size: 1.6rem; }
-.auth-head p { margin: 0; font-size: .95rem; }
-.auth-icon {
-  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; margin-block-end: 4px;
-  background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent-ink);
-}
-.auth-card .btn-block { margin-block-start: 4px; }
-.auth-switch { margin: 0; text-align: center; font-size: .92rem; color: var(--text-muted); }
 .account-head { display: flex; align-items: center; gap: 16px; }
 .account-head h1 { margin: 0; }
 .account-head p { margin: 0; }

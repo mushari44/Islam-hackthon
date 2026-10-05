@@ -87,7 +87,7 @@ function Choose({ query, initialDaai, initialLang, onRequested }) {
         })}
       </div>
       <h3>{t("talk.gender")}</h3>
-      <div className="tabs" role="radiogroup">
+      <div className="tabs tabs-fit" role="radiogroup">
         {[["", "talk.any"], ["m", "talk.male"], ["f", "talk.female"]].map(([v, k]) => (
           <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} aria-selected={gender === v} onClick={() => setGender(v)}>{t(k)}</button>
         ))}

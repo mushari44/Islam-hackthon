@@ -23,7 +23,7 @@ export function PlaceFields({ f, setF, idPrefix = "p", genderLabel = "dp.gender"
     <>
       <div className="field">
         <span className="field-label">{t(genderLabel)}</span>
-        <div className="tabs" role="radiogroup" aria-label={t(genderLabel)}>
+        <div className="tabs tabs-fit" role="radiogroup" aria-label={t(genderLabel)}>
           {[["m", "dp.gender_m"], ["f", "dp.gender_f"]].map(([v, k]) => (
             <button key={v} type="button" role="radio" aria-checked={f.gender === v} aria-selected={f.gender === v} onClick={() => setF({ ...f, gender: v })}>{t(k)}</button>
           ))}

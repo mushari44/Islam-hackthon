@@ -156,7 +156,7 @@ export function Privacy() {
 
 export function More({ theme, setTheme }) {
   const { t, lang, setLang } = useI18n();
-  const link = (href, icon, key) => <a className="card card-link row" href={href}><Icon name={icon} size={22} /><span>{t(key)}</span></a>;
+  const link = (href, icon, key) => <a className="card card-link row more-link" href={href}><Icon name={icon} size={22} /><span>{t(key)}</span><Icon name="arrow" className="icon-go more-chev" size={18} /></a>;
   return (
     <>
       <div className="page-head"><h1>{t("more.title")}</h1></div>
@@ -168,13 +168,13 @@ export function More({ theme, setTheme }) {
         {link("#/daai", "users", "nav.daai")}
         <div className="card stack">
           <strong>{t("more.lang")}</strong>
-          <div className="tabs">
+          <div className="tabs tabs-fit">
             {[["ar", "العربية"], ["en", "English"]].map(([l, label]) => (
               <button key={l} type="button" aria-selected={lang === l} onClick={() => setLang(l)}>{label}</button>
             ))}
           </div>
           <strong>{t("more.theme")}</strong>
-          <div className="tabs">
+          <div className="tabs tabs-fit">
             {[["auto", "more.auto"], ["light", "more.light"], ["dark", "more.dark"]].map(([v, k]) => (
               <button key={v} type="button" aria-selected={theme === v} onClick={() => setTheme(v)}>{t(k)}</button>
             ))}
@@ -187,5 +187,16 @@ export function More({ theme, setTheme }) {
 
 export function NotFound() {
   const { t } = useI18n();
-  return <div className="empty"><Icon name="search" size={46} /><h1>404</h1><a className="btn btn-primary" href="#/">{t("nav.home")}</a></div>;
+  return (
+    <div className="empty not-found">
+      <Icon name="search" size={46} />
+      <p className="nf-code" aria-hidden="true">404</p>
+      <h1>{t("nf.title")}</h1>
+      <p>{t("nf.lead")}</p>
+      <div className="row nf-actions">
+        <a className="btn btn-primary" href="#/"><Icon name="home" />{t("nav.home")}</a>
+        <a className="btn" href="#/ask"><Icon name="ask" />{t("nav.ask")}</a>
+      </div>
+    </div>
+  );
 }

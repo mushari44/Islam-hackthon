@@ -82,8 +82,6 @@ function Shell() {
             ))}
           </nav>
           <div className="top-actions">
-            <a className="btn btn-ghost btn-sm hide-mobile" href="#/daai" aria-current={path.startsWith("/daai") ? "page" : undefined}
-              aria-label={t("nav.daai")} title={t("nav.daai")}><Icon name="users" /><span className="btn-label">{t("nav.daai")}</span></a>
             <button type="button" className="btn btn-ghost btn-sm lang-btn" onClick={() => setLang(lang === "ar" ? "en" : "ar")} aria-label={t("common.lang_toggle")} lang={lang === "ar" ? "en" : "ar"}>
               <Icon name="globe" /><span className="btn-label">{t("common.lang_toggle")}</span><span className="btn-short" aria-hidden="true">{t("common.lang_short")}</span>
             </button>
@@ -101,11 +99,14 @@ function Shell() {
       </main>
       <footer className="footer">
         <div className="footer-inner">
-          <span>{t("footer.ai")}</span>
-          <a href="#/about">{t("nav.about")}</a>
-          <a href="#/sources">{t("nav.sources")}</a>
-          <a href="#/privacy">{t("nav.privacy")}</a>
-          <span>{t("footer.challenge")}</span>
+          <nav className="footer-links" aria-label={t("footer.links")}>
+            <a href="#/about">{t("nav.about")}</a>
+            <a href="#/sources">{t("nav.sources")}</a>
+            <a href="#/privacy">{t("nav.privacy")}</a>
+            <a href="#/daai">{t("footer.daai")}</a>
+          </nav>
+          <p className="footer-note">{t("footer.ai")}</p>
+          <p className="footer-note">© {t("app.name")} · {t("footer.challenge")}</p>
         </div>
       </footer>
       <nav className="tabbar" aria-label="tabs">
