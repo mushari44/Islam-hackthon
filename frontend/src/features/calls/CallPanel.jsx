@@ -4,7 +4,7 @@ import "./calls.css";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, Notice } from "../../core/ui.jsx";
+import { Icon, Notice, toast } from "../../core/ui.jsx";
 import { createRoom } from "./room.js";
 
 export function useClock(running = true) {
@@ -35,6 +35,8 @@ export default function CallPanel({ callId, role, token, title, onEnded, history
   const [messages, setMessages] = useState([]);
   const [muted, setMuted] = useState(false);
   const [draft, setDraft] = useState("");
+  const [canSend, setCanSend] = useState(false);   // the signalling socket is open
+  const [confirmEnd, setConfirmEnd] = useState(false);
   const room = useRef(null);
   const logRef = useRef(null);
   const sec = useClock(true);
@@ -53,9 +55,17 @@ export default function CallPanel({ callId, role, token, title, onEnded, history
       },
       onChat: (m) => setMessages((list) => (list.some((x) => x.id === m.id) ? list : [...list, m])),
       onEnded: () => endedRef.current?.(),
+      onSocket: (open) => { if (!cancelled) setCanSend(open); },
     }).then((r) => { if (cancelled) r.close(); else room.current = r; });
     return () => { cancelled = true; room.current?.close(); room.current = null; };
   }, [callId, role, token, historyPath]);
+
+  // The da'i's end button asks for a second tap; the question goes away by itself after a few seconds.
+  useEffect(() => {
+    if (!confirmEnd) return undefined;
+    const id = setTimeout(() => setConfirmEnd(false), 3000);
+    return () => clearTimeout(id);
+  }, [confirmEnd]);
 
   useEffect(() => { logRef.current?.lastElementChild?.scrollIntoView({ block: "end" }); }, [messages]);
 
@@ -66,7 +76,10 @@ export default function CallPanel({ callId, role, token, title, onEnded, history
   const send = (e) => {
     e.preventDefault();
     const v = draft.trim();
-    if (v && room.current) { room.current.sendChat(v); setDraft(""); }
+    if (!v) return;
+    // Clear the box only once the message is really on its way, so nothing typed is lost.
+    if (room.current?.sendChat(v)) setDraft("");
+    else toast(t("talk.not_sent"), "error");
   };
   const toggleMute = () => { const next = !muted; setMuted(next); room.current?.mute(next); };
   const end = () => {
@@ -74,6 +87,11 @@ export default function CallPanel({ callId, role, token, title, onEnded, history
     // the socket may not be open yet (mic prompt): end the call on the server too
     if (role === "seeker") api.post(`/api/calls/${callId}/cancel`, {}).catch(() => {});
     onEnded?.();
+  };
+  // One tap for the seeker, always: they must be able to leave at any moment. The da'i confirms with a second tap.
+  const onEndClick = () => {
+    if (role === "daai" && !confirmEnd) setConfirmEnd(true);
+    else end();
   };
 
   return (
@@ -90,7 +108,9 @@ export default function CallPanel({ callId, role, token, title, onEnded, history
           <button type="button" className="btn call-btn" onClick={toggleMute}>
             <Icon name={muted ? "micOff" : "mic"} />{muted ? t("talk.unmute") : t("talk.mute")}
           </button>
-          <button type="button" className="btn btn-danger call-btn" onClick={end}><Icon name="phoneOff" />{t("talk.end")}</button>
+          <button type="button" className="btn btn-danger call-btn" onClick={onEndClick}>
+            <Icon name="phoneOff" /><span aria-live="polite">{confirmEnd ? t("talk.end_again") : t("talk.end")}</span>
+          </button>
         </div>
       </div>
       <div className="card call-chat">
@@ -106,7 +126,7 @@ export default function CallPanel({ callId, role, token, title, onEnded, history
         <form className="row" onSubmit={send}>
           <input className="input" style={{ flex: 1 }} value={draft} maxLength={1000} placeholder={t("talk.chat_ph")}
             aria-label={t("talk.chat")} onChange={(e) => setDraft(e.target.value)} />
-          <button type="submit" className="btn btn-primary" aria-label={t("common.send")}><Icon name="send" /></button>
+          <button type="submit" className="btn btn-primary" aria-label={t("common.send")} disabled={!canSend}><Icon name="send" className="icon-send" /></button>
         </form>
       </div>
     </div>

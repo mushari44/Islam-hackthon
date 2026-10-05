@@ -8,7 +8,7 @@ import { loadAccount, useAccount, useDaaiSignedIn } from "../features/account/pu
 register({
   ar: {
     "about.title": "عن سَبِيلي",
-    "about.p1": "سَبِيلي تطبيق ويب يتيح لمن يثير الإسلام فضوله، وللمسلم الجديد، أن يسأل بلغته ويحصل على شرح واضح يستند إلى مصادر معتمدة مع إظهارها، وأن يتصل مباشرة بداعية متاح بلغته، ويتابع تعلّمه في مجموعات ولقاءات.",
+    "about.p1": "سَبِيلي تطبيق ويب يتيح لمن يثير الإسلام فضوله، وللمسلم الجديد، أن يسأل بلغته ويحصل على شرح واضح يستند إلى مصادر معتمدة مع إظهارها، وأن يتصل مباشرة بداعية متاح بلغته، ويتابع تعلّمه في مجموعات وفعاليات.",
     "about.ai_t": "مساعد بالذكاء الاصطناعي", "about.ai": "الإجابات يكتبها نموذج ذكاء اصطناعي (Gemma من Google عبر OpenRouter) مقيداً بالنصوص المسترجعة من الحزمة المعتمدة، وتُحذف أي جملة لا تستند إلى نص منها. ليس عالماً ولا مفتياً، ويقول «لم أجد» حين لا تكفي المصادر.",
     "about.how_t": "كيف تُبنى الإجابة", "about.how1": "تحليل السؤال: لغته ومستوى المحتوى (أ–د) وهل هو حالة شخصية.",
     "about.how2": "البحث في المصادر المعتمدة بالعربية والإنجليزية، ومطابقة أي آية منقولة أو مصوّرة بنص المصحف.",
@@ -33,7 +33,7 @@ register({
     "priv.1": "الحساب اختياري: تبدأ برمز جلسة عشوائي في متصفحك، ولو أنشأت حساباً فهو اسم مستخدم وكلمة مرور، وبريد اختياري لاستعادته فقط، بلا جوال ولا اسم حقيقي. وعند إنشاء الحساب تختار جنسك وفئتك العمرية (لا تاريخ ميلادك) لنقترح عليك ما يناسبك، ولك أن تضيف لغتك ودولتك ومدينتك. لا يظهر شيء منها لأحد، وتغيّرها متى شئت، وتحذفها كلها بحذف الحساب.",
     "priv.2": "أسئلتك وإجاباتها تُحذف تلقائياً بعد 24 ساعة. وإن كنت داخل حسابك فتُحفظ فيه لتراها على أي جهاز، ومحادثات هذا المتصفح قبل دخولك تنتقل إليه، حتى تحذف أيّاً منها من صفحة اسأل، أو كلها من صفحة حسابي، أو تحذف الحساب.",
     "priv.3": "ملخص الإحالة ومحادثتك مع سَبِيلي لا يصلان إلى الداعية إلا بموافقتك الصريحة، ولكلٍّ منهما موافقة مستقلة. ولا يرى الداعية إلا المحادثة التي اخترتها، كما كانت لحظة موافقتك.",
-    "priv.4": "المكالمات لا تُسجّل، ولا نطلب رقم هاتف. في المجموعات واللقاءات اسم مستعار فقط.",
+    "priv.4": "المكالمات لا تُسجّل، ولا نطلب رقم هاتف. في المجموعات والفعاليات اسم مستعار فقط.",
     "priv.5": "لا نستنتج معتقدك أو أي صفة حساسة عنك، ولا نستخدم بياناتك لغير تقديم الخدمة.",
     "priv.6": "تُرسل الأسئلة إلى نموذج Gemma عبر OpenRouter لتوليد الإجابة، وإلى مزوّدين لا يحفظون الطلبات ولا يدرّبون عليها فقط.",
     "priv.7": "المقاطع المرئية وصورها تُحمَّل من خوادم دار الإسلام مباشرة، كأي زيارة لموقعهم. ولا يحفظ سَبِيلي ما تبحث عنه ولا ما تشاهده.",
@@ -44,7 +44,7 @@ register({
   },
   en: {
     "about.title": "About Sabeeli",
-    "about.p1": "Sabeeli is a web app where anyone curious about Islam, and new Muslims, can ask in their own language and get a clear explanation grounded in approved sources that are shown alongside, call an available da'i who speaks their language, and keep learning in groups and meetups.",
+    "about.p1": "Sabeeli is a web app where anyone curious about Islam, and new Muslims, can ask in their own language and get a clear explanation grounded in approved sources that are shown alongside, call an available da'i who speaks their language, and keep learning in groups and events.",
     "about.ai_t": "An AI assistant", "about.ai": "Answers are written by an AI model (Gemma by Google, through OpenRouter), limited to passages retrieved from the approved package; any sentence not backed by one of them is removed. It is not a scholar or a mufti, and it says \"I couldn't find this\" when the sources aren't enough.",
     "about.how_t": "How an answer is built", "about.how1": "Analyse the question: its language, content level (A-D) and whether it's a personal case.",
     "about.how2": "Search the approved sources in Arabic and English, and match any quoted or photographed verse against the Mushaf.",
@@ -69,7 +69,7 @@ register({
     "priv.1": "An account is optional: you start with a random session token in your browser, and an account is a username and password, with an optional email used only to recover it. When you create one you pick your sex and an age band (never your birth date) so we can suggest what fits you, and you may add your language, country and city. Nobody else sees them, you can change them at any time, and deleting the account removes them all.",
     "priv.2": "Your questions and answers are deleted automatically after 24 hours. If you're signed in, they are saved to your account so you can see them on any device, and the chats this browser had before you signed in move there too. They stay until you delete one on the Ask page, all of them on My account, or the account itself.",
     "priv.3": "The referral summary and your chat with Sabeeli only reach a da'i with your explicit consent, given separately for each. The da'i sees only the chat you chose, as it was when you agreed.",
-    "priv.4": "Calls aren't recorded and we never ask for a phone number. Groups and meetups use nicknames only.",
+    "priv.4": "Calls aren't recorded and we never ask for a phone number. Groups and events use nicknames only.",
     "priv.5": "We don't infer your beliefs or any sensitive trait, and we use your data only to provide the service.",
     "priv.6": "Questions are sent to the Gemma model through OpenRouter to write answers, only to providers that neither store requests nor train on them.",
     "priv.7": "Videos and their thumbnails load straight from IslamHouse's servers, like any visit to their site. Sabeeli doesn't save what you search for or what you watch.",

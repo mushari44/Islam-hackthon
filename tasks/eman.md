@@ -98,6 +98,17 @@ For your information; nothing here needs action unless you disagree.
 - One sign-in card for both: a «مستخدم / داعية» switch at the top (`SignInCard` in `features/account/AccountPage.jsx`, exported from `account/public.js`). "Da'i" posts to `/api/daai/login`; sign-up is for seekers only. `#/daai` (and the footer link, and `#/account?as=daai`) open it with "da'i" picked, and the device remembers how it signed in last time (`sabeeli.signin_as`). `DaaiConsole` now shows this card instead of its own `Login`, and the unused `dai.*` login strings moved to `acc.*`.
 - The da'i token goes through `setDaaiToken()` (account store), so the header shows «لوحة الداعية» while a da'i is signed in.
 - Sign out, da'i log out, cancel meetup and cancel call request use the new red `btn-danger-soft` style.
+- A signed-in seeker's header button opens a small menu (حسابي, أنشطتي, محادثاتي, «تسجيل الخروج»); `signOutSeeker()` in the account store does the sign-out. Toasts can be closed, and errors stay longer.
+- Da'i console polish (Mushari's "make every interaction common use"):
+  - The tab is in the address (`#/daai?tab=history`), so reload and Back work.
+  - The calls tab stays mounted, so a call survives a look at another tab. It shows a waiting-count badge.
+  - Signing out during a call asks first, then ends the call and turns "available" off.
+  - The da'i's End button needs a second tap. The seeker still ends with one tap.
+  - These actions now ask first (`AskFirst` in the new `daai/bits.jsx`): cancelling an event, muting a member (now with Unmute), deleting a group message, and disabling an account.
+  - Buttons show a busy state while working, success toasts appear, lists show a spinner while loading and an error with Retry if loading fails, and past events are listed last with an "Ended" badge.
+  - Form limits match the API. The reviewer can still change their own password, and is then signed out.
+- Calls: chat text is kept if the socket isn't open, cancelling a request shows its error instead of leaving silently, and the end-screen buttons wrap on phones.
+- Wording: «تسجيل الخروج» everywhere, and «فعالية» / "event" and «حجز» / "booking" across the community and da'i screens.
 
 ## Day 3: 6 October (polish and publish)
 

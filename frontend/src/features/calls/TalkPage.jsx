@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, seekerToken } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
-import { Icon, Notice, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { Icon, Notice, Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
 import { NewMuslimPrompt } from "../community/public.js";
 import CallPanel, { Clock, useClock } from "./CallPanel.jsx";
 
@@ -89,7 +89,7 @@ function Choose({ query, initialDaai, initialLang, onRequested }) {
       <h3>{t("talk.gender")}</h3>
       <div className="tabs tabs-fit" role="radiogroup" aria-label={t("talk.gender")}>
         {[["", "talk.any"], ["m", "talk.male"], ["f", "talk.female"]].map(([v, k]) => (
-          <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} aria-selected={gender === v} onClick={() => setGender(v)}>{t(k)}</button>
+          <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} onClick={() => setGender(v)}>{t(k)}</button>
         ))}
       </div>
       <DaaiPicker lang={lang} gender={gender} value={daai} onChange={setDaai} />
@@ -107,8 +107,10 @@ function Waiting({ id, onAccepted, onExpired, onCancelled }) {
   const { t, fmtNum } = useI18n();
   const [queue, setQueue] = useState(0);
   const [named, setNamed] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const sec = useClock(true);
   usePolling(async () => {
+    if (cancelling) return;   // the cancel decides what comes next
     const st = await api.get(`/api/calls/${id}`);
     setQueue(st.queue_position || 0);
     setNamed(Boolean(st.daai_pref));
@@ -116,14 +118,22 @@ function Waiting({ id, onAccepted, onExpired, onCancelled }) {
     else if (st.status === "expired") onExpired();
     else if (st.status === "cancelled" || st.status === "ended") onCancelled();
   }, 2000, [id], true, { background: true });
-  const cancel = async () => { await api.post(`/api/calls/${id}/cancel`, {}).catch(() => {}); onCancelled(); };
+  const cancel = async () => {
+    setCancelling(true);
+    try { await api.post(`/api/calls/${id}/cancel`, {}); } catch (err) {
+      toast(errorText(err, t), "error");   // the request is still waiting: stay here
+      setCancelling(false);
+      return;
+    }
+    onCancelled();
+  };
   return (
     <div className="card stack center waiting">
       <div className="pulse"><Icon name="talk" size={40} /></div>
       <h3>{t(named ? "talk.waiting_named" : "talk.waiting")}</h3>
       {queue > 0 && <p className="muted">{t("talk.queue", { n: fmtNum(queue) })}</p>}
       <p className="faint"><Clock sec={sec} /></p>
-      <div className="row" style={{ justifyContent: "center" }}><button type="button" className="btn btn-danger-soft" onClick={cancel}>{t("talk.cancel")}</button></div>
+      <div className="row" style={{ justifyContent: "center" }}><button type="button" className="btn btn-danger-soft" disabled={cancelling} onClick={cancel}>{t("talk.cancel")}</button></div>
     </div>
   );
 }
@@ -144,7 +154,7 @@ function Ended({ id, daai, onAgain }) {
           {[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" className="icon-btn" aria-label={t("talk.rate_n", { n })} title={t("talk.rate_n", { n })} onClick={() => rate(n)}><Icon name="heart" size={22} /></button>)}
         </div>
       )}
-      <div className="row" style={{ justifyContent: "center" }}>
+      <div className="row talk-end-actions">
         <a className="btn btn-primary" href="#/ask">{t("talk.back_ask")}</a>
         <button type="button" className="btn" onClick={() => onAgain(null)}>{t("talk.again")}</button>
         {daai && <button type="button" className="btn" onClick={() => onAgain(daai.id, daai.lang)}><Icon name="talk" />{t("talk.again_same", { name: daai.name })}</button>}
@@ -158,8 +168,11 @@ export default function TalkPage({ query }) {
   const { t, lang } = useI18n();
   const [view, setView] = useState({ name: "loading" });
   const [token, setToken] = useState(null);
+  const [tokenError, setTokenError] = useState(null);
 
-  useEffect(() => { seekerToken().then(setToken); }, []);
+  // The call's audio room needs this browser's anonymous session; offline, say so and offer a retry.
+  const loadToken = () => { setTokenError(null); seekerToken().then(setToken).catch(setTokenError); };
+  useEffect(() => { loadToken(); }, []);
   useEffect(() => {
     const active = recall();
     if (!active) { setView({ name: "choose" }); return; }
@@ -172,7 +185,7 @@ export default function TalkPage({ query }) {
 
   const ended = useCallback((id, daai) => { remember(null); setView({ name: "ended", id, daai }); }, []);
 
-  let body = null;
+  let body = <Spinner />;   // checking for a call in progress, or waiting for the session the call needs
   if (view.name === "choose") {
     body = <Choose query={query} initialDaai={view.daai} initialLang={view.lang} key={view.daai || "any"} onRequested={(id) => setView({ name: "waiting", id })} />;
   }
@@ -211,7 +224,11 @@ export default function TalkPage({ query }) {
   return (
     <div className="talk">
       <div className="page-head"><h1>{t("talk.title")}</h1><p>{t("talk.lead")}</p></div>
-      {body}
+      {tokenError && !token ? (
+        <Notice kind="warn" icon="alert">
+          <div className="row"><span>{errorText(tokenError, t)}</span><button type="button" className="btn btn-sm" onClick={loadToken}>{t("common.retry")}</button></div>
+        </Notice>
+      ) : body}
     </div>
   );
 }

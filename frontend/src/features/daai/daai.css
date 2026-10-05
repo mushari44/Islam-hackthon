@@ -42,3 +42,13 @@
 .shared-turn { padding-block: 10px; border-bottom: 1px dashed var(--border); }
 .shared-q { background: var(--surface-2); border-radius: 12px; padding: 8px 12px; }
 .shared-q p { margin: 2px 0 0; }
+
+/* Console bits: the two-step confirm, a switch while it saves, the waiting count on the calls tab, past events */
+.daai-ask { gap: 6px; align-items: center; }
+.daai-busy { opacity: .6; cursor: progress; }
+.daai-tab-count {
+  display: inline-block; min-width: 20px; margin-inline-start: 6px; padding: 0 6px; border-radius: 999px;
+  font-size: .75rem; line-height: 20px; text-align: center; background: var(--mint-400); color: var(--navy-800);
+}
+.tabs button[aria-selected="true"] .daai-tab-count { background: var(--navy-900); color: #fff; }   /* readable on the green current tab */
+.daai-past { opacity: .72; }

@@ -62,7 +62,7 @@ export default function ReferralSheet({ lang, conversationId, close }) {
       <div className="stack">
         <p>{t("ref.none")}</p>
         {chatOption}
-        <div className="row"><button type="button" className="btn btn-primary" onClick={() => finish(false)}><Icon name="talk" />{t("ref.skip")}</button></div>
+        <div className="row"><button type="button" className="btn btn-primary" disabled={sending} onClick={() => finish(false)}><Icon name="talk" />{t("ref.skip")}</button></div>
       </div>
     );
   }
