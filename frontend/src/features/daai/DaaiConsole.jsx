@@ -1,7 +1,8 @@
-// Da'i console: login, availability and the tabs (calls, call log, groups, meetups, profile, and da'i accounts for the reviewer). Owner: Eman.
+// Da'i console: sign-in (through the shared card), availability and the tabs (calls, call log, groups, meetups, profile, and da'i accounts for the reviewer). Owner: Eman.
 import "./strings.js";
 import { useEffect, useState } from "react";
 import { api, daaiAuth } from "../../core/api.js";
+import { SignInCard, setDaaiToken } from "../account/public.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
 import { callsTab } from "./CallsTab.jsx";
@@ -13,41 +14,6 @@ import { adminTab } from "./AdminTab.jsx";
 const TABS = [callsTab, historyTab, groupsTab, meetupsTab, profileTab, adminTab];
 const tabsFor = (me) => TABS.filter((x) => !x.adminOnly || me?.role === "admin");
 
-
-function Login({ onLogin }) {
-  const { t } = useI18n();
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
-  const submit = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await api.post("/api/daai/login", { username: user, password: pass }, { as: "none" });
-      daaiAuth.set(res.token);
-      onLogin(res.me);
-    } catch (err) {
-      const key = { 401: "dai.bad", 403: "dai.disabled", 429: "dai.too_many" }[err.status];
-      toast(key ? t(key) : errorText(err, t), "error");
-    }
-  };
-  return (
-    <div className="auth-page">
-      <section className="card auth-card" aria-labelledby="dai-title">
-        <div className="auth-head">
-          <span className="auth-icon" aria-hidden="true"><Icon name="users" size={22} /></span>
-          <h1 id="dai-title">{t("dai.title")}</h1>
-          <p className="muted">{t("dai.lead")}</p>
-        </div>
-        <form className="stack" onSubmit={submit}>
-          <div className="field"><label htmlFor="du">{t("dai.user")}</label><input id="du" className="input" autoComplete="username" required value={user} onChange={(e) => setUser(e.target.value)} /></div>
-          <div className="field"><label htmlFor="dp">{t("dai.pass")}</label><input id="dp" className="input" type="password" autoComplete="current-password" required value={pass} onChange={(e) => setPass(e.target.value)} /></div>
-          <button type="submit" className="btn btn-primary btn-block">{t("dai.login")}</button>
-        </form>
-        <p className="auth-switch faint small">{t("dai.demo")}</p>
-      </section>
-    </div>
-  );
-}
-
 export default function DaaiConsole({ query }) {
   const { t, lang, langName } = useI18n();
   const [me, setMe] = useState(null);
@@ -56,13 +22,14 @@ export default function DaaiConsole({ query }) {
 
   useEffect(() => {
     if (!daaiAuth.token) { setChecked(true); return; }
-    api.dGet("/api/daai/me").then(setMe).catch(() => daaiAuth.clear()).finally(() => setChecked(true));
+    api.dGet("/api/daai/me").then(setMe).catch(() => setDaaiToken(null)).finally(() => setChecked(true));
   }, []);
   // keep "last seen" fresh so seekers see this da'i as online
   usePolling(() => api.dGet("/api/daai/me"), 30000, [], Boolean(me));
 
   if (!checked) return null;
-  if (!me) return <Login onLogin={setMe} />;
+  // Signed out: the site's one sign-in card, with "da'i" already picked (seekers can switch to "user" there).
+  if (!me) return <div className="auth-page"><SignInCard role="daai" onDaaiSignIn={setMe} /></div>;
 
   const setAvailable = async (e) => {
     try { setMe(await api.dPost("/api/daai/availability", { available: e.target.checked })); } catch (err) { toast(errorText(err, t), "error"); }
@@ -78,7 +45,7 @@ export default function DaaiConsole({ query }) {
         </div>
         <div className="row">
           <label className="row"><span className="switch"><input type="checkbox" checked={me.available} onChange={setAvailable} /><span /></span><span>{t("dai.available")}</span></label>
-          <button type="button" className="btn btn-danger-soft btn-sm" onClick={() => { daaiAuth.clear(); setMe(null); }}><Icon name="logout" />{t("dai.logout")}</button>
+          <button type="button" className="btn btn-danger-soft btn-sm" onClick={() => { setDaaiToken(null); setMe(null); }}><Icon name="logout" />{t("dai.logout")}</button>
         </div>
       </div>
       <div className="tabs" role="tablist">

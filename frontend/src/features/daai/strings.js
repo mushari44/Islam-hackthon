@@ -1,11 +1,10 @@
-// Strings for the da'i console (login, calls tab, groups and meetups tabs). Owner: Eman.
+// Strings for the da'i console (calls tab, groups and meetups tabs). Owner: Eman.
 import { register } from "../../core/i18n.jsx";
 
 register({
   ar: {
-    "dai.title": "لوحة الداعية", "dai.lead": "للدعاة والمراجعين فقط. استقبل طلبات الاتصال بلغاتك، وقُد مجموعاتك، وانشر لقاءاتك.",
-    "dai.user": "اسم المستخدم", "dai.pass": "كلمة المرور", "dai.login": "تسجيل الدخول", "dai.bad": "اسم المستخدم أو كلمة المرور غير صحيحة.",
-    "dai.demo": "حسابات تجريبية للتحكيم: khalid و maryam و yusuf و reviewer. كلمة المرور في ملف README.",
+    "dai.title": "لوحة الداعية",
+    "dai.user": "اسم المستخدم",
     "dai.available": "متاح لاستقبال المكالمات", "dai.logout": "خروج", "dai.langs": "لغاتك: {l}",
     "dc.tab": "الاتصالات",
     "dc.queue": "طلبات الاتصال",
@@ -100,7 +99,6 @@ register({
     "dc.chat_badge": "شارك محادثته", "dc.chat_title": "محادثة السائل مع سَبِيلي", "dc.chat_count": "(الأسئلة: {n})",
     "dc.chat_hint": "شاركها السائل بموافقته كما كانت عند طلب الاتصال. الإجابات من المصادر المعتمدة كما رآها.",
     "dc.seeker_asked": "سأل:", "dc.photo": "أرفق صورة", "dc.chat_show": "اعرض المحادثة كاملة",
-    "dai.disabled": "هذا الحساب موقوف. تواصل مع المراجع.", "dai.too_many": "محاولات كثيرة. انتظر عشر دقائق ثم حاول.",
     "da.tab": "حسابات الدعاة", "da.langs": "لغاته", "da.gender": "الداعية", "da.add": "أضف داعية", "da.do_add": "أضف الحساب", "da.added": "أُضيف الحساب {u}.",
     "da.user_hint": "حروف إنجليزية صغيرة وأرقام و _ أو . (٣ إلى ٣٢).", "da.first_password": "كلمة مرور أولى",
     "da.pass_hint": "٨ أحرف على الأقل. أرسلها للداعية بطريقة آمنة.",
@@ -128,9 +126,8 @@ register({
     "nm.badge_shared": "Embraced Islam and shared the news with their groups", "nm.badge_shared_short": "News shared",
     "nm.undo": "Undo", "nm.undo_late": "The seeker already answered, so it can't be undone.",
     "nm.stat": "embraced Islam in your calls", "nm.col": "Embraced Islam",
-    "dai.title": "Da'i console", "dai.lead": "For da'is and reviewers only. Take call requests in your languages, lead your groups and publish meetups.",
-    "dai.user": "Username", "dai.pass": "Password", "dai.login": "Sign in", "dai.bad": "Wrong username or password.",
-    "dai.demo": "Demo accounts for judging: khalid, maryam, yusuf and reviewer. The password is in the README.",
+    "dai.title": "Da'i console",
+    "dai.user": "Username",
     "dai.available": "Available for calls", "dai.logout": "Sign out", "dai.langs": "Your languages: {l}",
     "dc.tab": "Calls",
     "dc.queue": "Call requests",
@@ -225,7 +222,6 @@ register({
     "dc.chat_badge": "Chat shared", "dc.chat_title": "The seeker's chat with Sabeeli", "dc.chat_count": "({n} questions)",
     "dc.chat_hint": "Shared by the seeker with their OK, as it was when they asked for the call. The answers are from the approved sources, as they saw them.",
     "dc.seeker_asked": "They asked:", "dc.photo": "Attached a photo", "dc.chat_show": "Show the whole conversation",
-    "dai.disabled": "This account is disabled. Contact the reviewer.", "dai.too_many": "Too many attempts. Wait ten minutes and try again.",
     "da.tab": "Da'i accounts", "da.langs": "Languages", "da.gender": "Da'i", "da.add": "Add a da'i", "da.do_add": "Add account", "da.added": "Account {u} added.",
     "da.user_hint": "Lower-case letters, digits, _ or . (3 to 32).", "da.first_password": "First password",
     "da.pass_hint": "At least 8 characters. Send it to the da'i safely.",

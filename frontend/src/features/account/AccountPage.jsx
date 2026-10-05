@@ -1,4 +1,4 @@
-// Seeker account page: sign in, sign up, and "my account". Owner: Eman.
+// Account page: the sign-in card (seekers and da'is), sign up, and "my account". Owner: Eman.
 // Accounts are optional: a username, a password, the seeker's sex and age band, and an optional email and place
 // (see features/auth on the backend).
 import "./strings.js";
@@ -6,10 +6,11 @@ import "./account.css";
 import { useEffect, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
+import { navigate, useHashPath } from "../../core/router.jsx";
 import { Icon, errorText, toast } from "../../core/ui.jsx";
 import { COUNTRIES, NewMuslimPrompt, countryName } from "../community/public.js";
 import { AboutFields, CompleteAbout, needsAbout } from "./fields.jsx";
-import { setAccount, useAccount } from "./store.js";
+import { setAccount, setDaaiToken, useAccount } from "./store.js";
 
 function accError(err, t) {
   if (err && err.status === 422) return t("acc.err.invalid");
@@ -27,7 +28,8 @@ function Field({ id, label, hint, ...props }) {
   );
 }
 
-const ORDERED = ["SA", ...COUNTRIES.filter((c) => c !== "SA")];
+// Built on first use: community imports this feature too, so nothing from it is read while the modules load.
+const ordered = () => ["SA", ...COUNTRIES.filter((c) => c !== "SA")];
 
 /** Country and city (city only once a country is chosen); cities other members use are suggested. */
 function PlaceFields({ f, setF, prefix }) {
@@ -41,7 +43,7 @@ function PlaceFields({ f, setF, prefix }) {
         <label htmlFor={`${prefix}-country`}>{t("acc.country")}</label>
         <select id={`${prefix}-country`} className="select" value={f.country} onChange={(e) => setF({ ...f, country: e.target.value, city: "" })}>
           <option value="">{t("acc.no_country")}</option>
-          {ORDERED.map((c) => <option key={c} value={c}>{countryName(c, lang)}</option>)}
+          {ordered().map((c) => <option key={c} value={c}>{countryName(c, lang)}</option>)}
         </select>
       </div>
       <div className="field">
@@ -54,50 +56,79 @@ function PlaceFields({ f, setF, prefix }) {
   );
 }
 
-function SignedOut() {
+const ROLE_KEY = "sabeeli.signin_as";      // how this device signed in last time: "user" or "daai"
+function lastRole() { try { return localStorage.getItem(ROLE_KEY) === "daai" ? "daai" : "user"; } catch { return "user"; } }
+function rememberRole(role) { try { localStorage.setItem(ROLE_KEY, role); } catch { /* private mode */ } }
+
+const DAAI_ERRORS = { 401: "acc.err.daai_bad", 403: "acc.err.daai_disabled", 429: "acc.err.daai_too_many" };
+
+/**
+ * The one sign-in card for seekers and da'is: a switch at the top says who is signing in, and the same username and
+ * password go to the matching sign-in. Only seekers can sign up here; da'i accounts are added by the reviewer.
+ * role ("user" | "daai") preselects the switch, else the way this device signed in last time.
+ * onDaaiSignIn(me) runs after a da'i signs in; without it the card opens the da'i console.
+ */
+export function SignInCard({ role: preset, onDaaiSignIn }) {
   const { t, lang, setLang } = useI18n();
-  const [mode, setMode] = useState("signin");          // signin | signup
+  const { account } = useAccount();
+  const { path } = useHashPath();
+  const [role, setRole] = useState(() => preset || lastRole());
+  const [mode, setMode] = useState("signin");          // signin | signup (seekers only)
   // The interface language by default; sex and age band are left for the seeker to pick (no default, no "prefer not to say").
   const [f, setF] = useState({ username: "", password: "", email: "", lang, country: "", city: "", age_band: "", gender: "" });
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const signup = mode === "signup";
+  const daai = role === "daai" || Boolean(account);     // a seeker who is already signed in only needs the da'i sign-in
+  const signup = !daai && mode === "signup";
+  const pick = (r) => { setRole(r); setMode("signin"); };
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      if (!signup) {
-        const r = await api.post("/api/account/signin", { username: f.username, password: f.password });
-        if (r.account.lang) setLang(r.account.lang);   // the account's language follows the seeker to this device
-        setAccount(r.account);
-        toast(t("acc.welcome", { u: r.account.username }), "success");
-      } else {
-        const r = await api.post("/api/account/signup", {
+      if (daai) {
+        const r = await api.post("/api/daai/login", { username: f.username, password: f.password }, { as: "none" });
+        setDaaiToken(r.token);
+        rememberRole("daai");
+        if (onDaaiSignIn) onDaaiSignIn(r.me); else navigate("/daai");
+        return;
+      }
+      const r = signup
+        ? await api.post("/api/account/signup", {
           username: f.username, password: f.password, email: f.email, lang: f.lang,
           country: f.country, city: f.city, age_band: f.age_band, gender: f.gender,
-        });
-        setLang(r.account.lang);
-        setAccount(r.account);
-        toast(t("acc.welcome", { u: r.account.username }), "success");
-      }
+        })
+        : await api.post("/api/account/signin", { username: f.username, password: f.password });
+      if (r.account.lang) setLang(r.account.lang);       // the account's language follows the seeker to this device
+      setAccount(r.account);
+      rememberRole("user");
+      toast(t("acc.welcome", { u: r.account.username }), "success");
+      if (!path.startsWith("/account")) navigate("/account");
     } catch (err) {
-      toast(accError(err, t), "error");
+      toast(daai ? (DAAI_ERRORS[err.status] ? t(DAAI_ERRORS[err.status]) : errorText(err, t)) : accError(err, t), "error");
     } finally {
       setBusy(false);
     }
   };
-  // A plain login card: title, the fields, one full-width button, and a link to switch between signing in and signing up.
+  // A plain login card: title, who is signing in, the fields, one full-width button, and a link to sign up (seekers only).
   // Password reset needs email (SMTP), which isn't set up, so there is no "forgot password" link.
   return (
     <section className={`card auth-card${signup ? " is-signup" : ""}`} aria-labelledby="auth-title">
       <div className="auth-head">
         <span className="auth-icon" aria-hidden="true"><Icon name={signup ? "users" : "lock"} size={22} /></span>
         <h1 id="auth-title">{t(signup ? "acc.signup_title" : "acc.signin_title")}</h1>
-        <p className="muted">{t(signup ? "acc.signup_lead" : "acc.signin_lead")}</p>
+        {signup && <p className="muted">{t("acc.signup_lead")}</p>}
       </div>
+      {!signup && !account && (
+        <div className="tabs tabs-fit auth-role" role="radiogroup" aria-label={t("acc.role_label")}>
+          {[["user", "acc.role_user"], ["daai", "acc.role_daai"]].map(([r, k]) => (
+            <button key={r} type="button" role="radio" aria-checked={role === r} aria-selected={role === r} onClick={() => pick(r)}>{t(k)}</button>
+          ))}
+        </div>
+      )}
+      {!signup && <p className="auth-lead muted">{t(daai ? "acc.daai_lead" : "acc.signin_lead")}</p>}
       <form className="stack" onSubmit={submit}>
         <Field id="acc-user" label={t("acc.username")} hint={signup ? t("acc.username_hint") : null}
-          autoComplete="username" required minLength={3} maxLength={24} value={f.username} onChange={set("username")} />
+          autoComplete="username" required minLength={daai ? 1 : 3} maxLength={daai ? 64 : 24} value={f.username} onChange={set("username")} />
         {signup && (
           <Field id="acc-email" type="email" dir="ltr" label={t("acc.email_optional")} hint={t("acc.email_hint")}
             autoComplete="email" maxLength={254} value={f.email} onChange={set("email")} />
@@ -118,12 +149,19 @@ function SignedOut() {
           {t(signup ? "acc.do_signup" : "acc.do_signin")}
         </button>
       </form>
-      <p className="auth-switch">
-        {t(signup ? "acc.have_account" : "acc.no_account")}{" "}
-        <button type="button" className="link-btn" onClick={() => setMode(signup ? "signin" : "signup")}>
-          {t(signup ? "acc.signin_title" : "acc.create_account")}
-        </button>
-      </p>
+      {daai ? (
+        <div className="auth-switch auth-note">
+          <p>{t("acc.daai_note")}</p>
+          <p className="faint small">{t("acc.daai_demo")}</p>
+        </div>
+      ) : (
+        <p className="auth-switch">
+          {t(signup ? "acc.have_account" : "acc.no_account")}{" "}
+          <button type="button" className="link-btn" onClick={() => setMode(signup ? "signin" : "signup")}>
+            {t(signup ? "acc.signin_title" : "acc.create_account")}
+          </button>
+        </p>
+      )}
     </section>
   );
 }
@@ -315,13 +353,14 @@ function Security() {
   );
 }
 
-export default function AccountPage() {
+export default function AccountPage({ query = {} }) {
   const { t, fmtDate } = useI18n();
   const { account, loaded } = useAccount();
   if (!loaded) return null;
   if (!account) {
+    const role = ["user", "daai"].includes(query.as) ? query.as : undefined;   // #/account?as=daai opens on "da'i"
     return (
-      <div className="auth-page"><SignedOut /></div>
+      <div className="auth-page"><SignInCard role={role} /></div>
     );
   }
   return (

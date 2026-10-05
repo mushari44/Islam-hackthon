@@ -100,8 +100,14 @@ p { margin: 0 0 .8em; }
   .brand { gap: 8px; min-width: 0; }
   .brand-mark { width: 34px; height: 34px; }
   .brand-name { font-size: 1.2rem; }
+  .lang-btn svg { display: none; }   /* "EN" / "ع" alone is enough on a phone, and leaves room for the name */
+  .top-actions .lang-btn { min-width: 38px; justify-content: center; }
   .tabbar a { font-size: .66rem; }
 }
+/* On the narrowest phones, while the bar shows the labelled "Sign in" button, the logo stands alone so the two never touch
+   (the Arabic label is longer, so it needs the room sooner). */
+@media (max-width: 374px) { [dir="rtl"] .topbar-inner:has(.account-btn.is-signin) .brand-name { display: none; } }
+@media (max-width: 344px) { .topbar-inner:has(.account-btn.is-signin) .brand-name { display: none; } }
 
 /* ---------- buttons ---------- */
 .btn {

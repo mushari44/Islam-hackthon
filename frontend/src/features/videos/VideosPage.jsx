@@ -70,31 +70,34 @@ export default function VideosPage() {
   return (
     <>
       <div className="page-head"><h1>{t("vid.title")}</h1><p>{t("vid.lead")}</p></div>
-      <div className="vid-langbar row">
-        <label htmlFor="vid-lang" className="vid-lang-label"><Icon name="globe" />{t("vid.lang")}</label>
-        <select id="vid-lang" className="vid-lang" value={lang} onChange={(e) => pickLang(e.target.value)}>
-          {(languages.length ? languages : [{ code: lang, name: lang, count: 0 }]).map((l) => (
-            <option key={l.code} value={l.code}>{l.name}{l.count ? ` (${fmtNum(l.count)})` : ""}</option>
-          ))}
-        </select>
-        {languages.length > 0 && <span className="faint">{t("vid.lang_hint", { n: fmtNum(languages.length) })}</span>}
+      {/* One centred toolbar: the search box, then the video language (each option says how many videos it has). */}
+      <div className="vid-tools">
+        <form className="vid-search" role="search" onSubmit={(e) => { e.preventDefault(); setQ(typed.trim()); setPage(1); }}>
+          <Icon name="search" />
+          <label htmlFor="vid-q" className="sr-only">{t("vid.search")}</label>
+          <input id="vid-q" type="search" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={t("vid.search_ph")}
+            dir="auto" lang={lang} autoComplete="off" maxLength={100} />
+          {typed && (
+            <button type="button" className="icon-btn" aria-label={t("vid.clear")} title={t("vid.clear")} onClick={() => { setTyped(""); setQ(""); setPage(1); }}>
+              <Icon name="x" />
+            </button>
+          )}
+        </form>
+        <div className="vid-langbar row">
+          <label htmlFor="vid-lang" className="vid-lang-label"><Icon name="globe" />{t("vid.lang")}</label>
+          <select id="vid-lang" className="vid-lang" value={lang} onChange={(e) => pickLang(e.target.value)}>
+            {(languages.length ? languages : [{ code: lang, name: lang, count: 0 }]).map((l) => (
+              <option key={l.code} value={l.code}>{l.count ? t("vid.lang_option", { name: l.name, n: fmtNum(l.count) }) : l.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
-      <form className="vid-search" role="search" onSubmit={(e) => { e.preventDefault(); setQ(typed.trim()); setPage(1); }}>
-        <Icon name="search" />
-        <label htmlFor="vid-q" className="sr-only">{t("vid.search")}</label>
-        <input id="vid-q" type="search" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={t("vid.search_ph")}
-          dir="auto" lang={lang} autoComplete="off" maxLength={100} />
-        {typed && (
-          <button type="button" className="icon-btn" aria-label={t("vid.clear")} title={t("vid.clear")} onClick={() => { setTyped(""); setQ(""); setPage(1); }}>
-            <Icon name="x" />
-          </button>
-        )}
-      </form>
       {ready && data.topics.length > 0 && (
         <div className="vid-topics row" role="group" aria-label={t("vid.topic")}>
           <button type="button" className="chip" aria-pressed={!topic} onClick={() => { setTopic(null); setPage(1); }}>{t("vid.all")}</button>
           {data.topics.map((x) => (
-            <button key={x.id} type="button" className="chip" aria-pressed={topic === x.id} onClick={() => { setTopic(x.id); setPage(1); }}>
+            <button key={x.id} type="button" className="chip" aria-pressed={topic === x.id} title={t("vid.count", { n: fmtNum(x.count) })}
+              onClick={() => { setTopic(x.id); setPage(1); }}>
               {x.title} <span className="vid-chip-n">{fmtNum(x.count)}</span>
             </button>
           ))}

@@ -1,6 +1,6 @@
 // The seeker's optional account, shared across screens. Owner: Eman.
 import { useEffect, useState } from "react";
-import { api } from "../../core/api.js";
+import { api, daaiAuth } from "../../core/api.js";
 
 let state = { account: null, loaded: false };
 const listeners = new Set();
@@ -28,4 +28,27 @@ export function useAccount() {
     return () => listeners.delete(set);
   }, []);
   return s;
+}
+
+// Whether a da'i is signed in on this tab. The token itself lives in core/api.js; this only tells the top bar
+// and the da'i console when it changes, so the bar can show "Da'i console" instead of "Sign in".
+let daai = Boolean(daaiAuth.token);
+const daaiListeners = new Set();
+
+/** Keep (token) or drop (null) the da'i's sign-in, and tell every screen that shows it. */
+export function setDaaiToken(token) {
+  if (token) daaiAuth.set(token); else daaiAuth.clear();
+  daai = Boolean(token);
+  daaiListeners.forEach((fn) => fn(daai));
+}
+
+/** True while a da'i is signed in on this tab. */
+export function useDaaiSignedIn() {
+  const [on, set] = useState(daai);
+  useEffect(() => {
+    daaiListeners.add(set);
+    set(Boolean(daaiAuth.token));
+    return () => daaiListeners.delete(set);
+  }, []);
+  return on;
 }

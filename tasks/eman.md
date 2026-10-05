@@ -94,7 +94,9 @@ Full report: `docs/AUDIT-2026-10-04.md`. Nothing in your folders was changed. Al
 
 For your information; nothing here needs action unless you disagree.
 - Seeker sign-in is one centred card with a "create one" link. The "forgot password" screen was removed from the web app until `SMTP_HOST` is set; the `/api/account/forgot`, `/reset` and `/recover` endpoints are unchanged (restore the screen from git history when email works).
-- The header ends with «تسجيل الدخول»; the da'i console link moved to the footer («دخول الدعاة») and the More page. The da'i sign-in uses the same centred card.
+- The header ends with «تسجيل الدخول»; the da'i console link moved to the footer («دخول الدعاة») and the More page.
+- One sign-in card for both: a «مستخدم / داعية» switch at the top (`SignInCard` in `features/account/AccountPage.jsx`, exported from `account/public.js`). "Da'i" posts to `/api/daai/login`; sign-up is for seekers only. `#/daai` (and the footer link, and `#/account?as=daai`) open it with "da'i" picked, and the device remembers how it signed in last time (`sabeeli.signin_as`). `DaaiConsole` now shows this card instead of its own `Login`, and the unused `dai.*` login strings moved to `acc.*`.
+- The da'i token goes through `setDaaiToken()` (account store), so the header shows «لوحة الداعية» while a da'i is signed in.
 - Sign out, da'i log out, cancel meetup and cancel call request use the new red `btn-danger-soft` style.
 
 ## Day 3: 6 October (polish and publish)

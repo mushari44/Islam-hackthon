@@ -54,6 +54,13 @@
 }
 .auth-card .btn-block { margin-block-start: 4px; }
 .auth-switch { margin: 0; text-align: center; font-size: .92rem; color: var(--text-muted); }
+/* "Sign in as: user | da'i", two equal halves across the card, with a line under it about the chosen side. */
+.tabs.auth-role { display: flex; width: 100%; }
+.tabs.auth-role button { flex: 1 1 0; min-width: 0; }
+.tabs.auth-role button[aria-checked="true"] { background: var(--mint-400); color: var(--navy-900); }   /* green, like the current tab */
+.auth-lead { margin: -8px 0 0; text-align: center; font-size: .92rem; }
+.auth-note { display: flex; flex-direction: column; gap: 6px; }
+.auth-note p { margin: 0; }
 
 /* Not found */
 .not-found { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-block: 64px; }
