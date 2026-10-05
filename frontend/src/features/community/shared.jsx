@@ -151,11 +151,11 @@ export const placeOf = (m, lang) => [m.venue, m.city, countryName(m.country, lan
 
 /** Date, place and host: shown on the booking sheet so the seeker knows what they are booking. */
 function MeetupSummary({ m }) {
-  const { t, lang, fmtNum } = useI18n();
+  const { t, tn, lang } = useI18n();
   const w = useWhen(m);
   return (
     <ul className="meta-list rsvp-summary">
-      <li><Icon name="clock" size={16} />{w.date} · {w.time} · {t("com.minutes", { n: fmtNum(m.duration_min) })}</li>
+      <li><Icon name="clock" size={16} />{w.date} · {w.time} · {tn("com.minutes", m.duration_min)}</li>
       <li>{m.format === "online"
         ? <><Icon name="globe" size={16} />{t("com.online_place")}</>
         : <><Icon name="pin" size={16} /><span dir="auto">{placeOf(m, lang)}</span></>}</li>
@@ -273,7 +273,7 @@ function Booked({ m, close }) {
       <div className="row booked-actions">
         <a className="btn" href={apiUrl(`/api/meetups/${m.id}/ics`)} download><Icon name="calendar" />{t("com.add_cal")}</a>
         <button type="button" className="btn btn-primary" onClick={() => { close(); navigate("/community?tab=mine"); }}>
-          <Icon name="arrow" />{t("com.see_mine")}
+          <Icon name="arrow" className="icon-go" />{t("com.see_mine")}
         </button>
       </div>
     </div>

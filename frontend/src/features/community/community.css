@@ -40,6 +40,14 @@
 
 /* Meetup types: booking or walk-in, age group, series */
 .com-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-block-end: 18px; }
+/* All the list filters sit in one soft panel, with the result count and "Clear filters" under it. */
+.com-filter-panel {
+  display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; margin-block-end: 14px;
+  background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.com-filter-panel > * { margin-block-end: 0 !important; }
+.com-results { margin-block-end: 12px; min-height: 24px; }
+.com-results .link-btn { display: inline-flex; align-items: center; gap: 4px; }
 .com-filters .tabs button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
 .age-filter { gap: 8px; }
 .age-filter .select { min-height: 38px; padding-block: 4px; width: auto; }
@@ -82,6 +90,7 @@
 .meetup-booked { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .cancel-ask { gap: 6px; align-items: center; }
 .tab-count { display: inline-block; min-width: 20px; margin-inline-start: 6px; padding: 0 6px; border-radius: 999px; font-size: .75rem; line-height: 20px; background: var(--mint-400); color: var(--navy-800); }
+.tabs button[aria-selected="true"] .tab-count { background: var(--navy-900); color: #fff; }   /* stays readable on the green current tab */
 .rsvp-summary { padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-soft); }
 .booked { gap: 10px; text-align: center; }
 .booked h3 { margin: 0; }
@@ -104,3 +113,13 @@
 .nm-card { border-color: color-mix(in srgb, var(--mint-500) 45%, var(--border)); background: color-mix(in srgb, var(--mint-400) 8%, var(--surface)); margin-block-end: var(--gap); }
 .nm-card h3, .nm-card p { margin: 0; }
 .nm-shared { padding-block: 12px; }
+
+/* Error and empty states: the actions sit centred under the message. */
+.com-empty-actions { justify-content: center; }
+.group-empty { margin-block: auto; padding-block: 24px; }
+.leave-ask { display: flex; flex-direction: column; gap: 8px; }
+/* While a group message posts, the Send button shows a small spinner in its own text colour. */
+.btn.composer-send .spinner {
+  width: 18px; height: 18px; border-width: 2px;
+  border-color: color-mix(in srgb, currentColor 35%, transparent); border-top-color: currentColor;
+}

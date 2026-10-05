@@ -155,3 +155,6 @@
 .trace-list code { font-size: .82rem; background: var(--bg-soft); padding: 1px 6px; border-radius: 6px; }
 .trace-steps li.sub { padding-inline-start: 18px; opacity: .85; }
 .trace-steps li strong { font-variant-numeric: tabular-nums; }
+
+/* the "delete this chat?" step: Delete and Cancel stay side by side, the title gives way */
+.chat-delete-ask { flex: none; gap: 4px; flex-wrap: nowrap; }

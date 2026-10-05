@@ -45,19 +45,26 @@ export function GroupMessage({ m, mine = false, tools = null }) {
 }
 
 export default function GroupPage({ params }) {
-  const { t, lang, fmtNum, langName } = useI18n();
+  const { t, tn, lang, langName } = useI18n();
   const gid = Number(params.id);
   const [group, setGroup] = useState(null);
   const [error, setError] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [loaded, setLoaded] = useState(false);       // the first poll answered, so an empty feed is really empty
   const [waitingBot, setWaitingBot] = useState(false);
   const [text, setText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [leaving, setLeaving] = useState(null);       // null, "ask" (the "leave this group?" step) or "busy"
   const lastId = useRef(0);
   const polls = useRef(0);
   const endRef = useRef(null);
+  const inputRef = useRef(null);
 
   // A new group starts from an empty feed (the router can reuse this page for another id).
-  useEffect(() => { lastId.current = 0; polls.current = 0; setMessages([]); setWaitingBot(false); }, [gid]);
+  useEffect(() => {
+    lastId.current = 0; polls.current = 0;
+    setMessages([]); setLoaded(false); setWaitingBot(false); setError(null); setLeaving(null);
+  }, [gid]);
 
   const load = () => api.get(`/api/groups/${gid}?ui=${lang}`).then(setGroup).catch(setError);
   useEffect(() => { load(); }, [gid, lang]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -67,6 +74,7 @@ export default function GroupPage({ params }) {
   const poll = async () => {
     const refresh = lastId.current > 0 && ++polls.current % 5 === 0;
     const msgs = await api.get(`/api/groups/${gid}/messages?after=${refresh ? 0 : lastId.current}`);
+    setLoaded(true);
     if (!msgs.length) return;
     lastId.current = Math.max(lastId.current, ...msgs.map((m) => m.id));
     if (msgs.some((m) => m.author_type === "bot")) setWaitingBot(false);
@@ -78,6 +86,13 @@ export default function GroupPage({ params }) {
   };
   usePolling(poll, 3000, [gid], Boolean(group && group.membership));
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages.length, waitingBot]);
+  // The box grows with the message, as on the Ask page.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+  }, [text]);
 
   // Enter pressed twice before the first post returns must not send the message twice.
   const sending = useRef(false);
@@ -89,6 +104,7 @@ export default function GroupPage({ params }) {
     const v = text.trim();
     if (!v || sending.current) return;
     sending.current = true;
+    setPosting(true);
     try {
       const res = await api.post(`/api/groups/${gid}/messages`, { text: v, lang });
       setText("");
@@ -105,10 +121,41 @@ export default function GroupPage({ params }) {
       if (err.detail === "muted" || err.detail === "abuse") load();   // show the paused composer straight away
     } finally {
       sending.current = false;
+      setPosting(false);
+      inputRef.current?.focus();   // the Send button was just disabled, so focus would otherwise be lost
     }
   };
 
-  if (error) return <p className="empty">{errorText(error, t)}</p>;
+  const askBot = () => {
+    if (!BOT_RX.test(text)) setText(`${lang === "ar" ? "@سبيلي" : "@sabeeli"} ${text}`);
+    inputRef.current?.focus();
+  };
+
+  const leave = async () => {
+    setLeaving("busy");
+    try {
+      await api.post(`/api/groups/${gid}/leave`, {});
+      toast(t("gr.left"), "success");
+      navigate("/community");
+    } catch (err) {
+      toast(errorText(err, t), "error");
+      setLeaving("ask");
+    }
+  };
+
+  if (error) {
+    // A missing group can only go back; a network or server error can also be tried again.
+    const transient = !error.status || error.status >= 500;
+    return (
+      <div className="empty">
+        <p>{error.status === 404 ? t("gr.not_found") : errorText(error, t)}</p>
+        <div className="row com-empty-actions">
+          <a className="btn btn-sm" href="#/community"><Icon name="arrow" className="icon-back" />{t("gr.back")}</a>
+          {transient && <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setError(null); load(); }}>{t("common.retry")}</button>}
+        </div>
+      </div>
+    );
+  }
   if (!group) return <div className="skeleton" style={{ height: 160 }} />;
   const member = group.membership;
 
@@ -132,21 +179,26 @@ export default function GroupPage({ params }) {
           ) : (
             <>
               <div className="group-feed" aria-live="polite">
+                {loaded && !messages.length && !waitingBot && (
+                  <div className="empty group-empty"><Icon name="chat" size={46} /><p>{t("gr.empty")}</p></div>
+                )}
                 {messages.map((m) => <GroupMessage key={m.id} m={m} mine={m.member_id === member.id && m.author_type === "seeker"} />)}
                 {waitingBot && <div className="g-msg bot pending"><div className="row"><div className="spinner" /><span className="muted">{t("gr.bot_thinking")}</span></div></div>}
                 <div ref={endRef} />
               </div>
               <form className="composer" onSubmit={post}>
                 <div className="composer-row">
-                  <button type="button" className="btn btn-ghost btn-sm"
-                    onClick={() => { if (!text.includes("@")) setText(`${lang === "ar" ? "@سبيلي" : "@sabeeli"} ${text}`); }}>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={member.muted} onClick={askBot}>
                     <Icon name="sparkle" />{t("gr.ask_bot")}
                   </button>
-                  <textarea className="composer-input" rows={1} maxLength={1000} value={text} disabled={member.muted}
+                  <textarea ref={inputRef} className="composer-input" rows={1} maxLength={1000} value={text} disabled={member.muted}
                     placeholder={member.muted ? t("gr.muted") : t("gr.ph")} aria-label={t("gr.ph")}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); post(); } }} />
-                  <button type="submit" className="btn btn-primary composer-send" aria-label={t("common.send")} disabled={member.muted}><Icon name="send" /></button>
+                  <button type="submit" className="btn btn-primary composer-send" aria-label={t("common.send")} aria-busy={posting}
+                    disabled={member.muted || posting}>
+                    {posting ? <span className="spinner" aria-hidden="true" /> : <Icon name="send" className="icon-send" />}
+                  </button>
                 </div>
               </form>
             </>
@@ -154,15 +206,26 @@ export default function GroupPage({ params }) {
         </section>
         <aside className="group-side">
           <div className="card stack">
-            {group.leader && <div className="row"><Icon name="users" /><span>{group.leader.name} · {t("com.members", { n: fmtNum(group.members) })}</span></div>}
+            {group.leader && <div className="row"><Icon name="users" /><span>{group.leader.name} · {tn("com.members", group.members)}</span></div>}
             <h3>{t("gr.rules")}</h3>
             <Rules />
-            {member && (
-              <button type="button" className="btn btn-danger-soft btn-sm"
-                onClick={async () => { try { await api.post(`/api/groups/${gid}/leave`, {}); navigate("/community"); } catch (err) { toast(errorText(err, t), "error"); } }}>
+            {member && (leaving ? (
+              <div className="leave-ask">
+                <span className="small">{t("gr.leave_q")}</span>
+                <div className="row">
+                  <button type="button" className="btn btn-danger btn-sm" disabled={leaving === "busy"} aria-busy={leaving === "busy"} onClick={leave}>
+                    {t("gr.leave_yes")}
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" autoFocus disabled={leaving === "busy"} onClick={() => setLeaving(null)}>
+                    {t("gr.leave_stay")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="btn btn-danger-soft btn-sm" onClick={() => setLeaving("ask")}>
                 <Icon name="logout" />{t("gr.leave")}
               </button>
-            )}
+            ))}
           </div>
         </aside>
       </div>

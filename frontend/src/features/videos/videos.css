@@ -69,3 +69,10 @@
 .vid-card-compact .vid-topic { display: none; }
 .vid-related .faint { margin: 8px 0 0; }
 .vid-related-none { display: flex; align-items: center; gap: 6px; margin-block-start: 12px; flex-wrap: wrap; }
+
+/* the player's credit line: plain text, since the button beside it is the one link to IslamHouse */
+.vid-credit { font-size: .8rem; color: var(--text-faint); }
+
+/* A new page, topic or search is loading: the current grid fades until the new one arrives. */
+.vid-grid { transition: opacity .2s var(--ease); }
+.vid-grid.is-loading { opacity: .45; pointer-events: none; }

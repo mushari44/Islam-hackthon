@@ -17,7 +17,7 @@ function savedVideoLang() {
 }
 
 export default function VideosPage() {
-  const { t, lang: uiLang, fmtNum } = useI18n();
+  const { t, tn, lang: uiLang, fmtNum } = useI18n();
   const [chosen, setChosen] = useState(savedVideoLang);    // video language, separate from the interface language
   const lang = chosen || uiLang;
   const [languages, setLanguages] = useState([]);
@@ -27,6 +27,8 @@ export default function VideosPage() {
   const [q, setQ] = useState("");
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [attempt, setAttempt] = useState(0);       // bumped by "Try again" to load the same list once more
+  const [loading, setLoading] = useState(false);   // a new page, topic or search is on its way
 
   useEffect(() => { setTopic(null); setPage(1); setTyped(""); setQ(""); }, [lang]);
   useEffect(() => {                       // wait for a pause in typing before searching
@@ -45,6 +47,7 @@ export default function VideosPage() {
     let alive = true;
     let timer;
     setError(null);
+    setLoading(true);
     const load = () => {
       const params = new URLSearchParams({ lang, page, per_page: PER_PAGE });
       if (topic) params.set("topic", topic);
@@ -56,13 +59,15 @@ export default function VideosPage() {
         .then((d) => {
           if (!alive) return;
           setData(d);
+          setLoading(false);
           if (d.state === "loading") timer = setTimeout(load, 2000);   // first index build takes ~30s
         })
-        .catch((err) => alive && setError(err));
+        .catch((err) => { if (alive) { setError(err); setLoading(false); } });
     };
     load();
     return () => { alive = false; clearTimeout(timer); };
-  }, [lang, topic, page, q]);
+  }, [lang, topic, page, q, attempt]);
+  const retry = () => setAttempt((n) => n + 1);
 
   const ready = data && data.state === "ready";
   const total = ready ? data.total : 0;
@@ -87,7 +92,7 @@ export default function VideosPage() {
           <label htmlFor="vid-lang" className="vid-lang-label"><Icon name="globe" />{t("vid.lang")}</label>
           <select id="vid-lang" className="vid-lang" value={lang} onChange={(e) => pickLang(e.target.value)}>
             {(languages.length ? languages : [{ code: lang, name: lang, count: 0 }]).map((l) => (
-              <option key={l.code} value={l.code}>{l.count ? t("vid.lang_option", { name: l.name, n: fmtNum(l.count) }) : l.name}</option>
+              <option key={l.code} value={l.code}>{l.count ? tn("vid.lang_option", l.count, { name: l.name }) : l.name}</option>
             ))}
           </select>
         </div>
@@ -96,30 +101,41 @@ export default function VideosPage() {
         <div className="vid-topics row" role="group" aria-label={t("vid.topic")}>
           <button type="button" className="chip" aria-pressed={!topic} onClick={() => { setTopic(null); setPage(1); }}>{t("vid.all")}</button>
           {data.topics.map((x) => (
-            <button key={x.id} type="button" className="chip" aria-pressed={topic === x.id} title={t("vid.count", { n: fmtNum(x.count) })}
+            <button key={x.id} type="button" className="chip" aria-pressed={topic === x.id} title={tn("vid.count", x.count)}
               onClick={() => { setTopic(x.id); setPage(1); }}>
               {x.title} <span className="vid-chip-n">{fmtNum(x.count)}</span>
             </button>
           ))}
         </div>
       )}
-      {error && <p className="empty">{errorText(error, t)}</p>}
+      {error && (
+        <div className="empty">
+          <p>{errorText(error, t)}</p>
+          <button type="button" className="btn btn-sm" onClick={retry}>{t("common.retry")}</button>
+        </div>
+      )}
       {!error && (!data || data.state === "loading") && (
         <div className="stack">
           <p className="muted small" role="status">{t("vid.loading")}</p>
           <div className="vid-grid">{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton vid-skel" />)}</div>
         </div>
       )}
-      {!error && data && data.state === "unavailable" && <p className="empty">{t("vid.unavailable")}</p>}
-      {ready && (data.items.length ? (
+      {!error && data && data.state === "unavailable" && (
+        <div className="empty">
+          <p>{t("vid.unavailable")}</p>
+          <button type="button" className="btn btn-sm" disabled={loading} onClick={retry}>{t("common.retry")}</button>
+        </div>
+      )}
+      {/* While the next page, topic or search loads, the current grid stays in place, dimmed and marked busy. */}
+      {ready && !error && (data.items.length ? (
         <>
-          <p className="faint">{q ? t("vid.results", { n: fmtNum(total), q }) : t("vid.count", { n: fmtNum(total) })}</p>
-          <div className="vid-grid">{data.items.map((it) => <VideoCard key={it.id} item={it} />)}</div>
+          <p className="faint" role="status">{q ? tn("vid.results", total, { q }) : tn("vid.count", total)}</p>
+          <div className={`vid-grid${loading ? " is-loading" : ""}`} aria-busy={loading}>{data.items.map((it) => <VideoCard key={it.id} item={it} />)}</div>
           {data.pages > 1 && (
             <nav className="row vid-pager" aria-label={t("vid.page", { page: fmtNum(data.page), pages: fmtNum(data.pages) })}>
-              <button type="button" className="btn btn-sm" disabled={data.page <= 1} onClick={() => { setPage(data.page - 1); window.scrollTo(0, 0); }}>{t("vid.prev")}</button>
+              <button type="button" className="btn btn-sm" disabled={loading || data.page <= 1} onClick={() => { setPage(data.page - 1); window.scrollTo(0, 0); }}>{t("vid.prev")}</button>
               <span className="muted small">{t("vid.page", { page: fmtNum(data.page), pages: fmtNum(data.pages) })}</span>
-              <button type="button" className="btn btn-sm" disabled={data.page >= data.pages} onClick={() => { setPage(data.page + 1); window.scrollTo(0, 0); }}>{t("vid.next")}</button>
+              <button type="button" className="btn btn-sm" disabled={loading || data.page >= data.pages} onClick={() => { setPage(data.page + 1); window.scrollTo(0, 0); }}>{t("vid.next")}</button>
             </nav>
           )}
         </>
