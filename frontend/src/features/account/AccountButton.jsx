@@ -23,9 +23,9 @@ export function AccountButton() {
   }, [missing]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <a className={`btn btn-ghost btn-sm account-btn${account ? "" : " is-signin"}`} href="#/account"
-      aria-current={path.startsWith("/account") ? "page" : undefined} aria-label={account ? (missing ? `${t("acc.mine")}: ${t("acc.complete_title")}` : t("acc.mine")) : t("acc.signin")}>
+      aria-current={path.startsWith("/account") ? "page" : undefined} aria-label={account ? (missing ? `${t("acc.mine")}: ${t("acc.complete_title")}` : t("acc.mine")) : t("acc.signin_btn")}>
       <Icon name={account ? "users" : "lock"} />
-      <span className="account-btn-label">{account ? account.username : t("acc.signin")}</span>
+      <span className="account-btn-label">{account ? account.username : t("acc.signin_btn")}</span>
       {missing && <span className="account-dot" aria-hidden="true" />}
     </a>
   );

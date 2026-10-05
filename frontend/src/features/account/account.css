@@ -43,3 +43,9 @@
 
 /* Signed out, the button keeps its "Sign in" label on every screen, so it reads as the way in rather than a bare lock. */
 .top-actions .account-btn.is-signin .account-btn-label { display: inline; }
+/* Last in the bar (the far left in Arabic), set apart from the other buttons by a gap and a thin divider. */
+.top-actions .account-btn { margin-inline-start: 14px; }
+.top-actions .account-btn::before {
+  content: ""; position: absolute; inset-inline-start: -9px; inset-block: 8px; border-inline-start: 1px solid var(--border);
+}
+@media (max-width: 420px) { .top-actions .account-btn { margin-inline-start: 8px; } .top-actions .account-btn::before { inset-inline-start: -6px; } }
