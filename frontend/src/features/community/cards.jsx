@@ -67,7 +67,7 @@ function MeetupActions({ m, w, reload, account }) {
           <button type="button" className="btn btn-ghost btn-sm" autoFocus onClick={() => setAsking(false)}>{t("com.cancel_keep")}</button>
         </span>
       ) : (
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAsking(true)}>{t(open ? "com.leave_event" : "com.cancel_rsvp")}</button>
+        <button type="button" className="btn btn-danger-soft btn-sm" onClick={() => setAsking(true)}>{t(open ? "com.leave_event" : "com.cancel_rsvp")}</button>
       ))}
     </div>
   );

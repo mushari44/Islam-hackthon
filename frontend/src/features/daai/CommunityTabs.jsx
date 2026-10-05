@@ -255,7 +255,7 @@ function MeetupsTab() {
           </details>}
           {m.status === "open" && (
             <div className="row">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => api.dPost(`/api/daai/meetups/${m.id}/cancel`, {}).then(load).catch((err) => toast(errorText(err, t), "error"))}>
+              <button type="button" className="btn btn-danger-soft btn-sm" onClick={() => api.dPost(`/api/daai/meetups/${m.id}/cancel`, {}).then(load).catch((err) => toast(errorText(err, t), "error"))}>
                 <Icon name="x" />{t("dm.cancel")}
               </button>
             </div>

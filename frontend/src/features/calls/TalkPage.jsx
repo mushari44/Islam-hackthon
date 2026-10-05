@@ -123,7 +123,7 @@ function Waiting({ id, onAccepted, onExpired, onCancelled }) {
       <h3>{t(named ? "talk.waiting_named" : "talk.waiting")}</h3>
       {queue > 0 && <p className="muted">{t("talk.queue", { n: fmtNum(queue) })}</p>}
       <p className="faint"><Clock sec={sec} /></p>
-      <div className="row" style={{ justifyContent: "center" }}><button type="button" className="btn" onClick={cancel}>{t("talk.cancel")}</button></div>
+      <div className="row" style={{ justifyContent: "center" }}><button type="button" className="btn btn-danger-soft" onClick={cancel}>{t("talk.cancel")}</button></div>
     </div>
   );
 }

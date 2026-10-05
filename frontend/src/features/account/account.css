@@ -1,5 +1,17 @@
 /* Seeker account. Owner: Eman. */
-.account-card { max-width: 520px; }
+/* Sign-in / sign-up: one card centred on the page, the usual width of a login form. */
+.auth-page { display: flex; justify-content: center; padding-block: clamp(8px, 4vh, 48px); }
+.auth-card { width: 100%; max-width: 420px; padding: clamp(20px, 4vw, 32px); display: flex; flex-direction: column; gap: 20px; }
+.auth-card.is-signup { max-width: 560px; }
+.auth-head { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.auth-head h1 { margin: 0; font-size: 1.6rem; }
+.auth-head p { margin: 0; font-size: .95rem; }
+.auth-icon {
+  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; margin-block-end: 4px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent-ink);
+}
+.auth-card .btn-block { margin-block-start: 4px; }
+.auth-switch { margin: 0; text-align: center; font-size: .92rem; color: var(--text-muted); }
 .account-head { display: flex; align-items: center; gap: 16px; }
 .account-head h1 { margin: 0; }
 .account-head p { margin: 0; }
@@ -18,9 +30,6 @@
 @media (max-width: 860px) { .account-btn-label { display: none; } }
 .email-row { flex-wrap: nowrap; }
 .email-row .input { flex: 1; min-width: 0; }
-/* the three tabs share the card width, so none scrolls out of view on a phone */
-.account-card .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; overflow: visible; }
-.account-card .tabs button { white-space: normal; padding: 8px 6px; line-height: 1.3; font-size: .9rem; }
 
 /* "About me" fields in the sign-up form */
 .about-fields { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin: 0; min-inline-size: 0; }
@@ -31,3 +40,6 @@
 .account-dot { position: absolute; inset-block-start: 4px; inset-inline-end: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--mint-400); }
 .complete-about { border-color: var(--mint-400); }
 .complete-about h3 { display: flex; align-items: center; gap: 8px; margin: 0; }
+
+/* Signed out, the button keeps its "Sign in" label on every screen, so it reads as the way in rather than a bare lock. */
+.top-actions .account-btn.is-signin .account-btn-label { display: inline; }

@@ -1,4 +1,4 @@
-// Seeker account page: sign in, sign up, recover, and "my account". Owner: Eman.
+// Seeker account page: sign in, sign up, and "my account". Owner: Eman.
 // Accounts are optional: a username, a password, the seeker's sex and age band, and an optional email and place
 // (see features/auth on the backend).
 import "./strings.js";
@@ -56,23 +56,22 @@ function PlaceFields({ f, setF, prefix }) {
 
 function SignedOut() {
   const { t, lang, setLang } = useI18n();
-  const [mode, setMode] = useState("signin");          // signin | signup | forgot
-  const [step, setStep] = useState("ask");             // forgot: ask -> email (code sent) | recovery (use backup code)
+  const [mode, setMode] = useState("signin");          // signin | signup
   // The interface language by default; sex and age band are left for the seeker to pick (no default, no "prefer not to say").
-  const [f, setF] = useState({ username: "", password: "", email: "", code: "", lang, country: "", city: "", age_band: "", gender: "" });
+  const [f, setF] = useState({ username: "", password: "", email: "", lang, country: "", city: "", age_band: "", gender: "" });
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const pick = (m) => { setMode(m); setStep("ask"); };
+  const signup = mode === "signup";
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signin") {
+      if (!signup) {
         const r = await api.post("/api/account/signin", { username: f.username, password: f.password });
         if (r.account.lang) setLang(r.account.lang);   // the account's language follows the seeker to this device
         setAccount(r.account);
         toast(t("acc.welcome", { u: r.account.username }), "success");
-      } else if (mode === "signup") {
+      } else {
         const r = await api.post("/api/account/signup", {
           username: f.username, password: f.password, email: f.email, lang: f.lang,
           country: f.country, city: f.city, age_band: f.age_band, gender: f.gender,
@@ -80,18 +79,6 @@ function SignedOut() {
         setLang(r.account.lang);
         setAccount(r.account);
         toast(t("acc.welcome", { u: r.account.username }), "success");
-      } else if (step === "ask") {
-        const r = await api.post("/api/account/forgot", { login: f.username });
-        setStep(r.via === "email" ? "email" : "recovery");
-      } else if (step === "email") {
-        const r = await api.post("/api/account/reset", { login: f.username, code: f.code, new_password: f.password });
-        setAccount(r.account);
-        toast(t("acc.reset_done"), "success");
-      } else {
-        // Recovery codes are no longer shown at sign-up; older accounts that saved one can still use it here.
-        const r = await api.post("/api/account/recover", { username: f.username, recovery_code: f.code, new_password: f.password });
-        setAccount(r.account);
-        toast(t("acc.reset_done"), "success");
       }
     } catch (err) {
       toast(accError(err, t), "error");
@@ -99,35 +86,26 @@ function SignedOut() {
       setBusy(false);
     }
   };
-  const forgot = mode === "forgot";
-  const askOnly = forgot && step === "ask";
+  // A plain login card: title, the fields, one full-width button, and a link to switch between signing in and signing up.
+  // Password reset needs email (SMTP), which isn't set up, so there is no "forgot password" link.
   return (
-    <section className="card stack account-card">
-      <div className="tabs" role="tablist">
-        {["signin", "signup", "forgot"].map((m) => (
-          <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => pick(m)}>{t(`acc.${m}`)}</button>
-        ))}
+    <section className={`card auth-card${signup ? " is-signup" : ""}`} aria-labelledby="auth-title">
+      <div className="auth-head">
+        <span className="auth-icon" aria-hidden="true"><Icon name={signup ? "users" : "lock"} size={22} /></span>
+        <h1 id="auth-title">{t(signup ? "acc.signup_title" : "acc.signin_title")}</h1>
+        <p className="muted">{t(signup ? "acc.signup_lead" : "acc.signin_lead")}</p>
       </div>
       <form className="stack" onSubmit={submit}>
-        {forgot && !askOnly && <p className="small muted">{t(`acc.forgot_${step}`)}</p>}
-        <Field id="acc-user" label={forgot ? t("acc.login") : t("acc.username")} hint={mode === "signup" ? t("acc.username_hint") : null}
-          autoComplete="username" required minLength={3} maxLength={forgot ? 254 : 24} value={f.username} onChange={set("username")}
-          readOnly={forgot && !askOnly} />
-        {mode === "signup" && (
+        <Field id="acc-user" label={t("acc.username")} hint={signup ? t("acc.username_hint") : null}
+          autoComplete="username" required minLength={3} maxLength={24} value={f.username} onChange={set("username")} />
+        {signup && (
           <Field id="acc-email" type="email" dir="ltr" label={t("acc.email_optional")} hint={t("acc.email_hint")}
             autoComplete="email" maxLength={254} value={f.email} onChange={set("email")} />
         )}
-        {forgot && !askOnly && (
-          <Field id="acc-code" label={step === "email" ? t("acc.email_code") : t("acc.code")} dir="ltr" autoComplete="one-time-code"
-            inputMode={step === "email" ? "numeric" : "text"} required value={f.code} onChange={set("code")} />
-        )}
-        {!askOnly && (
-          <Field id="acc-pass" type="password" label={forgot ? t("acc.new_password") : t("acc.password")}
-            hint={mode === "signin" ? null : t("acc.password_hint")}
-            autoComplete={mode === "signin" ? "current-password" : "new-password"} required minLength={mode === "signin" ? 1 : 8}
-            value={f.password} onChange={set("password")} />
-        )}
-        {mode === "signup" && (
+        <Field id="acc-pass" type="password" label={t("acc.password")} hint={signup ? t("acc.password_hint") : null}
+          autoComplete={signup ? "new-password" : "current-password"} required minLength={signup ? 8 : 1}
+          value={f.password} onChange={set("password")} />
+        {signup && (
           <fieldset className="stack about-fields">
             <legend>{t("acc.about")}</legend>
             <p className="small muted">{t("acc.about_lead")}</p>
@@ -135,17 +113,17 @@ function SignedOut() {
             <PlaceFields f={f} setF={setF} prefix="su" />
           </fieldset>
         )}
-        {mode === "signup" && <p className="small muted">{t("acc.keep_note")}</p>}
-        <div className="row">
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            <Icon name={mode === "signin" ? "lock" : askOnly ? "send" : "check"} />
-            {t(mode === "signin" ? "acc.do_signin" : mode === "signup" ? "acc.do_signup" : askOnly ? "acc.send_code" : "acc.do_recover")}
-          </button>
-          {forgot && step === "email" && (
-            <button type="button" className="btn btn-ghost" onClick={() => setStep("recovery")}>{t("acc.use_recovery")}</button>
-          )}
-        </div>
+        {signup && <p className="small muted">{t("acc.keep_note")}</p>}
+        <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
+          {t(signup ? "acc.do_signup" : "acc.do_signin")}
+        </button>
       </form>
+      <p className="auth-switch">
+        {t(signup ? "acc.have_account" : "acc.no_account")}{" "}
+        <button type="button" className="link-btn" onClick={() => setMode(signup ? "signin" : "signup")}>
+          {t(signup ? "acc.signin" : "acc.create_account")}
+        </button>
+      </p>
     </section>
   );
 }
@@ -319,7 +297,7 @@ function Security() {
         <div className="row"><button type="submit" className="btn"><Icon name="lock" />{t("acc.change_password")}</button></div>
       </form>
       <div className="row spread account-actions">
-        <button type="button" className="btn btn-ghost" onClick={signout}><Icon name="logout" />{t("acc.signout")}</button>
+        <button type="button" className="btn btn-danger-soft" onClick={signout}><Icon name="logout" />{t("acc.signout")}</button>
         {del === null && <button type="button" className="btn btn-ghost danger-text" onClick={() => setDel("")}><Icon name="trash" />{t("acc.delete")}</button>}
       </div>
       {del !== null && (
@@ -343,10 +321,7 @@ export default function AccountPage() {
   if (!loaded) return null;
   if (!account) {
     return (
-      <>
-        <div className="page-head"><h1>{t("acc.signin")}</h1></div>
-        <SignedOut />
-      </>
+      <div className="auth-page"><SignedOut /></div>
     );
   }
   return (

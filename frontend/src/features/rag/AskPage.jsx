@@ -414,10 +414,6 @@ export default function AskPage({ query = {} }) {
         </section>
         <aside className="ask-side stack">
           <ChatList convs={convs} current={conv} calls={calls} saved={saved} onOpen={openChat} onDelete={deleteChat} />
-          <div className="card stack">
-            <p className="small muted">{t("ask.side_cta")}</p>
-            <a className="btn btn-accent" href="#/talk"><Icon name="talk" />{t("nav.talk")}</a>
-          </div>
         </aside>
       </div>
     </>

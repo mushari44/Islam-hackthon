@@ -114,6 +114,18 @@ p { margin: 0 0 .8em; }
 .btn-accent { --btn-bg: var(--accent); --btn-fg: var(--accent-text); --btn-bd: transparent; }
 .btn-ghost { --btn-bg: transparent; --btn-bd: transparent; }
 .btn-danger { --btn-bg: var(--danger); --btn-fg: #fff; --btn-bd: transparent; }
+/* Leaving or cancelling (sign out, cancel a booking, leave a group): red text and outline, a little wider than a plain button. */
+.btn-danger-soft {
+  --btn-bg: color-mix(in srgb, var(--danger) 8%, transparent); --btn-fg: var(--danger);
+  --btn-bd: color-mix(in srgb, var(--danger) 45%, transparent); padding-inline: 22px;
+}
+.btn-danger-soft:hover { --btn-bg: var(--danger); --btn-fg: #fff; }
+.btn-sm.btn-danger-soft { padding-inline: 16px; }
+.btn-block { display: flex; width: 100%; }
+.link-btn {
+  background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--accent-ink);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
 .btn-sm { min-height: 34px; padding: 0 12px; font-size: .88rem; }
 .btn-lg { min-height: 54px; padding: 0 26px; font-size: 1.05rem; }
 .icon-btn {

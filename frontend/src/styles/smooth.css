@@ -50,6 +50,9 @@ body .topbar .nav a:hover { background: var(--bar-hover); color: var(--bar-fg); 
 body .topbar .nav a[aria-current="page"] { background: var(--bar-current-bg); color: var(--bar-current-fg); }
 body .topbar .btn-ghost { --btn-fg: var(--bar-fg); }
 body .topbar .btn-ghost:hover { background: var(--bar-hover); box-shadow: none; }
+/* The sign-in and da'i console buttons light up on their own pages, like the nav tabs. */
+body .topbar .top-actions .btn[aria-current="page"] { background: var(--bar-current-bg); --btn-fg: var(--bar-current-fg); }
+body .topbar .account-btn.is-signin:not([aria-current]) { --btn-bd: var(--border-strong); }
 body .topbar .icon-btn { color: var(--bar-muted); }
 body .topbar .icon-btn:hover { background: var(--bar-hover); color: var(--bar-fg); }
 

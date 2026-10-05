@@ -72,7 +72,7 @@ export default function DaaiConsole({ query }) {
         </div>
         <div className="row">
           <label className="row"><span className="switch"><input type="checkbox" checked={me.available} onChange={setAvailable} /><span /></span><span>{t("dai.available")}</span></label>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => { daaiAuth.clear(); setMe(null); }}><Icon name="logout" />{t("dai.logout")}</button>
+          <button type="button" className="btn btn-danger-soft btn-sm" onClick={() => { daaiAuth.clear(); setMe(null); }}><Icon name="logout" />{t("dai.logout")}</button>
         </div>
       </div>
       <div className="tabs" role="tablist">

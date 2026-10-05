@@ -158,7 +158,7 @@ export default function GroupPage({ params }) {
             <h3>{t("gr.rules")}</h3>
             <Rules />
             {member && (
-              <button type="button" className="btn btn-ghost btn-sm"
+              <button type="button" className="btn btn-danger-soft btn-sm"
                 onClick={async () => { try { await api.post(`/api/groups/${gid}/leave`, {}); navigate("/community"); } catch (err) { toast(errorText(err, t), "error"); } }}>
                 <Icon name="logout" />{t("gr.leave")}
               </button>
