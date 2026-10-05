@@ -90,6 +90,13 @@ Full report: `docs/AUDIT-2026-10-04.md`. Nothing in your folders was changed. Al
 - [ ] Performance: `SeekerAccount.session_id` has no index but is queried on every seeker request (`deps.signed_out_home`); every seeker request also writes `last_seen`. Add the index and throttle the write.
 - [ ] Frontend: the da'i console stays "signed in" after the token expires (the `/me` poll swallows 401) and History spins forever if its first fetch fails; `TalkPage` `seekerToken()` and `CallPanel` `createRoom()` have no `.catch` (blank page / "connecting" forever); the experiment toggle's second fetch is unguarded; the queue poll repeats an error toast every 3 s while opening a call fails; the gender radiogroup (`TalkPage`) and the group post box (`CommunityTabs`) have no label.
 
+## Changed in your screens by PR #18 (5 October, UI polish, Mushari's request)
+
+For your information; nothing here needs action unless you disagree.
+- Seeker sign-in is one centred card with a "create one" link. The "forgot password" screen was removed from the web app until `SMTP_HOST` is set; the `/api/account/forgot`, `/reset` and `/recover` endpoints are unchanged (restore the screen from git history when email works).
+- The header ends with «تسجيل الدخول»; the da'i console link moved to the footer («دخول الدعاة») and the More page. The da'i sign-in uses the same centred card.
+- Sign out, da'i log out, cancel meetup and cancel call request use the new red `btn-danger-soft` style.
+
 ## Day 3: 6 October (polish and publish)
 
 - [ ] Waiting screen: an estimated wait, and a clear message when no da'i speaks the chosen language right now (suggest groups instead).

@@ -11,7 +11,7 @@ html { scroll-behavior: smooth; }
   --bar-current-bg: var(--mint-400); --bar-current-fg: var(--navy-900); --logo-glow: 0 6px 18px rgba(22, 29, 72, .22);
   --page-bg: #FFFFFF;
   --foot-fg: var(--navy-500); --foot-link: var(--navy-700);
-  --tabbar-bg: rgba(255, 255, 255, .9); --tabbar-shadow: 0 -10px 30px rgba(22, 29, 72, .08);
+  --tabbar-bg: rgba(255, 255, 255, .97); --tabbar-shadow: 0 -10px 30px rgba(22, 29, 72, .08);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -50,7 +50,7 @@ body .topbar .nav a:hover { background: var(--bar-hover); color: var(--bar-fg); 
 body .topbar .nav a[aria-current="page"] { background: var(--bar-current-bg); color: var(--bar-current-fg); }
 body .topbar .btn-ghost { --btn-fg: var(--bar-fg); }
 body .topbar .btn-ghost:hover { background: var(--bar-hover); box-shadow: none; }
-/* The sign-in and da'i console buttons light up on their own pages, like the nav tabs. */
+/* The sign-in button lights up on its own page, like the nav tabs. */
 body .topbar .top-actions .btn[aria-current="page"] { background: var(--bar-current-bg); --btn-fg: var(--bar-current-fg); }
 body .topbar .account-btn.is-signin:not([aria-current]) { --btn-bd: var(--border-strong); }
 body .topbar .icon-btn { color: var(--bar-muted); }

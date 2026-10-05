@@ -61,6 +61,7 @@
 .not-found h1 { margin: 0; font-size: 1.6rem; color: var(--text); }
 .not-found p { margin: 0; max-width: 46ch; }
 .nf-actions { justify-content: center; margin-block-start: 12px; }
+.empty .btn svg { width: 18px; height: 18px; margin: 0; color: currentColor; }
 
 /* "More" page: each row ends with a chevron, like a settings list */
 .more-link { display: flex; align-items: center; gap: 12px; }
@@ -268,4 +269,3 @@ a.home-row:hover { border-color: var(--border-strong); transform: translateY(-2p
   .home > *, .fade-in, .journey::before, .live-dot { animation: none; }
   .stop:hover, a.home-row:hover { transform: none; }
 }
-.empty .btn svg { width: 18px; height: 18px; margin: 0; color: currentColor; }

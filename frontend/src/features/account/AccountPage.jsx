@@ -121,7 +121,7 @@ function SignedOut() {
       <p className="auth-switch">
         {t(signup ? "acc.have_account" : "acc.no_account")}{" "}
         <button type="button" className="link-btn" onClick={() => setMode(signup ? "signin" : "signup")}>
-          {t(signup ? "acc.signin" : "acc.create_account")}
+          {t(signup ? "acc.signin_title" : "acc.create_account")}
         </button>
       </p>
     </section>
