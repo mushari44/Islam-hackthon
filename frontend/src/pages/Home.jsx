@@ -29,7 +29,10 @@ register({
     "home.members": "{n} عضو",
     "home.videos_t": "مرئيات من دار الإسلام", "home.videos_all": "كل المرئيات",
     "home.trust_t": "كل إجابة من مصادر معتمدة", "home.trust_d": "لا يظهر للمستخدم إلا ما له مصدر، ونصوص القرآن والحديث تُعرض كما هي في المصدر.",
-    "home.nm_label": "مسلم جديد على سَبِيلي", "home.nm_note": "أعلنوا إسلامهم مع دعاتنا، واختاروا أن يشاركوا البشرى مع مجموعاتهم.",
+    "home.nm_title": "مسلمون جدد على سَبِيلي",
+    "home.nm_one": "شخص أسلم عبر سَبِيلي", "home.nm_two": "شخصان أسلما عبر سَبِيلي",
+    "home.nm_few": "أشخاص أسلموا عبر سَبِيلي", "home.nm_many": "شخصاً أسلموا عبر سَبِيلي",
+    "home.nm_note": "يُحتسب من أعلن إسلامه مع أحد دعاتنا واختار أن يشارك البشرى مع مجموعاته. رقم إجمالي بلا أسماء.",
     "home.stat_q": "آية بتفسيرها", "home.stat_h": "حديث مشروح", "home.stat_qa": "سؤال وجواب", "home.trust_more": "تعرّف على المصادر",
   },
   en: {
@@ -49,7 +52,10 @@ register({
     "home.members": "{n} members",
     "home.videos_t": "Videos from IslamHouse", "home.videos_all": "All videos",
     "home.trust_t": "Every answer comes from approved sources", "home.trust_d": "Only sourced text reaches you, and Quran and hadith text is shown exactly as in the source.",
-    "home.nm_label": "new Muslims on Sabeeli", "home.nm_note": "They embraced Islam with our da'is and chose to share the good news with their groups.",
+    "home.nm_title": "New Muslims on Sabeeli",
+    "home.nm_one": "person embraced Islam through Sabeeli", "home.nm_two": "people embraced Islam through Sabeeli",
+    "home.nm_few": "people embraced Islam through Sabeeli", "home.nm_many": "people embraced Islam through Sabeeli",
+    "home.nm_note": "We count people who embraced Islam with one of our da'is and chose to share the news with their groups. A total, with no names.",
     "home.stat_q": "verses with tafsir", "home.stat_h": "explained hadiths", "home.stat_qa": "questions and answers", "home.trust_more": "About the sources",
   },
 });
@@ -230,18 +236,21 @@ function Videos() {
   );
 }
 
+// Arabic counted nouns change with the number (1, 2, 3-10, 11+).
+const countForm = (n) => (n === 1 ? "one" : n === 2 ? "two" : n % 100 >= 3 && n % 100 <= 10 ? "few" : "many");
+
 /** How many people shared that they embraced Islam here: one total, no names. Hidden until there is one. */
 function NewMuslims({ stats }) {
   const { t, fmtNum } = useI18n();
   const n = stats?.new_muslims || 0;
   if (!n) return null;
   return (
-    <section className="home-nm fade-in" aria-label={t("home.nm_label")}>
+    <section className="home-nm fade-in" aria-labelledby="home-nm-title">
       <span className="home-nm-icon" aria-hidden="true">🎉</span>
-      <strong className="home-nm-num">{fmtNum(n)}</strong>
-      <div>
-        <h2>{t("home.nm_label")}</h2>
-        <p>{t("home.nm_note")}</p>
+      <div className="home-nm-text">
+        <h2 id="home-nm-title">{t("home.nm_title")}</h2>
+        <p className="home-nm-count"><strong>{fmtNum(n)}</strong> {t(`home.nm_${countForm(n)}`)}</p>
+        <p className="home-nm-note">{t("home.nm_note")}</p>
       </div>
     </section>
   );
