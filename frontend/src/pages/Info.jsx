@@ -2,7 +2,7 @@
 import { api, forgetSeeker } from "../core/api.js";
 import { register, useI18n } from "../core/i18n.jsx";
 import { Icon, Notice, errorText, toast } from "../core/ui.jsx";
-import { loadAccount } from "../features/account/public.js";
+import { loadAccount, useAccount, useDaaiSignedIn } from "../features/account/public.js";
 
 register({
   ar: {
@@ -156,16 +156,19 @@ export function Privacy() {
 
 export function More({ theme, setTheme }) {
   const { t, lang, setLang } = useI18n();
+  const { account, loaded } = useAccount();
+  const daai = useDaaiSignedIn();
   const link = (href, icon, key) => <a className="card card-link row more-link" href={href}><Icon name={icon} size={22} /><span>{t(key)}</span><Icon name="arrow" className="icon-go more-chev" size={18} /></a>;
   return (
     <>
       <div className="page-head"><h1>{t("more.title")}</h1></div>
       <div className="stack">
-        {link("#/account", "lock", "acc.mine")}
+        {/* Signing in is offered only to someone who isn't signed in; once signed in, the top bar holds the account. */}
+        {loaded && !account && !daai && link("#/account", "lock", "acc.signin_btn")}
         {link("#/about", "info", "nav.about")}
         {link("#/sources", "book", "nav.sources")}
         {link("#/privacy", "shield", "nav.privacy")}
-        {link("#/daai", "users", "nav.daai")}
+        {link("#/daai", "users", daai ? "nav.daai" : "footer.daai")}
         <div className="card stack">
           <strong>{t("more.lang")}</strong>
           <div className="tabs tabs-fit">
