@@ -85,3 +85,8 @@
 .recovery-box { padding: 12px 14px; border: 1px dashed var(--mint-400); border-radius: var(--radius-sm); }
 .recovery-row { align-items: center; }
 .recovery-code { font-size: 1.15rem; font-weight: 700; letter-spacing: .08em; user-select: all; }
+
+/* Sample accounts on the sign-in card (da'i: tap to fill; seeker: create your own). */
+.auth-sample { padding: 10px 14px; border: 1px dashed var(--mint-400); border-radius: var(--radius-sm); font-size: .92rem; }
+.auth-sample p { margin: 0; }
+.auth-sample-list { display: flex; flex-wrap: wrap; gap: 6px; margin-block-start: 8px; }
