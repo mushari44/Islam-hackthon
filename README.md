@@ -18,22 +18,41 @@
 | تحدّث | Direct voice call (WebRTC) with an available da'i in the seeker's language, in-call text chat, and a referral card the seeker edits and approves before it is shared | Eman |
 | لوحة الداعية | Da'i sign-in, the calls queue, the call room with the shared card, and the screens to lead groups and host meetups | Eman |
 
-## Run it
+## Run it yourself
 
-Requirements: Python 3.11 and Node 18 or newer.
+The fastest way to try Sabeeli is the live link above. To run the code on your own machine:
+
+**Option 1: Docker (one command).** Needs Docker Desktop, or Docker with Compose 2.24 or newer.
 
 ```bash
-pip install -r requirements.txt
-cp .env.example .env            # add OPENROUTER_API_KEY (Gemma 4 31B) for AI answers; without it the app runs in sources-only mode
+git clone https://github.com/mushari44/Islam-hackthon.git
+cd Islam-hackthon
+docker compose up --build
+```
+
+Open http://localhost:8000. The first build takes a few minutes; later starts take seconds. Port 8000 busy? Run `SABEELI_PORT=8080 docker compose up` and open port 8080. Stop with Ctrl+C, or `docker compose down`.
+
+**Option 2: Python and Node.** Needs Python 3.11 or newer and Node 18 or newer.
+
+```bash
+git clone https://github.com/mushari44/Islam-hackthon.git
+cd Islam-hackthon
+pip install -r requirements.txt             # a virtual environment is a good idea
 cd frontend && npm install && npm run build && cd ..
 python -m uvicorn backend.app.main:app --port 8000
 ```
 
 Open http://localhost:8000. For frontend development, run `npm run dev` in `frontend/` and open http://localhost:5173; API calls are proxied to port 8000.
 
+**What works with no setup:** both options start without a `.env` file. Questions get answers built only from the approved sources, with every passage cited (sources-only mode), search uses BM25, and all sample accounts, groups and events are created on the first start. Sign in as a da'i with user `reviewer` and password `sabeeli-demo` (header «تسجيل الدخول», then «داعية», or go to `#/daai`).
+
+**AI answers and photo reading** need a model key: `cp .env.example .env`, put an OpenRouter key in `OPENROUTER_API_KEY` (the app uses Gemma 4 31B), and start again with the same command. `/api/health` shows `"ai": true` when the model is on.
+
+**Not in a fresh copy:** «بينات» (its publisher reserves the rights; build it yourself, see below), semantic search with E5 (optional, below), and password-reset emails (seekers use their recovery code instead).
+
 **Semantic search (optional):** `pip install -r requirements-embeddings.txt`, then `python scripts/build_embeddings.py` (downloads multilingual E5-large, about 2.2 GB; a few minutes on a GPU). The app picks the index up on its next start and fuses it with BM25; without it, search is BM25 alone.
 
-**Demo accounts** (synthetic, created on first start, like the sample groups and events; the site shows them without a "demo" tag): da'i console at `#/daai` (or «تسجيل الدخول» in the header, then «داعية»), users `khalid`, `maryam`, `yusuf` and `reviewer` (reviewer can run the referral experiment). The password is the value of `DEMO_PASSWORD` in `.env` (`sabeeli-demo` by default). Change it before deploying.
+**Sample da'i accounts** (synthetic, created on first start, like the sample groups and events; the site shows them without a "demo" tag): `khalid`, `maryam`, `yusuf` and `reviewer` (reviewer is an admin and can run the referral experiment). The password is the value of `DEMO_PASSWORD` in `.env` (`sabeeli-demo` by default). Change it before deploying.
 
 **Deploying:** the website goes on Vercel and the API on Render; see [docs/DEPLOY.md](docs/DEPLOY.md).
 
@@ -44,7 +63,8 @@ The corpus is already in `data/corpus/`, except «بينات»: its publisher re
 ## Tests
 
 ```bash
-python -m pytest tests             # 229 tests; no API key needed (sources-only mode + mocked OpenRouter and Claude APIs)
+python -m pytest tests             # no API key needed (sources-only mode + mocked OpenRouter and Claude APIs)
+                                   # 222 tests with requirements.txt; 229 with requirements-embeddings.txt too
 ```
 
 ## How the code is organised

@@ -1,5 +1,6 @@
 # One container for the whole app: the React build is served by FastAPI.
-# Build:  docker build -t sabeeli .     Run:  docker run -p 8000:8000 --env-file .env sabeeli
+# Easiest: docker compose up --build (compose.yaml). Or: docker build -t sabeeli . && docker run -p 8000:8000 sabeeli
+# (add --env-file .env for an API key and your own settings)
 
 FROM node:20-slim AS web
 WORKDIR /app/frontend
