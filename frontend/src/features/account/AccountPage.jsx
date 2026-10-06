@@ -153,7 +153,6 @@ export function SignInCard({ role: preset, onDaaiSignIn, next }) {
       {daai ? (
         <div className="auth-switch auth-note">
           <p>{t("acc.daai_note")}</p>
-          <p className="faint small">{t("acc.daai_demo")}</p>
         </div>
       ) : (
         <p className="auth-switch">

@@ -1,4 +1,4 @@
-"""Synthetic demo groups and meetups (labelled as demo data). Owner: Mushari."""
+"""Synthetic sample groups and meetups (`is_demo`; the README says they are samples). Owner: Mushari."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -49,72 +49,72 @@ GROUPS = [
 
 MEETUPS = [
     {"host": "khalid", "group": 0, "title": "لقاء تعريفي: من هو محمد ﷺ؟", "lang": "ar", "country": "SA", "city": "الرياض",
-     "venue": "قاعة المكتبة العامة (مكان تجريبي)", "days": 6, "hour": 17, "capacity": 25, "audience": "all",
-     "description": "لقاء مفتوح للتعرف على سيرة النبي ﷺ مع داعية، وأسئلة وأجوبة. (بيانات تجريبية)"},
+     "venue": "قاعة المكتبة العامة", "days": 6, "hour": 17, "capacity": 25, "audience": "all",
+     "description": "لقاء مفتوح للتعرف على سيرة النبي ﷺ مع داعية، وأسئلة وأجوبة."},
     {"host": "yusuf", "group": 1, "title": "Open evening: Questions about Islam", "lang": "en", "country": "GB",
-     "city": "London", "venue": "Community library hall (demo venue)", "days": 9, "hour": 18, "capacity": 30,
-     "audience": "all", "description": "Bring your questions; tea and an open conversation with a guide. (demo data)"},
+     "city": "London", "venue": "Community library hall", "days": 9, "hour": 18, "capacity": 30,
+     "audience": "all", "description": "Bring your questions; tea and an open conversation with a guide."},
     {"host": "maryam", "group": 2, "title": "لقاء نسائي: الصلاة خطوة بخطوة", "lang": "ar", "country": "SA", "city": "جدة",
-     "venue": "مركز ثقافي عام (مكان تجريبي)", "days": 12, "hour": 16, "capacity": 15, "audience": "women",
-     "description": "لقاء عملي لتعلم الصلاة للمسلمات الجدد. (بيانات تجريبية)"},
+     "venue": "مركز ثقافي عام", "days": 12, "hour": 16, "capacity": 15, "audience": "women",
+     "description": "لقاء عملي لتعلم الصلاة للمسلمات الجدد."},
     # "Word and deed in Islam" series: each meetup pairs a short lesson with something done together.
     {"host": "khalid", "group": 0, "title": "القول والعمل (١): الصدق في الكلام والوفاء بالوعد", "lang": "ar",
-     "country": "SA", "city": "الرياض", "venue": "ساحة المركز الثقافي (مكان تجريبي)", "days": 8, "hour": 19,
+     "country": "SA", "city": "الرياض", "venue": "ساحة المركز الثقافي", "days": 8, "hour": 19,
      "capacity": 60, "audience": "all", "registration": "open", "series": "qawl_amal",
-     "description": "درس قصير عن الصدق والوفاء، ثم نشاط جماعي نطبّق فيه ما تعلمناه. الدخول حر دون تسجيل. (بيانات تجريبية)"},
+     "description": "درس قصير عن الصدق والوفاء، ثم نشاط جماعي نطبّق فيه ما تعلمناه. الدخول حر دون تسجيل."},
     {"host": "yusuf", "group": 1, "title": "Word and Deed (2): Kindness to neighbours", "lang": "en", "country": "GB",
-     "city": "London", "venue": "Community centre garden (demo venue)", "days": 10, "hour": 10, "capacity": 20,
+     "city": "London", "venue": "Community centre garden", "days": 10, "hour": 10, "capacity": 20,
      "audience": "all", "age_group": "youth", "series": "qawl_amal",
-     "description": "A short talk on kindness to neighbours, then a volunteering morning packing food parcels. (demo data)"},
+     "description": "A short talk on kindness to neighbours, then a volunteering morning packing food parcels."},
     {"host": "maryam", "group": 2, "title": "قصص الأنبياء للأطفال مع أهاليهم", "lang": "ar", "country": "SA", "city": "جدة",
-     "venue": "مكتبة الطفل العامة (مكان تجريبي)", "days": 14, "hour": 16, "capacity": 20, "audience": "families",
-     "age_group": "kids", "description": "حكايات ونشاط رسم للأطفال، ويحضر كل طفل مع ولي أمره. (بيانات تجريبية)"},
+     "venue": "مكتبة الطفل العامة", "days": 14, "hour": 16, "capacity": 20, "audience": "families",
+     "age_group": "kids", "description": "حكايات ونشاط رسم للأطفال، ويحضر كل طفل مع ولي أمره."},
     {"host": "khalid", "group": 4, "title": "زيارة مفتوحة لمسجد في دبي", "lang": "ar", "country": "AE", "city": "دبي",
-     "venue": "مركز ثقافي عام بجوار المسجد (مكان تجريبي)", "days": 7, "hour": 17, "capacity": 40, "audience": "all",
-     "registration": "open", "description": "جولة تعريفية بالمسجد وآدابه، وأسئلة مفتوحة مع داعية. (بيانات تجريبية)"},
+     "venue": "مركز ثقافي عام بجوار المسجد", "days": 7, "hour": 17, "capacity": 40, "audience": "all",
+     "registration": "open", "description": "جولة تعريفية بالمسجد وآدابه، وأسئلة مفتوحة مع داعية."},
     {"host": "khalid", "group": 5, "title": "القول والعمل (٣): إطعام الطعام", "lang": "ar", "country": "EG", "city": "القاهرة",
-     "venue": "ساحة مركز شباب عام (مكان تجريبي)", "days": 11, "hour": 16, "capacity": 30, "audience": "all",
+     "venue": "ساحة مركز شباب عام", "days": 11, "hour": 16, "capacity": 30, "audience": "all",
      "age_group": "youth", "series": "qawl_amal",
-     "description": "درس قصير عن فضل إطعام الطعام، ثم نجهز معاً وجبات للمحتاجين. (بيانات تجريبية)"},
+     "description": "درس قصير عن فضل إطعام الطعام، ثم نجهز معاً وجبات للمحتاجين."},
     {"host": "yusuf", "group": 6, "title": "Ask a Muslim: open evening", "lang": "en", "country": "US", "city": "New York",
-     "venue": "Public library meeting room (demo venue)", "days": 13, "hour": 18, "capacity": 35, "audience": "all",
-     "age_group": "adults", "description": "An open conversation with a guide for curious adults. (demo data)"},
+     "venue": "Public library meeting room", "days": 13, "hour": 18, "capacity": 35, "audience": "all",
+     "age_group": "adults", "description": "An open conversation with a guide for curious adults."},
     {"host": "khalid", "title": "القول والعمل (٤): حفظ اللسان", "lang": "ar", "country": "SA", "city": "أبها",
-     "venue": "قاعة المكتبة العامة (مكان تجريبي)", "days": 15, "hour": 19, "capacity": 25, "audience": "men",
+     "venue": "قاعة المكتبة العامة", "days": 15, "hour": 19, "capacity": 25, "audience": "men",
      "age_group": "youth", "series": "qawl_amal",
-     "description": "درس قصير عن حفظ اللسان، ثم تحدٍّ جماعي لأسبوع نتابع فيه بعضنا. (بيانات تجريبية)"},
+     "description": "درس قصير عن حفظ اللسان، ثم تحدٍّ جماعي لأسبوع نتابع فيه بعضنا."},
     {"host": "maryam", "title": "لقاء تعريفي للزائرات في الدمام", "lang": "ar", "country": "SA", "city": "الدمام",
-     "venue": "مركز ثقافي عام (مكان تجريبي)", "days": 9, "hour": 17, "capacity": 20, "audience": "women",
-     "registration": "open", "description": "جلسة ودية للتعارف والأسئلة عن الإسلام. (بيانات تجريبية)"},
-    # Online meetups: the link (a placeholder for the demo) is shown only to people who join. `zone` sets the hour.
+     "venue": "مركز ثقافي عام", "days": 9, "hour": 17, "capacity": 20, "audience": "women",
+     "registration": "open", "description": "جلسة ودية للتعارف والأسئلة عن الإسلام."},
+    # Online meetups: the link (a placeholder) is shown only to people who join. `zone` sets the hour.
     {"host": "khalid", "group": 0, "title": "حلقة عن بُعد: أسئلة المهتمين بالإسلام", "lang": "ar", "format": "online",
-     "online_url": "https://meet.example.com/sabeeli-demo-ar", "zone": "SA", "days": 5, "hour": 20, "capacity": 50,
+     "online_url": "https://meet.example.com/sabeeli-ar", "zone": "SA", "days": 5, "hour": 20, "capacity": 50,
      "audience": "all", "registration": "open",
-     "description": "لقاء مباشر عبر الإنترنت: اسأل عن الإسلام من بيتك مع داعية. يظهر رابط اللقاء لمن ينضم. (بيانات تجريبية)"},
+     "description": "لقاء مباشر عبر الإنترنت: اسأل عن الإسلام من بيتك مع داعية. يظهر رابط اللقاء لمن ينضم."},
     {"host": "yusuf", "group": 1, "title": "Online circle: Questions about Islam", "lang": "en", "format": "online",
-     "online_url": "https://meet.example.com/sabeeli-demo-en", "zone": "GB", "days": 6, "hour": 19, "capacity": 40,
+     "online_url": "https://meet.example.com/sabeeli-en", "zone": "GB", "days": 6, "hour": 19, "capacity": 40,
      "audience": "all",
-     "description": "A live video circle with a guide: ask anything about Islam from home. Book a place to get the link. (demo data)"},
+     "description": "A live video circle with a guide: ask anything about Islam from home. Book a place to get the link."},
     {"host": "maryam", "group": 2, "title": "لقاء نسائي عن بُعد: أسئلة المسلمات الجدد", "lang": "ar", "format": "online",
-     "online_url": "https://meet.example.com/sabeeli-demo-women", "zone": "SA", "days": 8, "hour": 21, "capacity": 25,
+     "online_url": "https://meet.example.com/sabeeli-women", "zone": "SA", "days": 8, "hour": 21, "capacity": 25,
      "audience": "women",
-     "description": "لقاء مرئي للنساء مع داعية للإجابة عن أسئلة المسلمات الجدد والمهتمات. (بيانات تجريبية)"},
+     "description": "لقاء مرئي للنساء مع داعية للإجابة عن أسئلة المسلمات الجدد والمهتمات."},
     # Ramadan 1448 (expected mid-February to mid-March 2027). Times are in UTC.
     {"host": "khalid", "group": 0, "title": "إفطار جماعي: تعرّف على رمضان", "lang": "ar", "country": "SA", "city": "الرياض",
-     "venue": "ساحة المركز الثقافي (مكان تجريبي)", "at": (2027, 2, 12, 14, 30), "capacity": 120, "audience": "all",
+     "venue": "ساحة المركز الثقافي", "at": (2027, 2, 12, 14, 30), "capacity": 120, "audience": "all",
      "registration": "open", "series": "ramadan",
-     "description": "نفطر معاً ونتعرف على معنى الصيام وعادات رمضان. الكل مرحب به. (بيانات تجريبية)"},
+     "description": "نفطر معاً ونتعرف على معنى الصيام وعادات رمضان. الكل مرحب به."},
     {"host": "khalid", "title": "ليلة تعريفية بصلاة التراويح", "lang": "ar", "country": "SA",
-     "city": "المدينة المنورة", "venue": "قاعة عامة قرب المسجد (مكان تجريبي)", "at": (2027, 2, 15, 17, 30),
+     "city": "المدينة المنورة", "venue": "قاعة عامة قرب المسجد", "at": (2027, 2, 15, 17, 30),
      "capacity": 40, "audience": "all", "series": "ramadan",
-     "description": "شرح مبسط لصلاة التراويح وقيام رمضان، ثم نشهدها معاً. (بيانات تجريبية)"},
+     "description": "شرح مبسط لصلاة التراويح وقيام رمضان، ثم نشهدها معاً."},
     {"host": "maryam", "title": "إفطار عائلي مع الجيران", "lang": "ar", "country": "SA", "city": "جدة",
-     "venue": "حديقة عامة (مكان تجريبي)", "at": (2027, 2, 20, 14, 45), "capacity": 60, "audience": "families",
-     "series": "ramadan", "description": "إفطار للعائلات ونشاط للأطفال عن قيم رمضان. (بيانات تجريبية)"},
+     "venue": "حديقة عامة", "at": (2027, 2, 20, 14, 45), "capacity": 60, "audience": "families",
+     "series": "ramadan", "description": "إفطار للعائلات ونشاط للأطفال عن قيم رمضان."},
     {"host": "yusuf", "group": 1, "title": "Open iftar: Ramadan with neighbours", "lang": "en", "country": "GB",
-     "city": "London", "venue": "Community centre hall (demo venue)", "at": (2027, 2, 18, 17, 30), "capacity": 80,
+     "city": "London", "venue": "Community centre hall", "at": (2027, 2, 18, 17, 30), "capacity": 80,
      "audience": "all", "registration": "open", "series": "ramadan",
-     "description": "Break the fast with us and ask anything about Ramadan. Everyone welcome. (demo data)"},
+     "description": "Break the fast with us and ask anything about Ramadan. Everyone welcome."},
 ]
 
 
@@ -164,6 +164,7 @@ def _meetup(spec: dict, daais: dict[str, Daai], groups: list[Group]) -> Meetup:
 def seed(db: Session, daais: dict[str, Daai]) -> None:
     if db.scalars(select(Group).where(Group.is_demo.is_(True))).first():
         _backfill_age_groups(db)
+        _drop_demo_tags(db)
         _refresh_demo_meetups(db, daais)
         return
     groups = []
@@ -205,6 +206,29 @@ def _refresh_demo_meetups(db: Session, daais: dict[str, Daai]) -> None:
             code, weeks = _zone(spec), (now - m.starts_at).days // 7 + 1
             m.starts_at = _shift(_shift(m.starts_at, code, to_utc=False) + timedelta(weeks=weeks), code, to_utc=True)
             db.execute(delete(RSVP).where(RSVP.meetup_id == m.id))   # a new date starts with no bookings
+    db.commit()
+
+
+# The tags older databases carry: the site no longer marks sample data as "demo" (Mushari, 6 October 2026).
+OLD_TAGS = (" (بيانات تجريبية)", " (demo data)", " (مكان تجريبي)", " (demo venue)", " (حساب تجريبي)", " (demo)")
+
+
+def _untag(text: str) -> str:
+    for tag in OLD_TAGS:
+        text = text.replace(tag, "")
+    return text
+
+
+def _drop_demo_tags(db: Session) -> None:
+    """Removes the old demo tags from sample meetups (description, venue, link) and from the sample da'is' names on
+    the welcome messages they posted. Only sample rows are touched."""
+    for m in db.scalars(select(Meetup).where(Meetup.is_demo.is_(True))).all():
+        m.description, m.venue = _untag(m.description), _untag(m.venue)
+        m.online_url = m.online_url.replace("meet.example.com/sabeeli-demo-", "meet.example.com/sabeeli-")
+    demo_groups = select(Group.id).where(Group.is_demo.is_(True))
+    for msg in db.scalars(select(GroupMessage).where(GroupMessage.group_id.in_(demo_groups),
+                                                     GroupMessage.author_type == "daai")).all():
+        msg.author_name = _untag(msg.author_name)
     db.commit()
 
 

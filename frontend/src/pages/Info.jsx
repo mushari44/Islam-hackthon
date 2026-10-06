@@ -17,7 +17,6 @@ register({
     "about.calls_t": "الاتصال مستقل عن النموذج", "about.calls": "يمكن طلب داعية مباشرة دون سؤال المساعد، ويبقى الاتصال متاحاً إن تعطل النموذج.",
     "about.team_t": "الفريق", "about.m": "مهندس ذكاء اصطناعي: قراءة النص والمطابقة والاسترجاع والتقييم، والمجتمع.",
     "about.e": "مهندسة ذكاء اصطناعي: الاتصال بالداعية وملخص الإحالة.",
-    "about.start": "هذه نسخة البداية الموثقة قبل أيام التحدي (4–6 أكتوبر 2026).",
     "src.title": "المصادر", "src.lead": "يجيب سَبِيلي من نصوص الحزمة العلمية المعتمدة في التحدي فقط، ويعرض المصدر مع كل إجابة.",
     "src.q": "نص المصحف (مجمع الملك فهد) والتفسير الميسر، عبر موسوعة القرآن الكريم QuranEnc (arabic_moyassar).",
     "src.qen": "ترجمة معاني القرآن إلى الإنجليزية، مركز رواد للترجمة، عبر QuranEnc (english_rwwad).",
@@ -53,7 +52,6 @@ register({
     "about.calls_t": "Calls don't depend on the model", "about.calls": "You can ask for a da'i directly without asking the assistant, and calls keep working if the model is down.",
     "about.team_t": "Team", "about.m": "AI engineer: text reading, matching, retrieval and evaluation, and the community.",
     "about.e": "AI engineer: calls with a da'i and the referral summary.",
-    "about.start": "This is the documented starting version, before the challenge days (4–6 October 2026).",
     "src.title": "Sources", "src.lead": "Sabeeli answers only from the challenge's approved scholarly package and shows the source with every answer.",
     "src.q": "The Mushaf text (King Fahd Complex) and At-Tafsir Al-Muyassar, via the Quran encyclopedia QuranEnc (arabic_moyassar).",
     "src.qen": "English translation of the meanings by the Rowwad Translation Center, via QuranEnc (english_rwwad).",
@@ -102,7 +100,6 @@ export function About() {
           <div><strong>Eman Saheli</strong><p className="muted small">{t("about.e")}</p></div>
         </div>
       </section>
-      <p className="faint">{t("about.start")}</p>
     </>
   );
 }

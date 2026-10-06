@@ -109,6 +109,9 @@ For your information; nothing here needs action unless you disagree.
   - Form limits match the API. The reviewer can still change their own password, and is then signed out.
 - Calls: chat text is kept if the socket isn't open, cancelling a request shows its error instead of leaving silently, and the end-screen buttons wrap on phones.
 - Wording: «تسجيل الخروج» everywhere, and «فعالية» / "event" and «حجز» / "booking" across the community and da'i screens.
+- 6 October (Mushari's request): the da'i console tab «ملفي» is now «ملفي الشخصي» (`dp.tab`; English stays "My profile").
+- 6 October (Mushari's request, "remove anything related to تجريبي"): the referral experiment card reads «مقارنة طرق الإحالة» / "Referral summary comparison" (`dc.exp*`), the History privacy note no longer says «التجربة» (`dl.privacy`), the seeker's no-summary note drops "In this trial" (`ref.none`), and the da'i sign-in card no longer lists the demo usernames (`acc.daai_demo` removed; they stay in the README). The seeded accounts and `DEMO_PASSWORD` are unchanged.
+- 6 October (Mushari's decision card): the sample da'is lost their «(حساب تجريبي)» / "(demo)" tag and "demo" bios (`auth/seed.py`). On start, an older database gets the new names and bios, but only where the value still equals the old seed. `tests/calls/test_choose_daai.py` now looks for "Maryam". The rule in `CLAUDE.md` changed to match.
 
 ## Day 3: 6 October (polish and publish)
 
