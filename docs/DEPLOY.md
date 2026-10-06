@@ -17,8 +17,9 @@ browser ──> https://<project>.vercel.app      (static build of frontend/, ve
    - `CORS_ORIGINS`: the Vercel address from step 2, e.g. `https://sabeeli.vercel.app` (no trailing
      slash). You can leave it empty now and add it after step 2 (Environment > Save, it redeploys).
    - TURN and SMTP values are optional.
-3. `DEMO_PASSWORD` is generated at random. Read it in the service's Environment tab to sign in to the
-   demo da'i accounts; never use the README default on a public link.
+3. `DEMO_PASSWORD` is `123` (render.yaml), so judges can sign in to the sample da'i accounts with the
+   password the README shows. An existing service keeps its old value: set it to `123` in Environment and save.
+   On each start the sample accounts are reset to this password.
 4. Wait for "Live", then open `https://<service>.onrender.com/api/health`: `"ai": true` means the model is on.
 
 The free plan sleeps after 15 minutes without traffic and takes about a minute to wake. For judging,
