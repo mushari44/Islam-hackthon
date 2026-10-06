@@ -41,7 +41,7 @@ Preview deployments get other addresses. To let them call the API too, set on Re
 
 - The home page loads and shows live counts (they come from the API).
 - Ask a question: an answer with sources means the API, CORS and the model all work.
-- Da'i console (`#/daai`) login with `reviewer` and the generated password.
+- Da'i console (`#/daai`) login with `reviewer` and the password `123`.
 - A call between two browsers: the call chat uses `wss://<service>.onrender.com/ws/...`.
 
 Without `VITE_API_URL` the build calls its own origin, which is what local runs and the single

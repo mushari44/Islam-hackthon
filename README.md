@@ -12,8 +12,8 @@
 
 | | Live site (https://sabeeli-self.vercel.app) | Local run (your machine) |
 |---|---|---|
-| **Seeker (user)** | There are no preset user accounts: **create your own** in a few seconds. No account is needed to ask, watch videos or browse; to call or book a da'i, create one: «تسجيل الدخول» → «مستخدم» → «أنشئ حساباً», any username (3-24 letters or digits), a password of 8+ characters, sex and age range | The same |
-| **Da'i** | «تسجيل الدخول» → «داعية» (or `/#/daai`). Users `reviewer` (admin), `khalid`, `maryam`, `yusuf`. Password **`123`** for all four | Same users. Password **`123`** for all four (the `DEMO_PASSWORD` line in `.env`) |
+| **Seeker (user)** | There are no preset user accounts: **create your own** in a few seconds. No account is needed to ask, watch videos or browse groups and events; to call or book a da'i, join a group, post in it or book a seat at an event, create one: «تسجيل الدخول» → «مستخدم» → «أنشئ حساباً», any username (3-24 letters or digits), a password of 8+ characters, sex and age range | The same |
+| **Da'i** | «تسجيل الدخول» → «داعية» (or `/#/daai`). Users `reviewer` (admin), `khalid`, `maryam`, `yusuf`. Password **`123`** for all four. The sign-in card lists them too: tap a name to fill it in | Same users. Password **`123`** for all four (the `DEMO_PASSWORD` line in `.env`) |
 
 The sample da'is are synthetic and created automatically on the first start. Details: [Run it yourself](#run-it-yourself).
 
@@ -117,9 +117,9 @@ Every other line in `.env` is explained there and can stay as it is. You might c
 | `maryam` | `123` | Maryam (da'iyah), Arabic and English | The same, as a da'iyah |
 | `yusuf` | `123` | Yusuf, English only | The same, for an English-speaking seeker |
 
-To sign in as a da'i: «تسجيل الدخول» in the header, then «داعية» (or go straight to http://localhost:8000/#/daai). The password is the `DEMO_PASSWORD` line in `.env`; change it there before putting the app online.
+To sign in as a da'i: «تسجيل الدخول» in the header, then «داعية» (or go straight to http://localhost:8000/#/daai). The sign-in card lists the four accounts; tap one to fill in its name and password. The password is the `DEMO_PASSWORD` line in `.env`; change it there before putting the app online.
 
-**Seeker (user) side:** no account is needed to ask questions, watch videos or browse groups and events. Calling or booking a da'i needs a seeker account (it also keeps your chats), which takes a few seconds: «تسجيل الدخول», then «مستخدم», then «أنشئ حساباً». Choose any username (3 to 24 letters or digits) and a password of at least 8 characters, and pick sex and age range.
+**Seeker (user) side:** no account is needed to ask questions, watch videos or browse groups and events. Calling or booking a da'i, joining a group, posting in it and booking a seat at an event need a seeker account (it also keeps your chats), which takes a few seconds: «تسجيل الدخول», then «مستخدم», then «أنشئ حساباً». Choose any username (3 to 24 letters or digits) and a password of at least 8 characters, and pick sex and age range.
 
 **Deploying:** the website goes on Vercel and the API on Render; see [docs/DEPLOY.md](docs/DEPLOY.md).
 
@@ -131,7 +131,7 @@ The corpus is already in `data/corpus/`, except «بينات»: its publisher re
 
 ```bash
 python -m pytest tests             # no API key needed (sources-only mode + mocked OpenRouter and Claude APIs)
-                                   # 222 tests with requirements.txt; 229 with requirements-embeddings.txt too
+                                   # 230 pass with requirements.txt (the E5 tests are skipped); 236 with requirements-embeddings.txt too
 ```
 
 ## How the code is organised
@@ -166,4 +166,4 @@ Each person works only in their own folders. Shared code changes only by agreeme
 - **[`THIRD_PARTY.md`](THIRD_PARTY.md):** licence record: sources, models, services and software with their licences.
 - **[`LICENSE`](LICENSE):** the team's code is under the MIT licence; the religious content keeps its publishers' terms.
 - **[`docs/RAG-PLAN.md`](docs/RAG-PLAN.md):** how the RAG system uses the approved sources, and how it is evaluated.
-- **Privacy:** seekers can ask and browse without an account (calling or booking a da'i needs a free username-and-password account, with no phone number or real name), an anonymous visitor's questions are deleted after 24 hours (a signed-in seeker keeps saved chats), the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**. Videos and thumbnails load straight from IslamHouse's servers, search words are sent in a POST body, and Sabeeli stores no searches and no viewing history.
+- **Privacy:** seekers can ask and browse without an account (calling or booking a da'i, joining a group, posting and booking an event seat need a free username-and-password account, with no phone number or real name), an anonymous visitor's questions are deleted after 24 hours (a signed-in seeker keeps saved chats), the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**. Videos and thumbnails load straight from IslamHouse's servers, search words are sent in a POST body, and Sabeeli stores no searches and no viewing history.
