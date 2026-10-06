@@ -154,6 +154,10 @@ def test_missed_by_the_daai_or_the_seeker(client, daai_login, clock):
     one = client.post("/api/bookings", json={"starts_at": free[0]["starts_at"], "lang": "ar", "daai_id": kid}, headers=h).json()
     two = client.post("/api/bookings", json={"starts_at": free[4]["starts_at"], "lang": "ar", "daai_id": kid}, headers=h).json()
 
+    three = client.post("/api/bookings", json={"starts_at": free[8]["starts_at"], "lang": "ar", "daai_id": kid}, headers=h).json()
+    clock(at(three["starts_at"]) + timedelta(minutes=11))     # nobody came
+    assert client.get(f"/api/bookings/{three['id']}", headers=h).json()["missed_by"] == "both"
+
     clock(at(one["starts_at"]) + timedelta(minutes=1))
     client.post(f"/api/bookings/{one['id']}/join", headers=h)
     clock(at(one["starts_at"]) + timedelta(minutes=11))
@@ -178,3 +182,30 @@ def test_daai_cancels_with_a_note(client, daai_login):
     client.post(f"/api/daai/bookings/{b['id']}/cancel", json={"note": "Travelling that day, sorry"}, headers=yusuf)
     seen = client.get("/api/bookings", headers=h).json()["past"][0]
     assert seen["status"] == "cancelled" and seen["cancelled_by"] == "daai" and seen["cancel_note"] == "Travelling that day, sorry"
+
+
+def test_reschedule_moves_the_booking_and_can_extend_it(client, daai_login):
+    yusuf = daai_login("yusuf")
+    yid = daai_id(client, yusuf)
+    h = account(client)
+    sixty = [s["starts_at"] for s in slots(client, lang="en", daai_id=yid, minutes=60)]
+    start = sixty[1]
+    b = client.post("/api/bookings", json={"starts_at": start, "lang": "en", "daai_id": yid, "note": "Wudu"}, headers=h).json()
+    # extend the same time from 30 to 60 minutes: the old half hour counts as free for the move
+    moved = client.post("/api/bookings", json={"starts_at": start, "minutes": 60, "lang": "en", "daai_id": yid,
+                                               "replaces": b["id"]}, headers=h)
+    assert moved.status_code == 200 and moved.json()["minutes"] == 60 and moved.json()["note"] == "Wudu"
+    old = client.get(f"/api/bookings/{b['id']}", headers=h).json()
+    assert old["status"] == "cancelled" and old["rescheduled_to"] == moved.json()["id"]
+    assert len(client.get("/api/bookings", headers=h).json()["upcoming"]) == 1
+    past = client.get("/api/daai/bookings", headers=yusuf).json()["past"]
+    assert next(x for x in past if x["id"] == b["id"])["rescheduled"] is True
+    # a failed move keeps the old booking as it was
+    other = account(client)
+    taken = client.post("/api/bookings", json={"starts_at": sixty[-1], "lang": "en", "daai_id": yid}, headers=other).json()
+    bad = client.post("/api/bookings", json={"starts_at": taken["starts_at"], "lang": "en", "daai_id": yid,
+                                             "replaces": moved.json()["id"]}, headers=h)
+    assert bad.status_code == 409
+    assert client.get(f"/api/bookings/{moved.json()['id']}", headers=h).json()["status"] == "booked"
+    left = {s["starts_at"] for s in slots(client, lang="en", daai_id=yid)}
+    assert start not in left

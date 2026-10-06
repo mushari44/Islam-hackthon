@@ -121,3 +121,8 @@
 .booking-banner { background: color-mix(in srgb, var(--mint-400) 18%, var(--surface)); border-block-end: 1px solid var(--border); }
 .booking-banner-inner { max-width: var(--page-w); margin: 0 auto; padding: 8px var(--gutter); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 600; }
 .booking-banner-inner .btn { margin-inline-start: auto; }
+.booking-banner.is-warn { background: var(--warn-bg); color: var(--warn-text); }
+.booking-banner.is-warn .btn-primary { margin-inline-start: auto; }
+.booking-banner.is-warn .icon-btn { color: inherit; }
+.slot-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; }
+.slot-now { font-size: .7rem; font-weight: 500; opacity: .8; }

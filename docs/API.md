@@ -122,7 +122,7 @@ Search: every word must appear in the title, description, presenters or topic; t
 | POST | `/api/calls/{cid}/cancel` | seeker (owner) | – | CallStatus. `waiting` becomes `cancelled`, `accepted` becomes `ended` (the da'i gets no WebSocket notice) |
 | POST | `/api/calls/{cid}/rate` | seeker (owner) | `{rating: int}` (clamped to 1–5) | `{ok: true}` |
 | GET | `/api/calls/{cid}/messages` | seeker (owner) | – | `[{id, sender: "seeker"\|"daai", text, at}]` (in-call chat history) |
-| GET | `/api/daai/requests` | daai | – | `{waiting: [{id, lang, waiting_seconds, has_card, has_chat, for_you}], active: [{id, lang}], booked: [DaaiBooking]}`. Lists only requests that match my languages and the requested gender, and that weren't made for another da'i by name. `for_you` requests come first. `booked` = my bookings that start within 15 minutes or are running; while there is one, general (not `for_you`) requests are held back |
+| GET | `/api/daai/requests` | daai | – | `{waiting: [{id, lang, waiting_seconds, has_card, has_chat, for_you}], active: [{id, lang}], booked: [DaaiBooking], bookings_today}`. Lists only requests that match my languages and the requested gender, and that weren't made for another da'i by name. `for_you` requests come first. `booked` = my bookings that start within 15 minutes or are running; while there is one, general (not `for_you`) requests are held back. `bookings_today` = my booked calls in the next 24 hours (the console badge) |
 | POST | `/api/daai/requests/{cid}/accept` | daai | – | DaaiCall. 404 if it doesn't match me, 409 `already taken or no longer waiting` |
 | GET | `/api/daai/calls/{cid}` | daai (assigned) | – | DaaiCall |
 | POST | `/api/daai/calls/{cid}/understood` | daai (assigned) | – | `{ok: true}` |
@@ -148,16 +148,16 @@ A da'i sets weekly hours (their own time zone, half-hour steps); the site cuts t
 | POST | `/api/daai/bookings/{id}/cancel` | daai (own) | `{note?}` (≤300) | DaaiBooking. 409 `can't cancel now` |
 | POST | `/api/daai/bookings/{id}/no-show` | daai (own) | – | DaaiBooking with `missed_by: "seeker"`; ends the empty call. 409 before 10 minutes past the start |
 | GET | `/api/booking/daais` | – | `?lang=&ui=` | `[{id, name, gender, languages, country, city, bio, next_slot}]` da'is taking bookings, soonest first |
-| GET | `/api/booking/slots` | – | `?lang=&gender=&daai_id=&minutes=30\|60` | `{minutes, days_ahead, min_notice_hours, slots: [{starts_at, daais}]}`; without `daai_id`, merged over every matching da'i (`daais` = how many are free) |
-| POST | `/api/bookings` | seeker account | `{starts_at, minutes, lang, gender_pref?, daai_id?, referral_id?, note?}` | Booking. 403 `sign in to book`; 409 `slot taken`, `too many bookings`, `you already have a booking then`. With no `daai_id` the matching da'i with the fewest upcoming bookings gets it |
+| GET | `/api/booking/slots` | – (seeker header for `replaces`) | `?lang=&gender=&daai_id=&minutes=30\|60&replaces=` | `{minutes, days_ahead, min_notice_hours, slots: [{starts_at, daais}]}`; without `daai_id`, merged over every matching da'i (`daais` = how many are free). `replaces`: my booking being moved, whose own time then counts as free |
+| POST | `/api/bookings` | seeker account | `{starts_at, minutes, lang, gender_pref?, daai_id?, referral_id?, note?, replaces?}` | Booking. 403 `sign in to book`; 409 `slot taken`, `too many bookings`, `you already have a booking then`. With no `daai_id` the matching da'i with the fewest upcoming bookings gets it. `replaces` (reschedule): my booking is cancelled with `rescheduled_to` only once the new one is made, keeping its note and card; a failed move leaves it as it was |
 | GET | `/api/bookings` | seeker | – | `{upcoming: [Booking], past: [Booking], signed_in, max_upcoming}` |
 | GET | `/api/bookings/{id}` | seeker (own) | – | Booking |
 | POST | `/api/bookings/{id}/join` | seeker (own) | – | Booking with `ready: true`; `call_id` appears once the da'i presses Start. 409 `not time yet` |
 | POST | `/api/bookings/{id}/cancel` | seeker (own) | – | Booking. 409 `can't cancel now` (started, or a call is on) |
 
-Booking (seeker): `{id, status, lang, note, daai: {id, name, name_en, gender}, starts_at, ends_at, minutes, join_opens_at, can_join, can_cancel, ready, call_id, has_card, cancelled_by, cancel_note, missed_by, created_at}`.
-DaaiBooking: `{id, status, lang, note, starts_at, ends_at, minutes, can_start, can_cancel, seeker_waiting, has_card, has_chat, call_id, cancelled_by, missed_by}`: never who booked.
-Booking status values: `booked` → `done`, or `cancelled` (`cancelled_by` seeker\|daai\|system) / `missed` (`missed_by` seeker\|daai). `GET /api/daais` entries also carry `bookable`.
+Booking (seeker): `{id, status, lang, note, daai: {id, name, name_en, gender}, starts_at, ends_at, minutes, join_opens_at, can_join, can_cancel, ready, call_id, has_card, cancelled_by, cancel_note, missed_by, rescheduled_to, created_at}`.
+DaaiBooking: `{id, status, lang, note, starts_at, ends_at, minutes, can_start, can_cancel, seeker_waiting, has_card, has_chat, call_id, cancelled_by, rescheduled, missed_by}`: never who booked. `DaaiCall.booking` is the DaaiBooking a call was started from (plus `no_show_from`), else null.
+Booking status values: `booked` → `done`, or `cancelled` (`cancelled_by` seeker\|daai\|system) / `missed` (`missed_by` seeker\|daai\|both). `GET /api/daais` entries also carry `bookable`.
 
 ## WebSocket signalling — owner: Eman
 

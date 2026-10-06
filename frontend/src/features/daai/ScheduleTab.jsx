@@ -134,7 +134,8 @@ function CancelSheet({ booking, close, onDone }) {
 
 function statusLabel(b, t) {
   if (b.status === "done") return t("ds.st_done");
-  if (b.status === "missed") return t(b.missed_by === "daai" ? "ds.st_missed_you" : "ds.st_missed_seeker");
+  if (b.status === "missed") return t(b.missed_by === "daai" ? "ds.st_missed_you" : b.missed_by === "both" ? "ds.st_missed_both" : "ds.st_missed_seeker");
+  if (b.status === "cancelled" && b.rescheduled) return t("ds.st_moved");
   if (b.status === "cancelled") return t(b.cancelled_by === "daai" ? "ds.st_cancel_you" : "ds.st_cancel_seeker");
   return t("ds.st_booked");
 }

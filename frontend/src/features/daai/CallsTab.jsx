@@ -56,7 +56,7 @@ function BookedSoon({ items, onStarted }) {
   );
 }
 
-function Queue({ me, onActive, onWaiting }) {
+function Queue({ me, onActive, onWaiting, onBookings }) {
   const { t, fmtNum, langName } = useI18n();
   const [booked, setBooked] = useState([]);
   const [waiting, setWaiting] = useState(null);   // null until the first answer
@@ -67,6 +67,7 @@ function Queue({ me, onActive, onWaiting }) {
       const data = await api.dGet("/api/daai/requests");
       setFailed(null);
       setBooked(data.booked || []);
+      onBookings?.(data.bookings_today || 0);
       if (data.active.length) onActive(data.active[0].id);
       else setWaiting(data.waiting);
     } catch (err) { setFailed(err); }
@@ -269,6 +270,39 @@ function Experiment({ me }) {
   );
 }
 
+/** On a booked call's screen: its time, whether the seeker has come, and "the seeker didn't come" after 10 minutes. */
+function BookedCallBar({ callId, initial, onNoShow }) {
+  const { t, fmtTime } = useI18n();
+  const [b, setB] = useState(initial);
+  const [now, setNow] = useState(Date.now());
+  const [busy, setBusy] = useState(false);
+  usePolling(async () => {
+    const call = await api.dGet(`/api/daai/calls/${callId}`);
+    if (call.booking) setB(call.booking);
+    setNow(Date.now());
+  }, 5000, [callId]);
+  const noShow = async () => {
+    setBusy(true);
+    try { await api.dPost(`/api/daai/bookings/${b.id}/no-show`, {}); toast(t("ds.no_show_done"), "success"); onNoShow(); } catch (err) { toast(errorText(err, t), "error"); }
+    setBusy(false);
+  };
+  const late = now >= new Date(b.no_show_from).getTime();
+  return (
+    <div className="notice notice-mint booked-bar">
+      <Icon name="calendar" size={20} />
+      <div className="row spread" style={{ flex: 1 }}>
+        <span>
+          <strong>{t("ds.booked_call", { from: fmtTime(b.starts_at), to: fmtTime(b.ends_at) })}</strong>
+          {" · "}{b.seeker_waiting ? t("ds.seeker_came") : t("ds.seeker_not_yet")}
+        </span>
+        {!b.seeker_waiting && late && (
+          <button type="button" className="btn btn-sm btn-danger-soft" disabled={busy} onClick={noShow}>{t("ds.no_show")}</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Notices a call the seeker ended even if the signalling socket missed it. */
 function EndWatcher({ id, onEnded }) {
   usePolling(async () => {
@@ -279,7 +313,7 @@ function EndWatcher({ id, onEnded }) {
 }
 
 /** onCall(id | null): the call in progress, so the console can ask before signing out. onWaiting(n): requests waiting. */
-export default function CallsTab({ me, onCall, onWaiting }) {
+export default function CallsTab({ me, onCall, onWaiting, onBookings }) {
   const { t } = useI18n();
   const [view, setView] = useState({ name: "queue" });
   const inCall = view.name === "call" ? view.call.id : null;
@@ -294,6 +328,7 @@ export default function CallsTab({ me, onCall, onWaiting }) {
     return (
       <div className="stack">
         <EndWatcher id={call.id} onEnded={() => setView({ name: "feedback", id: call.id, hadCard: Boolean(call.card) })} />
+        {call.booking && <BookedCallBar callId={call.id} initial={call.booking} onNoShow={() => setView({ name: "queue" })} />}
         <CardView call={call} />
         <CallPanel callId={call.id} role="daai" token={daaiAuth.token} title={t("dc.active")}
           onEnded={() => setView({ name: "feedback", id: call.id, hadCard: Boolean(call.card) })} />
@@ -305,7 +340,7 @@ export default function CallsTab({ me, onCall, onWaiting }) {
   }
   return (
     <div className="stack">
-      <Queue me={me} onActive={openCall} onWaiting={onWaiting} />
+      <Queue me={me} onActive={openCall} onWaiting={onWaiting} onBookings={onBookings} />
       <Experiment me={me} />
     </div>
   );

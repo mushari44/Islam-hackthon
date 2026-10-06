@@ -18,7 +18,7 @@ const remember = (id) => { try { id ? sessionStorage.setItem(ACTIVE, String(id))
 const recall = () => { try { return Number(sessionStorage.getItem(ACTIVE)) || null; } catch { return null; } };
 
 /** Optional: pick one da'i by name. Da'is this seeker talked to before come first, marked "talked before". */
-function DaaiPicker({ lang, gender, value, onChange }) {
+function DaaiPicker({ lang, gender, value, onChange, onBook }) {
   const { t, lang: uiLang } = useI18n();
   const [people, setPeople] = useState(null);   // null until the list for this language has loaded
   const [past, setPast] = useState([]);
@@ -48,20 +48,34 @@ function DaaiPicker({ lang, gender, value, onChange }) {
           </button>
         ))}
       </div>
-      {value && !shown.find((p) => p.id === value)?.online && <p className="small muted">{t("talk.offline_note")}</p>}
+      {value && !shown.find((p) => p.id === value)?.online && (
+        <div className="stack" style={{ gap: 6 }}>
+          <p className="small muted">{t("talk.offline_note")}</p>
+          {shown.find((p) => p.id === value)?.bookable && (
+            <div className="row"><button type="button" className="btn btn-sm" onClick={() => onBook(value, lang)}><Icon name="calendar" />{t("talk.book_instead")}</button></div>
+          )}
+        </div>
+      )}
     </>
   );
 }
 
 const MODES = [["now", "talk.mode_now", "talk"], ["book", "talk.mode_book", "calendar"], ["bookings", "talk.mode_mine", "clock"]];
 
-/** "Call now", "Book a time" or "My bookings", kept in the URL so a link or the account menu can open one. */
-function ModeTabs({ mode }) {
+/** "Call now", "Book a time" or "My bookings", kept in the URL so a link or the account menu can open one.
+ * A referral card or shared chat chosen on the way here (ref, card, chat) stays with whichever tab is picked. */
+function ModeTabs({ mode, query }) {
   const { t } = useI18n();
+  const go = (key) => {
+    const q = new URLSearchParams();
+    if (key !== "now") q.set("mode", key);
+    if (key !== "bookings") for (const k of ["ref", "card", "chat"]) if (query[k]) q.set(k, query[k]);
+    navigate(q.toString() ? `/talk?${q}` : "/talk");
+  };
   return (
     <div className="tabs talk-modes" role="tablist" aria-label={t("talk.modes")}>
       {MODES.map(([key, label, icon]) => (
-        <button key={key} type="button" role="tab" aria-selected={mode === key} onClick={() => navigate(key === "now" ? "/talk" : `/talk?mode=${key}`)}>
+        <button key={key} type="button" role="tab" aria-selected={mode === key} onClick={() => go(key)}>
           <Icon name={icon} />{t(label)}
         </button>
       ))}
@@ -69,7 +83,7 @@ function ModeTabs({ mode }) {
   );
 }
 
-function Choose({ query, initialDaai, initialLang, onRequested }) {
+function Choose({ query, initialDaai, initialLang, onRequested, onBook }) {
   const { t, lang: uiLang, fmtNum, langName } = useI18n();
   const [lang, setLang] = useState(initialLang || query.lang || uiLang);
   const [gender, setGender] = useState("");
@@ -111,7 +125,13 @@ function Choose({ query, initialDaai, initialLang, onRequested }) {
           <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} onClick={() => setGender(v)}>{t(k)}</button>
         ))}
       </div>
-      <DaaiPicker lang={lang} gender={gender} value={daai} onChange={setDaai} />
+      <DaaiPicker lang={lang} gender={gender} value={daai} onChange={setDaai} onBook={onBook} />
+      {!(availability[lang]?.total) && (
+        <Notice icon="calendar">
+          <div className="row spread"><span>{t("talk.none_book")}</span>
+            <button type="button" className="btn btn-sm" onClick={() => onBook(daai, lang)}><Icon name="calendar" />{t("talk.mode_book")}</button></div>
+        </Notice>
+      )}
       {query.card && <Notice kind="mint" icon="check">{t("talk.with_card")}</Notice>}
       {query.chat && <Notice kind="mint" icon="chat">{t("talk.with_chat")}</Notice>}
       <div className="row">
@@ -224,13 +244,16 @@ export default function TalkPage({ query }) {
   if (view.name === "choose") {
     let inner;
     if (mode === "book") {
-      inner = <BookFlow query={query} initialDaai={view.daai} initialLang={view.lang} key={`b${view.daai || "any"}`} onMine={() => navigate("/talk?mode=bookings")} />;
+      inner = <BookFlow query={query} initialDaai={view.daai} initialLang={view.lang} key={`b${view.daai || "any"}${query.reschedule || ""}`}
+        onMine={() => navigate("/talk?mode=bookings")} />;
     } else if (mode === "bookings") {
-      inner = <MyBookings onJoin={(id) => navigate(`/talk?booking=${id}`)} onBook={() => navigate("/talk?mode=book")} onBookAgain={bookAgain} />;
+      inner = <MyBookings onJoin={(id) => navigate(`/talk?booking=${id}`)} onBook={() => navigate("/talk?mode=book")} onBookAgain={bookAgain}
+        onReschedule={(id) => navigate(`/talk?mode=book&reschedule=${id}`)} />;
     } else {
-      inner = <Choose query={query} initialDaai={view.daai} initialLang={view.lang} key={view.daai || "any"} onRequested={(id) => setView({ name: "waiting", id })} />;
+      inner = <Choose query={query} initialDaai={view.daai} initialLang={view.lang} key={view.daai || "any"} onRequested={(id) => setView({ name: "waiting", id })}
+        onBook={bookAgain} />;
     }
-    body = <><ModeTabs mode={mode} />{inner}</>;
+    body = <><ModeTabs mode={mode} query={query} />{inner}</>;
   }
   if (view.name === "room") {
     body = (

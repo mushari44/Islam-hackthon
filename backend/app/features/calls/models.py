@@ -80,8 +80,9 @@ class DaaiSchedule(Base):
 class Booking(Base):
     """A call a signed-in seeker booked in one of a da'i's free slots (times in UTC).
 
-    status: booked -> done (the call ended) | cancelled (cancelled_by seeker|daai|system) | missed (missed_by
-    seeker|daai). The call itself is an ordinary CallRequest, created when the da'i presses Start."""
+    status: booked -> done (the call ended) | cancelled (cancelled_by seeker|daai|system; rescheduled_to when the
+    seeker moved it) | missed (missed_by seeker|daai|both). The call itself is an ordinary CallRequest, created
+    when the da'i presses Start."""
     __tablename__ = "booking"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     session_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -97,6 +98,7 @@ class Booking(Base):
     missed_by: Mapped[str] = mapped_column(String(8), default="")
     seeker_ready_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)   # pressed Join
     call_id: Mapped[int | None] = mapped_column(ForeignKey("call_request.id", ondelete="SET NULL"), nullable=True)
+    rescheduled_to: Mapped[int | None] = mapped_column(Integer, nullable=True)   # the seeker moved it to this booking
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

@@ -280,6 +280,11 @@ register({
     "ds.soon_title": "مكالمات محجوزة قريبًا",
     "ds.seeker_waiting": "السائل ينتظر", "ds.start": "ابدأ المكالمة", "ds.start_at": "يمكنك البدء الساعة {time}",
     "ds.quiet": "لن تصلك طلبات «اتصل الآن» الجديدة حتى تنتهي من موعدك المحجوز.",
+    "ds.st_missed_both": "لم يبدأ", "ds.st_moved": "نقله السائل إلى موعد آخر",
+    "ds.booked_call": "مكالمة محجوزة {from} – {to}", "ds.seeker_came": "السائل في المكالمة", "ds.seeker_not_yet": "ننتظر انضمام السائل…",
+    "ds.no_show": "السائل لم يحضر", "ds.no_show_done": "سُجّل أن السائل لم يحضر.",
+    "ds.today_n": "{n} موعد خلال 24 ساعة", "ds.today_n.one": "موعد واحد خلال 24 ساعة", "ds.today_n.two": "موعدان خلال 24 ساعة",
+    "ds.today_n.few": "{n} مواعيد خلال 24 ساعة", "ds.today_n.many": "{n} موعدًا خلال 24 ساعة",
   },
   en: {
     "ds.tab": "My schedule",
@@ -310,5 +315,9 @@ register({
     "ds.soon_title": "Booked calls coming up",
     "ds.seeker_waiting": "Seeker is waiting", "ds.start": "Start call", "ds.start_at": "You can start at {time}",
     "ds.quiet": "New \"call now\" requests are held back until your booked call is done.",
+    "ds.st_missed_both": "Didn't take place", "ds.st_moved": "Seeker moved it to another time",
+    "ds.booked_call": "Booked call {from} – {to}", "ds.seeker_came": "The seeker is here", "ds.seeker_not_yet": "Waiting for the seeker to join…",
+    "ds.no_show": "Seeker didn't come", "ds.no_show_done": "Marked as a no-show.",
+    "ds.today_n": "{n} bookings in the next 24 hours", "ds.today_n.one": "1 booking in the next 24 hours",
   },
 });

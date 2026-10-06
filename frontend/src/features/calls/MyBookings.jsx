@@ -27,12 +27,13 @@ export function CalendarButtons({ booking }) {
 
 function statusText(b, t) {
   if (b.status === "done") return t("book.st_done");
-  if (b.status === "missed") return t(b.missed_by === "daai" ? "book.st_missed_daai" : "book.st_missed_you");
+  if (b.status === "missed") return t(b.missed_by === "daai" ? "book.st_missed_daai" : b.missed_by === "both" ? "book.st_missed_both" : "book.st_missed_you");
+  if (b.status === "cancelled" && b.rescheduled_to) return t("book.st_moved");
   if (b.status === "cancelled") return t(b.cancelled_by === "seeker" ? "book.st_cancel_you" : b.cancelled_by === "daai" ? "book.st_cancel_daai" : "book.st_cancel_system");
   return t("book.st_booked");
 }
 
-function BookingItem({ b, onJoin, onChanged, onBookAgain }) {
+function BookingItem({ b, onJoin, onChanged, onBookAgain, onReschedule }) {
   const { t, lang, fmtDate, fmtTime, fmtNum } = useI18n();
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -43,7 +44,7 @@ function BookingItem({ b, onJoin, onChanged, onBookAgain }) {
     setAsking(false);
   };
   const live = b.status === "booked";
-  const bad = b.status === "cancelled" || b.status === "missed";
+  const bad = (b.status === "cancelled" && !b.rescheduled_to) || b.status === "missed";
   return (
     <article className={`booking-item${live ? " is-live" : ""}`}>
       <div className="booking-date" aria-hidden="true">
@@ -72,7 +73,10 @@ function BookingItem({ b, onJoin, onChanged, onBookAgain }) {
                 <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={cancel}>{t("book.cancel_yes")}</button>
                 <button type="button" className="btn btn-sm btn-ghost" autoFocus disabled={busy} onClick={() => setAsking(false)}>{t("book.keep")}</button>
               </span>
-            ) : <button type="button" className="btn btn-sm btn-danger-soft" onClick={() => setAsking(true)}>{t("book.cancel")}</button>)}
+            ) : <>
+              <button type="button" className="btn btn-sm" onClick={() => onReschedule(b.id)}><Icon name="edit" />{t("book.reschedule")}</button>
+              <button type="button" className="btn btn-sm btn-danger-soft" onClick={() => setAsking(true)}>{t("book.cancel")}</button>
+            </>)}
           </div>
         )}
         {live && !b.can_join && <CalendarButtons booking={b} />}
@@ -82,7 +86,7 @@ function BookingItem({ b, onJoin, onChanged, onBookAgain }) {
   );
 }
 
-export default function MyBookings({ onJoin, onBook, onBookAgain }) {
+export default function MyBookings({ onJoin, onBook, onBookAgain, onReschedule }) {
   const { t, fmtNum, lang } = useI18n();
   const { account, loaded } = useAccount();
   const [data, setData] = useState(null);
@@ -111,7 +115,7 @@ export default function MyBookings({ onJoin, onBook, onBookAgain }) {
         </div>
         {data.upcoming.length === 0 ? (
           <div className="empty"><Icon name="calendar" /><p>{t("book.empty")}</p></div>
-        ) : data.upcoming.map((b) => <BookingItem key={b.id} b={b} onJoin={onJoin} onChanged={load} onBookAgain={onBookAgain} />)}
+        ) : data.upcoming.map((b) => <BookingItem key={b.id} b={b} onJoin={onJoin} onChanged={load} onBookAgain={onBookAgain} onReschedule={onReschedule} />)}
         {data.upcoming.length >= data.max_upcoming && <p className="small muted">{t("book.max", { n: fmtNum(data.max_upcoming) })}</p>}
         <p className="small faint"><Icon name="globe" size={14} /> {t("book.zone_note", { zone: zoneName(lang) })}</p>
       </section>
@@ -120,7 +124,7 @@ export default function MyBookings({ onJoin, onBook, onBookAgain }) {
           <button type="button" className="btn btn-ghost btn-sm past-toggle" aria-expanded={showPast} onClick={() => setShowPast(!showPast)}>
             {t("book.past")} ({fmtNum(data.past.length)})
           </button>
-          {showPast && data.past.map((b) => <BookingItem key={b.id} b={b} onJoin={onJoin} onChanged={load} onBookAgain={onBookAgain} />)}
+          {showPast && data.past.map((b) => <BookingItem key={b.id} b={b} onJoin={onJoin} onChanged={load} onBookAgain={onBookAgain} onReschedule={onReschedule} />)}
         </section>
       )}
     </div>

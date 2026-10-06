@@ -27,6 +27,7 @@ export default function DaaiConsole({ query }) {
   const [check, setCheck] = useState(daaiAuth.token ? { state: "checking" } : { state: "done" });
   const [callId, setCallId] = useState(null);      // the call in progress, if any (reported by the calls tab)
   const [waiting, setWaiting] = useState(0);        // requests waiting, for the badge on the calls tab
+  const [booked, setBooked] = useState(0);          // booked calls in the next 24 hours, for the badge on "My schedule"
   const [switching, setSwitching] = useState(false);
   const tabsRef = useRef(null);
 
@@ -95,13 +96,17 @@ export default function DaaiConsole({ query }) {
               <span className="daai-tab-count" aria-hidden="true">{fmtNum(waiting)}</span>
               <span className="sr-only">{tn("dc.waiting_n", waiting)}</span>
             </>}
+            {x === scheduleTab && booked > 0 && <>
+              <span className="daai-tab-count" aria-hidden="true">{fmtNum(booked)}</span>
+              <span className="sr-only">{tn("ds.today_n", booked)}</span>
+            </>}
           </button>
         ))}
       </div>
       {/* The calls tab stays mounted while another tab is shown, so a call, its after-call form and the
           waiting-request count survive a look at the call log or the groups. */}
       <div className="section daai-panel" id="daai-panel-calls" role="tabpanel" aria-labelledby="daai-tab-calls" hidden={shown !== callsTab}>
-        <CallsTab me={me} onCall={setCallId} onWaiting={setWaiting} />
+        <CallsTab me={me} onCall={setCallId} onWaiting={setWaiting} onBookings={setBooked} />
       </div>
       {shown !== callsTab && (
         <div className="section daai-panel" id={`daai-panel-${shown.key}`} role="tabpanel" aria-labelledby={`daai-tab-${shown.key}`}>

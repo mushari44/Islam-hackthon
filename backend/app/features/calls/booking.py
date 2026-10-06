@@ -25,7 +25,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ...core.db import get_db, iso, utcnow
-from ..auth.public import Daai, SeekerSession, daai, is_account, seeker
+from ..auth.public import Daai, SeekerSession, daai, is_account, optional_seeker, seeker
 from .models import Booking, BookingBlock, CallRequest, DaaiSchedule, Referral
 
 router = APIRouter()   # mounted under /api by routes.py
@@ -85,15 +85,19 @@ def bookable(db: Session, d: Daai) -> bool:
     return bool(_callable(d) and row and not row.paused and any(row.weekly.get(k) for k in DAYS))
 
 
-def free_slots(db: Session, d: Daai, minutes: int = UNIT, now: datetime | None = None) -> list[datetime]:
-    """Start times (UTC, naive) this da'i can still be booked at for `minutes`, soonest first."""
+def free_slots(db: Session, d: Daai, minutes: int = UNIT, now: datetime | None = None,
+               ignore: int | None = None) -> list[datetime]:
+    """Start times (UTC, naive) this da'i can still be booked at for `minutes`, soonest first. `ignore` is a
+    booking being moved: its own time counts as free (so a seeker can extend 30 minutes to 60 in place)."""
     row = get_schedule(db, d)
     if not row or row.paused or not _callable(d):
         return []
     now = now or utcnow()
     earliest, latest = now + MIN_NOTICE, now + timedelta(days=DAYS_AHEAD)
-    taken = set(db.scalars(select(BookingBlock.starts_at).where(
-        BookingBlock.daai_id == d.id, BookingBlock.starts_at >= now - timedelta(hours=1))).all())
+    q = select(BookingBlock.starts_at).where(BookingBlock.daai_id == d.id, BookingBlock.starts_at >= now - timedelta(hours=1))
+    if ignore is not None:
+        q = q.where(BookingBlock.booking_id != ignore)
+    taken = set(db.scalars(q).all())
     tz = _zone(row.tz)
     today = now.replace(tzinfo=timezone.utc).astimezone(tz).date()
     off = set(row.days_off or [])
@@ -143,7 +147,8 @@ def _refresh(db: Session, b: Booking, now: datetime | None = None) -> Booking:
         b.status, b.missed_by = ("done", "") if b.seeker_ready_at else ("missed", "seeker")
     elif now > b.starts_at + GRACE:
         if not call:
-            b.status, b.missed_by = "missed", ("daai" if b.seeker_ready_at else "seeker")
+            # Nobody started it: the da'i missed it (the seeker was waiting), or neither side came.
+            b.status, b.missed_by = "missed", ("daai" if b.seeker_ready_at else "both")
         elif call.status == "accepted" and not b.seeker_ready_at:
             # The da'i started and waited; the seeker never came. Close the empty room.
             b.status, b.missed_by = "missed", "seeker"
@@ -171,6 +176,7 @@ def seeker_view(db: Session, b: Booking, now: datetime | None = None) -> dict:
     return {"id": b.id, "status": b.status, "lang": b.lang, "note": b.note, "daai": _daai_brief(db.get(Daai, b.daai_id)),
             "cancelled_by": b.cancelled_by, "cancel_note": b.cancel_note, "missed_by": b.missed_by,
             "ready": bool(b.seeker_ready_at), "call_id": b.call_id if call and call.status == "accepted" else None,
+            "rescheduled_to": b.rescheduled_to,
             "has_card": bool(b.referral_id), "created_at": iso(b.created_at), **_times(b, now)}
 
 
@@ -181,7 +187,7 @@ def daai_view(db: Session, b: Booking, now: datetime | None = None) -> dict:
     t = _times(b, now)
     end = b.starts_at + timedelta(minutes=b.minutes)
     return {"id": b.id, "status": b.status, "lang": b.lang, "note": b.note, "missed_by": b.missed_by,
-            "cancelled_by": b.cancelled_by, "seeker_waiting": bool(b.seeker_ready_at) and b.status == "booked",
+            "cancelled_by": b.cancelled_by, "rescheduled": bool(b.rescheduled_to), "seeker_waiting": bool(b.seeker_ready_at) and b.status == "booked",
             "has_card": bool(ref and ref.consented and ref.final), "has_chat": bool(ref and ref.share_chat),
             "call_id": b.call_id, "can_start": b.status == "booked" and b.starts_at - JOIN_EARLY <= now <= max(end, b.starts_at + GRACE),
             **{k: t[k] for k in ("starts_at", "ends_at", "minutes", "can_cancel")}}
@@ -267,6 +273,23 @@ def booked_soon(db: Session, d: Daai) -> list[dict]:
                                             Booking.starts_at <= now + QUIET_BEFORE,
                                             Booking.starts_at >= now - timedelta(hours=1))).all()
     return [daai_view(db, b, now) for b in rows if _refresh(db, b, now).status == "booked"]
+
+
+def bookings_today(db: Session, d: Daai) -> int:
+    """How many booked calls this da'i has in the next 24 hours (the badge on the console's schedule tab)."""
+    now = utcnow()
+    return db.scalar(select(func.count()).select_from(Booking).where(
+        Booking.daai_id == d.id, Booking.status == "booked", Booking.starts_at >= now - GRACE,
+        Booking.starts_at < now + timedelta(hours=24))) or 0
+
+
+def booking_for_call(db: Session, call_id: int) -> dict | None:
+    """The booking a call was started from, for the da'i's call screen (end time, whether the seeker came)."""
+    b = db.scalar(select(Booking).where(Booking.call_id == call_id))
+    if not b:
+        return None
+    now = utcnow()
+    return {**daai_view(db, b, now), "no_show_from": iso(b.starts_at + GRACE)}
 
 
 def _own_booking(db: Session, bid: int, me: Daai) -> Booking:
@@ -355,16 +378,20 @@ def bookable_daais(lang: str = "", ui: str = "ar", db: Session = Depends(get_db)
 
 @router.get("/booking/slots")
 def booking_slots(lang: str, gender: str = "", daai_id: int | None = None, minutes: int = UNIT,
+                  replaces: int | None = None, me: SeekerSession | None = Depends(optional_seeker),
                   db: Session = Depends(get_db)):
     """Free start times for one da'i, or (no daai_id) for anyone who matches: [{starts_at, daais}] with the count
-    of da'is free then. Times are UTC; the page shows them in the viewer's zone."""
+    of da'is free then. Times are UTC; the page shows them in the viewer's zone. `replaces`: one of my bookings
+    I'm moving, whose own time then counts as free."""
     if minutes not in LENGTHS:
         raise HTTPException(400, "bad length")
     if gender not in ("", "m", "f"):
         raise HTTPException(400, "bad gender preference")
+    moving = db.get(Booking, replaces) if replaces is not None else None
+    ignore = moving.id if moving and me and moving.session_id == me.id else None
     merged: dict[datetime, int] = {}
     for d in _candidates(db, lang, gender, daai_id):
-        for at in free_slots(db, d, minutes):
+        for at in free_slots(db, d, minutes, ignore=ignore):
             merged[at] = merged.get(at, 0) + 1
     return {"minutes": minutes, "days_ahead": DAYS_AHEAD, "min_notice_hours": int(MIN_NOTICE.total_seconds() // 3600),
             "slots": [{"starts_at": iso(at), "daais": n} for at, n in sorted(merged.items())]}
@@ -378,6 +405,7 @@ class BookIn(BaseModel):
     daai_id: int | None = None          # None: whoever matches and is free then
     referral_id: int | None = None
     note: str = Field(default="", max_length=300)
+    replaces: int | None = None         # reschedule: this booking of mine is cancelled once the new one is made
 
 
 def _upcoming(db: Session, sid: str) -> list[Booking]:
@@ -398,7 +426,18 @@ def book(body: BookIn, me: SeekerSession = Depends(seeker), db: Session = Depend
         ref = db.get(Referral, body.referral_id)
         if not ref or ref.session_id != me.id:
             raise HTTPException(404, "referral not found")
-    mine = _upcoming(db, me.id)
+    old = None
+    if body.replaces is not None:
+        old = db.get(Booking, body.replaces)
+        if not old or old.session_id != me.id:
+            raise HTTPException(404, "not found")
+        if not seeker_view(db, _refresh(db, old))["can_cancel"]:
+            raise HTTPException(409, "can't cancel now")
+        if body.referral_id is None:
+            body.referral_id = old.referral_id   # a card shared for the old time stays with the new one
+        if not body.note:
+            body.note = old.note
+    mine = [b for b in _upcoming(db, me.id) if not old or b.id != old.id]
     if len(mine) >= MAX_UPCOMING:
         raise HTTPException(409, "too many bookings")
     end = at + timedelta(minutes=body.minutes)
@@ -411,7 +450,11 @@ def book(body: BookIn, me: SeekerSession = Depends(seeker), db: Session = Depend
     load = dict(db.execute(select(Booking.daai_id, func.count()).where(Booking.status == "booked", Booking.starts_at >= utcnow())
                            .group_by(Booking.daai_id)).all())
     for d in sorted(people, key=lambda p: load.get(p.id, 0)):
+        if old:
+            _free(db, old)   # the old time counts as free (e.g. extending 30 to 60 minutes); a rollback restores it
+            db.flush()
         if at not in free_slots(db, d, body.minutes):
+            db.rollback()
             continue
         b = Booking(session_id=me.id, daai_id=d.id, starts_at=at, minutes=body.minutes, lang=body.lang,
                     note=body.note.strip(), referral_id=body.referral_id)
@@ -420,6 +463,8 @@ def book(body: BookIn, me: SeekerSession = Depends(seeker), db: Session = Depend
             db.flush()
             for k in range(body.minutes // UNIT):
                 db.add(BookingBlock(daai_id=d.id, starts_at=at + timedelta(minutes=UNIT * k), booking_id=b.id))
+            if old:
+                old.status, old.cancelled_by, old.rescheduled_to = "cancelled", "seeker", b.id
             db.commit()
         except IntegrityError:
             db.rollback()   # someone took this time a moment ago; try the next da'i

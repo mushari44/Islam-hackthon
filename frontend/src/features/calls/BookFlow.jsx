@@ -45,11 +45,11 @@ function DaaiChoice({ lang, gender, value, onChange }) {
   );
 }
 
-function Booked({ booking, onMine, onAgain }) {
+function Booked({ booking, moved, onMine, onAgain }) {
   const { t, lang, fmtDate, fmtTime, fmtNum } = useI18n();
   return (
     <div className="card stack book-done">
-      <div className="book-done-head"><span className="book-done-icon"><Icon name="check" size={26} /></span><h3>{t("book.done_title")}</h3></div>
+      <div className="book-done-head"><span className="book-done-icon"><Icon name="check" size={26} /></span><h3>{t(moved ? "book.moved_title" : "book.done_title")}</h3></div>
       <dl className="book-summary">
         <dt>{t("book.with")}</dt><dd>{daaiName(booking.daai, lang)}</dd>
         <dt>{t("book.when")}</dt><dd>{fmtDate(booking.starts_at)} · {fmtTime(booking.starts_at)} – {fmtTime(booking.ends_at)}</dd>
@@ -80,14 +80,36 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
   const [step, setStep] = useState("pick");     // pick | review
   const [busy, setBusy] = useState(false);
   const [booked, setBooked] = useState(null);
+  const [mine, setMine] = useState(null);       // my bookings, to say up front when the limit is reached
+  // Rescheduling (?reschedule=<id>): start from that booking's choices; it is replaced only once the new time is booked.
+  const [moving, setMoving] = useState(null);
+  const rescheduleId = query.reschedule ? Number(query.reschedule) : null;
+  useEffect(() => {
+    if (!rescheduleId) return;
+    api.get(`/api/bookings/${rescheduleId}`).then((b) => {
+      if (!b.can_cancel) { toast(t("err.can't cancel now"), "error"); return; }
+      setMoving(b);
+      setLang(b.lang);
+      setDaai(b.daai?.id || null);
+      setMinutes(b.minutes);
+      setNote(b.note || "");
+    }).catch((err) => toast(errorText(err, t), "error"));
+  }, [rescheduleId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (account) api.get("/api/bookings").then(setMine).catch(() => {}); }, [account?.username]);
+  const full = !moving && mine && mine.upcoming.length >= mine.max_upcoming;
 
   const load = async () => {
     const q = new URLSearchParams({ lang, minutes: String(minutes), gender });
     if (daai) q.set("daai_id", String(daai));
-    try { setSlots((await api.pGet(`/api/booking/slots?${q}`)).slots); setFailed(null); } catch (err) { setFailed(err); }
+    if (moving) q.set("replaces", String(moving.id));
+    try {
+      const res = moving ? await api.get(`/api/booking/slots?${q}`) : await api.pGet(`/api/booking/slots?${q}`);
+      setSlots(res.slots);
+      setFailed(null);
+    } catch (err) { setFailed(err); }
   };
-  useEffect(() => { setSlots(null); setSlot(null); }, [lang, gender, daai, minutes]);
-  usePolling(load, 60000, [lang, gender, daai, minutes], step === "pick" && !booked);
+  useEffect(() => { setSlots(null); setSlot(null); }, [lang, gender, daai, minutes, moving]);
+  usePolling(load, 60000, [lang, gender, daai, minutes, moving], step === "pick" && !booked && (!rescheduleId || Boolean(moving)));
 
   const byDay = useMemo(() => {
     const out = {};
@@ -107,10 +129,10 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
     try {
       const res = await api.post("/api/bookings", {
         starts_at: slot, minutes, lang, gender_pref: gender, daai_id: daai, note: note.trim(),
-        referral_id: query.ref ? Number(query.ref) : null,
+        referral_id: query.ref ? Number(query.ref) : null, replaces: moving ? moving.id : null,
       });
       setBooked(res);
-      toast(t("book.done_toast"), "success");
+      toast(t(moving ? "book.moved_toast" : "book.done_toast"), "success");
     } catch (err) {
       if (err.status === 409 && err.detail === "slot taken") {
         toast(t("book.taken"), "error");
@@ -122,7 +144,7 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
   };
 
   if (booked) {
-    return <Booked booking={booked} onMine={onMine} onAgain={() => { setBooked(null); setStep("pick"); setSlot(null); setNote(""); load(); }} />;
+    return <Booked booking={booked} moved={Boolean(moving)} onMine={onMine} onAgain={() => { setBooked(null); setMoving(null); setStep("pick"); setSlot(null); setNote(""); }} />;
   }
 
   const signedOut = loaded && !account;
@@ -133,6 +155,7 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
     return (
       <div className="card stack talk-card">
         <h3>{t("book.review")}</h3>
+        {moving && <Notice kind="mint" icon="clock">{t("book.moving_from", { when: `${fmtDate(moving.starts_at)} · ${fmtTime(moving.starts_at)}` })}</Notice>}
         <dl className="book-summary">
           <dt>{t("book.with")}</dt><dd>{daai ? null : t("book.anyone")}<DaaiLabel id={daai} lang={lang} /></dd>
           <dt>{t("book.when")}</dt><dd>{fmtDate(slot)} · {fmtTime(slot)} – {fmtTime(end)}</dd>
@@ -148,7 +171,7 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
         {query.card && <Notice kind="mint" icon="check">{t("talk.with_card")}</Notice>}
         <p className="small muted"><Icon name="shield" size={16} /> {t("book.rules")}</p>
         <div className="row">
-          <button type="button" className="btn btn-primary btn-lg" disabled={busy} onClick={confirm}><Icon name="check" />{t(busy ? "book.booking" : "book.confirm")}</button>
+          <button type="button" className="btn btn-primary btn-lg" disabled={busy} onClick={confirm}><Icon name="check" />{t(busy ? "book.booking" : moving ? "book.confirm_move" : "book.confirm")}</button>
           <button type="button" className="btn" disabled={busy} onClick={() => setStep("pick")}>{t("common.back")}</button>
         </div>
       </div>
@@ -156,9 +179,27 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
   }
 
   const daySlots = (day && byDay[day]) || [];
+  // Moving to the very same time, length and da'i would change nothing.
+  const sameAsNow = moving && slot === moving.starts_at && minutes === moving.minutes && (!daai || daai === moving.daai?.id);
   const groups = ["morning", "afternoon", "evening"].map((p) => [p, daySlots.filter((s) => period(s.starts_at) === p)]).filter(([, l]) => l.length);
   return (
     <div className="card stack talk-card">
+      {moving && (
+        <Notice kind="mint" icon="clock">
+          <div className="stack">
+            <span>{t("book.moving", { when: `${fmtDate(moving.starts_at)} · ${fmtTime(moving.starts_at)}` })}</span>
+            <div className="row"><button type="button" className="btn btn-sm" onClick={onMine}>{t("book.keep_time")}</button></div>
+          </div>
+        </Notice>
+      )}
+      {full && (
+        <Notice kind="warn" icon="alert">
+          <div className="stack">
+            <span>{t("book.max", { n: fmtNum(mine.max_upcoming) })}</span>
+            <div className="row"><button type="button" className="btn btn-sm" onClick={onMine}>{t("book.my")}</button></div>
+          </div>
+        </Notice>
+      )}
       {signedOut && (
         <Notice kind="warn" icon="lock">
           <div className="stack">
@@ -196,11 +237,11 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
       ) : (
         <>
           <div className="day-strip" role="radiogroup" aria-label={t("book.pick_day")}>
-            {days.map((d) => {
+            {days.map((d, i) => {
               const n = (byDay[d] || []).length;
               return (
                 <button key={d} type="button" role="radio" className="day-chip" aria-checked={day === d} disabled={!n} onClick={() => { setDay(d); setSlot(null); }}>
-                  <span className="day-chip-wd">{fmtDate(dayIso(d), { weekday: "short" })}</span>
+                  <span className="day-chip-wd">{i === 0 ? t("book.today") : i === 1 ? t("book.tomorrow") : fmtDate(dayIso(d), { weekday: "short" })}</span>
                   <strong>{fmtDate(dayIso(d), { day: "numeric" })}</strong>
                   <span className="day-chip-mo">{fmtDate(dayIso(d), { month: "short" })}</span>
                 </button>
@@ -215,6 +256,7 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
                 {list.map((s) => (
                   <button key={s.starts_at} type="button" role="radio" className="slot-chip" aria-checked={slot === s.starts_at} onClick={() => setSlot(s.starts_at)}>
                     {fmtTime(s.starts_at)}
+                    {moving && moving.starts_at === s.starts_at && <span className="slot-now">{t("book.current")}</span>}
                   </button>
                 ))}
               </div>
@@ -223,7 +265,7 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
         </>
       )}
       <div className="row">
-        <button type="button" className="btn btn-primary btn-lg" disabled={!slot || signedOut} onClick={() => setStep("review")}>
+        <button type="button" className="btn btn-primary btn-lg" disabled={!slot || signedOut || full || sameAsNow} onClick={() => setStep("review")}>
           <Icon name="calendar" />{t("common.continue")}
         </button>
         {slot && <span className="small muted">{fmtDate(slot, { weekday: "long", day: "numeric", month: "long" })} · {fmtTime(slot)}</span>}

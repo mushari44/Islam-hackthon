@@ -77,6 +77,13 @@ register({
 // Booked calls (Talk page "Book a time" and "My bookings", the reminder banner).
 register({
   ar: {
+    "book.reschedule": "تغيير الموعد", "book.moving": "تغيّر موعدك الحالي ({when}). اختر وقتًا جديدًا، ويبقى موعدك الحالي كما هو حتى تؤكد الجديد.",
+    "book.moving_from": "سيحلّ هذا محل موعدك الحالي: {when}", "book.keep_time": "إبقاء الموعد الحالي",
+    "book.confirm_move": "تأكيد الموعد الجديد", "book.moved_title": "تم تغيير موعدك", "book.moved_toast": "نُقل موعدك إلى الوقت الجديد.",
+    "book.current": "موعدك الحالي", "book.today": "اليوم", "book.tomorrow": "غدًا",
+    "book.st_moved": "نُقل إلى موعد جديد", "book.st_missed_both": "لم يبدأ الموعد",
+    "book.banner_cancelled": "ألغى {name} موعدك يوم {when}.", "book.banner_cancelled_system": "أُلغي موعدك يوم {when} لأن الداعية لم يعد متاحًا.",
+    "talk.book_instead": "احجز موعدًا بدلاً من ذلك", "talk.none_book": "لا يوجد داعية متاح الآن بهذه اللغة. يمكنك حجز موعد يناسبك.",
     "talk.modes": "طريقة التواصل", "talk.mode_now": "اتصل الآن", "talk.mode_book": "احجز موعدًا", "talk.mode_mine": "مواعيدي",
     "book.lead": "اختر وقتًا يناسبك من مواعيد الدعاة. يُؤكَّد الحجز فورًا، ويمكنك إلغاؤه قبل موعده.",
     "book.who": "مع من تريد أن تتحدث؟", "book.anyone": "أي داعية متاح", "book.anyone_hint": "نعرض كل الأوقات المتاحة ونختار لك داعية متفرغًا فيها.",
@@ -117,6 +124,13 @@ register({
     "err.finish your current call first": "أنهِ مكالمتك الحالية أولاً.",
   },
   en: {
+    "book.reschedule": "Change time", "book.moving": "You're changing your booking ({when}). Pick a new time; your current booking stays until you confirm the new one.",
+    "book.moving_from": "This replaces your current booking: {when}", "book.keep_time": "Keep current booking",
+    "book.confirm_move": "Confirm new time", "book.moved_title": "Your booking was moved", "book.moved_toast": "Your booking moved to the new time.",
+    "book.current": "Current", "book.today": "Today", "book.tomorrow": "Tomorrow",
+    "book.st_moved": "Moved to a new time", "book.st_missed_both": "Didn't take place",
+    "book.banner_cancelled": "{name} cancelled your booking on {when}.", "book.banner_cancelled_system": "Your booking on {when} was cancelled because the da'i is no longer available.",
+    "talk.book_instead": "Book a time instead", "talk.none_book": "No da'i is available in this language right now. You can book a time that suits you.",
     "talk.modes": "How to connect", "talk.mode_now": "Call now", "talk.mode_book": "Book a time", "talk.mode_mine": "My bookings",
     "book.lead": "Pick a time that suits you from the da'is' schedules. Bookings are confirmed straight away, and you can cancel before the start.",
     "book.who": "Who would you like to talk to?", "book.anyone": "Any available da'i", "book.anyone_hint": "See every free time; we'll pick a da'i who is free then.",

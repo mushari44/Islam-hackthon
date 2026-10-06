@@ -244,7 +244,8 @@ def daai_requests(me: Daai = Depends(daai), db: Session = Depends(get_db)):
         # A booked call starts soon: keep the time free by holding back new requests from the general queue.
         out = [r for r in out if r["for_you"]]
     mine = db.scalars(select(CallRequest).where(CallRequest.daai_id == me.id, CallRequest.status == "accepted")).all()
-    return {"waiting": out, "active": [{"id": c.id, "lang": c.lang} for c in mine], "booked": booked}
+    return {"waiting": out, "active": [{"id": c.id, "lang": c.lang} for c in mine], "booked": booked,
+            "bookings_today": booking.bookings_today(db, me)}
 
 
 @router.post("/daai/requests/{cid}/accept")
@@ -285,7 +286,8 @@ def daai_call(cid: int, me: Daai = Depends(daai), db: Session = Depends(get_db))
             "chat": chat or None, "referral_mode": ref.mode if ref else "direct",
             "accepted_at": iso(call.accepted_at),
             "understood": bool(call.understood_at),
-            "new_muslim": new_muslim_calls(db, [call.id]).get(call.id)}
+            "new_muslim": new_muslim_calls(db, [call.id]).get(call.id),
+            "booking": booking.booking_for_call(db, call.id)}
 
 
 def _own_answered_call(db: Session, cid: int, me: Daai) -> CallRequest:
