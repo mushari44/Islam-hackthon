@@ -1,10 +1,26 @@
 # One command to run Sabeeli locally:  docker compose up --build   then open http://localhost:8000
 # Works with no .env (sources-only answers, BM25 search, demo password sabeeli-demo).
 # For AI answers: cp .env.example .env and set OPENROUTER_API_KEY, then run the same command again.
+# Full mode, like the team's own copy (adds «بينات» and E5 semantic search; long first build, about 3 GB):
+#   docker compose --profile full up --build sabeeli-full
 services:
   sabeeli:
     build: .
     image: sabeeli
+    ports:
+      - "${SABEELI_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
+    restart: unless-stopped
+
+  sabeeli-full:
+    profiles: [full]
+    build:
+      context: .
+      args:
+        FULL: "1"
+    image: sabeeli-full
     ports:
       - "${SABEELI_PORT:-8000}:8000"
     env_file:
