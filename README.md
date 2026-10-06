@@ -30,7 +30,9 @@ cd Islam-hackthon
 docker compose up --build
 ```
 
-Open http://localhost:8000. The first build takes a few minutes; later starts take seconds. Port 8000 busy? Run `SABEELI_PORT=8080 docker compose up` and open port 8080. Stop with Ctrl+C, or `docker compose down`.
+Open http://localhost:8000. The first build takes a few minutes; later starts take seconds. Port 8000 busy? Run `SABEELI_PORT=8080 docker compose up` (PowerShell: `$env:SABEELI_PORT=8080; docker compose up`) and open port 8080. Stop with Ctrl+C, or `docker compose down`.
+
+**Full mode, exactly like the team's copy:** `docker compose --profile full up --build sabeeli-full`. It also builds «بينات» from the scholarly package's own link and the E5 semantic-search index on your machine. The first build downloads about 3 GB and embeds the corpus on the CPU, so it takes much longer; later starts take seconds. Add an OpenRouter key (below) for AI answers, which is the one thing the repo can't ship.
 
 **Option 2: Python and Node.** Needs Python 3.11 or newer and Node 18 or newer.
 
@@ -48,7 +50,7 @@ Open http://localhost:8000. For frontend development, run `npm run dev` in `fron
 
 **AI answers and photo reading** need a model key: `cp .env.example .env`, put an OpenRouter key in `OPENROUTER_API_KEY` (the app uses Gemma 4 31B), and start again with the same command. `/api/health` shows `"ai": true` when the model is on.
 
-**Not in a fresh copy:** «بينات» (its publisher reserves the rights; build it yourself, see below), semantic search with E5 (optional, below), and password-reset emails (seekers use their recovery code instead).
+**Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search; full mode adds both. Password-reset emails need an SMTP server; without one, seekers use their recovery code.
 
 **Semantic search (optional):** `pip install -r requirements-embeddings.txt`, then `python scripts/build_embeddings.py` (downloads multilingual E5-large, about 2.2 GB; a few minutes on a GPU). The app picks the index up on its next start and fuses it with BM25; without it, search is BM25 alone.
 
