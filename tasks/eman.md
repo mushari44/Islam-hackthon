@@ -109,6 +109,7 @@ For your information; nothing here needs action unless you disagree.
   - Form limits match the API. The reviewer can still change their own password, and is then signed out.
 - Calls: chat text is kept if the socket isn't open, cancelling a request shows its error instead of leaving silently, and the end-screen buttons wrap on phones.
 - Wording: «تسجيل الخروج» everywhere, and «فعالية» / "event" and «حجز» / "booking" across the community and da'i screens.
+- 6 October (Mushari's request): the da'i console tab «ملفي» is now «ملفي الشخصي» (`dp.tab`; English stays "My profile").
 
 ## Day 3: 6 October (polish and publish)
 
