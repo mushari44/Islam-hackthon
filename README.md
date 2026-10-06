@@ -61,10 +61,10 @@ docker compose up --build
 > **Read this first**
 > - **You need:** an NVIDIA GPU with **8 GB of VRAM or more**, and Docker able to use it. Windows: Docker Desktop with WSL2 and a recent NVIDIA driver. Linux: the NVIDIA Container Toolkit. It does **not** work on a Mac.
 > - **Downloads:** PyTorch for CUDA 12.8 (about 2.5 GB, while building) and the E5 model (about 2.2 GB, on the first start). The first start then builds the search index in a few minutes before the site opens. Later starts reuse both.
-> - **Status:** experimental. It is being tested on one machine (NVIDIA RTX 5070, 12 GB, Windows with Docker Desktop) and is not confirmed on other GPUs, drivers or systems.
+> - **Status:** experimental. Tested and working on one machine: NVIDIA RTX 5070 (12 GB), Windows with Docker Desktop. There the first start took about **4 minutes** (model download and index build) and the log showed `semantic search on (intfloat/multilingual-e5-large, cuda, ...)`. Not yet confirmed on other GPUs, drivers or systems.
 > - **If it can't use your GPU,** the log says why and the site **still runs, with BM25 search**. Nothing breaks.
 > - **On a CPU it is very slow.** To build the index without a GPU anyway, set `SABEELI_INDEX_ON_CPU=1` in `.env`: the first start then takes **about 3 hours**. Not recommended for judging.
-> - **To check it:** `docker compose --profile gpu logs -f sabeeli-gpu`. The line `semantic search on (intfloat/multilingual-e5-large, cuda, ...)` means the hybrid search runs on the GPU.
+> - **To check it:** `docker compose --profile gpu logs -f sabeeli-gpu`. The line `semantic search on (intfloat/multilingual-e5-large, cuda, ...)` means the hybrid search runs on the GPU. A line `Failed to load GPU Faiss ...` is harmless: the vector index (FAISS) runs on the CPU, the E5 model on the GPU.
 
 ### Way 2: Python and Node (no Docker)
 

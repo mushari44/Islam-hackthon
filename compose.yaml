@@ -7,7 +7,7 @@
 # VRAM or more, and Docker able to use it (Windows: Docker Desktop with WSL2 and a recent NVIDIA driver; Linux: the
 # NVIDIA Container Toolkit; not on a Mac). The first start downloads the model and builds the index (minutes):
 #   docker compose --profile gpu up --build sabeeli-gpu
-# EXPERIMENTAL: tested on one machine only (RTX 5070). If Docker or PyTorch can't use the GPU, it logs a warning and
+# EXPERIMENTAL: tested and working on one machine only (RTX 5070, 12 GB; first start about 4 minutes). If Docker or PyTorch can't use the GPU, it logs a warning and
 # runs with BM25. Without a GPU, SABEELI_INDEX_ON_CPU=1 in .env builds the index on the CPU: about 3 HOURS.
 services:
   sabeeli:
