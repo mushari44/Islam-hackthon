@@ -43,7 +43,7 @@ Open http://localhost:8000. The first build takes a few minutes; later starts ta
 
 **Full mode, with «بينات»:** `docker compose --profile full up --build sabeeli-full`. It also builds «بينات» from the scholarly package's own link on your machine (its rights are reserved, so the repo can't ship it). This adds a few minutes to the first build.
 
-**E5 mode, exactly like the team's copy:** `docker compose --profile e5 up --build sabeeli-e5` adds the E5 semantic-search index as well. It downloads about 3 GB and embeds about 15,000 passages, which takes **about 3 hours on a typical laptop CPU** (minutes on a GPU, without Docker). It is optional: without it, search uses BM25, as on the live site.
+**E5 mode, exactly like the team's copy:** `docker compose --profile e5 up --build sabeeli-e5` adds the E5 semantic-search index as well. It downloads about 3 GB and embeds about 15,000 passages, which takes **about 3 hours on a typical laptop CPU**. Docker always uses the CPU; for a GPU, use the steps without Docker below. It is optional: without it, search uses BM25, as on the live site.
 
 We recommend the default command, or full mode, for judging. Add an OpenRouter key (below) for AI answers in any mode; it is the one thing the repo can't ship.
 
@@ -87,7 +87,12 @@ pip install pymupdf
 python scripts/ingest_bayyinat.py
 ```
 
-E5 semantic search is optional. It downloads about 2.2 GB, and building the index takes about 3 hours on a CPU (minutes with an NVIDIA GPU and the CUDA build of PyTorch):
+E5 semantic search is optional. It downloads the free `intfloat/multilingual-e5-large` model from Hugging Face (about 2.2 GB, no key needed), then embeds about 15,000 passages:
+
+> **How long it takes**
+> - **CPU only (any computer, and always in Docker):** about **3 hours** on a typical laptop. The app works with BM25 meanwhile; restart it when the build ends.
+> - **NVIDIA GPU (without Docker only):** a few minutes. You need an NVIDIA card with **8 GB of VRAM or more**, a recent NVIDIA driver, and the CUDA build of PyTorch, installed **before** the line below from https://pytorch.org/get-started/locally/. The GPU is then picked up by itself (or set `SABEELI_EMBED_DEVICE=cuda` in `.env`).
+> - Apple Silicon and AMD GPUs are not used; they run it on the CPU.
 
 ```bash
 pip install -r requirements-embeddings.txt

@@ -3,7 +3,7 @@
 # For AI answers: put an OpenRouter key in .env (OPENROUTER_API_KEY=...), then run the same command again.
 # Full mode adds «بينات», built from the package's link (a few extra minutes):
 #   docker compose --profile full up --build sabeeli-full
-# E5 mode also builds the E5 semantic-search index, exactly like the team's copy (about 3 GB; HOURS on a CPU):
+# E5 mode also builds the E5 semantic-search index, exactly like the team's copy (about 3 GB; about 3 HOURS, Docker uses the CPU only; for an NVIDIA GPU see the README's steps without Docker):
 #   docker compose --profile e5 up --build sabeeli-e5
 services:
   sabeeli:
