@@ -75,9 +75,9 @@ function AccountMenu({ account, missing, here }) {
       {open && (
         <div className="account-pop" role="menu" aria-label={t("acc.mine")}>
           <p className="account-pop-name">{account.username}</p>
-          <a role="menuitem" href="#/account"><Icon name="users" />{t("acc.mine")}</a>
-          <a role="menuitem" href="#/community?tab=mine"><Icon name="calendar" />{t("acc.menu_activities")}</a>
-          <a role="menuitem" href="#/ask"><Icon name="chat" />{t("acc.menu_chats")}</a>
+          <a role="menuitem" href="#/account" onClick={() => setOpen(false)}><Icon name="users" />{t("acc.mine")}</a>
+          <a role="menuitem" href="#/community?tab=mine" onClick={() => setOpen(false)}><Icon name="calendar" />{t("acc.menu_activities")}</a>
+          <a role="menuitem" href="#/ask" onClick={() => setOpen(false)}><Icon name="chat" />{t("acc.menu_chats")}</a>
           <button type="button" role="menuitem" className="account-pop-out" onClick={signout}><Icon name="logout" />{t("acc.signout")}</button>
         </div>
       )}

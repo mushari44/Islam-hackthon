@@ -3,7 +3,8 @@ import "./strings.js";
 import "./daai.css";
 import { useEffect, useRef, useState } from "react";
 import { api, daaiAuth } from "../../core/api.js";
-import { SignInCard, setDaaiToken } from "../account/public.js";
+import { setDaaiToken } from "../account/public.js";
+import { SignInCard } from "../account/index.js";   // not in public.js: community imports that, and the card imports community
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
 import { Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
@@ -39,7 +40,8 @@ export default function DaaiConsole({ query }) {
   useEffect(() => { checkSession(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // keeps "last seen" fresh so seekers see this da'i as online, and notices a session that ended elsewhere
   usePolling(async () => {
-    try { setMe(await api.dGet("/api/daai/me")); } catch (err) { if (sessionGone(err)) endSession(); }
+    // The answer isn't kept: it could be older than a switch or profile save made meanwhile.
+    try { await api.dGet("/api/daai/me"); } catch (err) { if (sessionGone(err)) endSession(); }
   }, 30000, [], Boolean(me));
 
   const list = me ? tabsFor(me) : [];
