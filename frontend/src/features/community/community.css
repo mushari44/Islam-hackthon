@@ -103,10 +103,15 @@
 .mine-empty p { margin: 0; }
 .mine-past summary { cursor: pointer; font-weight: 600; color: var(--text-muted); margin-block-end: 10px; }
 
-/* On a phone the three tabs share the row and wrap their words, so "My activities" is never scrolled out of sight. */
+.com-bar .tab-short { display: none; }
+
+/* On a phone the three tabs share the row and wrap their words, so "My activities" is never scrolled out of sight.
+   The long meetups label would take four lines there, so the tab shows its short form. */
 @media (max-width: 560px) {
   .com-bar > .tabs { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; border-radius: 18px; }
   .com-bar > .tabs button { white-space: normal; padding: 8px 6px; line-height: 1.3; border-radius: 14px; }
+  .com-bar .tab-long { display: none; }
+  .com-bar .tab-short { display: inline; }
 }
 
 /* "New Muslim": the seeker's choice to share the news with their groups */
