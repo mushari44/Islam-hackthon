@@ -1,5 +1,5 @@
 // Top bar entry, last in the bar: "Sign in" when signed out, "Da'i console" for a da'i, and for a seeker their username,
-// which opens the usual account menu (my account, my activities, my chats, sign out). Owner: Eman.
+// which opens the usual account menu (my account, my bookings, my activities, my chats, sign out). Owner: Eman.
 // It also asks an older account that has no sex or age band yet to pick them, once per visit.
 import "./strings.js";
 import { useEffect, useRef, useState } from "react";
@@ -76,6 +76,7 @@ function AccountMenu({ account, missing, here }) {
         <div className="account-pop" role="menu" aria-label={t("acc.mine")}>
           <p className="account-pop-name">{account.username}</p>
           <a role="menuitem" href="#/account" onClick={() => setOpen(false)}><Icon name="users" />{t("acc.mine")}</a>
+          <a role="menuitem" href="#/talk?mode=bookings" onClick={() => setOpen(false)}><Icon name="clock" />{t("acc.menu_bookings")}</a>
           <a role="menuitem" href="#/community?tab=mine" onClick={() => setOpen(false)}><Icon name="calendar" />{t("acc.menu_activities")}</a>
           <a role="menuitem" href="#/ask" onClick={() => setOpen(false)}><Icon name="chat" />{t("acc.menu_chats")}</a>
           <button type="button" role="menuitem" className="account-pop-out" onClick={signout}><Icon name="logout" />{t("acc.signout")}</button>

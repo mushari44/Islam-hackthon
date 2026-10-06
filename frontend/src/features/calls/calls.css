@@ -69,3 +69,60 @@
 .talk-end-actions { justify-content: center; }
 .talk-end-actions .btn { white-space: normal; max-inline-size: 100%; text-align: center; line-height: 1.3; padding-block: 8px; }
 @media (max-width: 480px) { .talk-end-actions .btn { flex: 1 1 100%; } }
+
+/* Booked calls: mode tabs, day strip, time chips, booking list, reminder banner */
+.talk-modes { display: flex; width: fit-content; max-width: 100%; overflow-x: auto; margin-block-end: 14px; }
+.talk-modes button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.talk-modes button[aria-selected="true"] { background: var(--mint-400); color: var(--navy-900); }
+@media (max-width: 560px) {
+  .talk-modes { width: 100%; overflow: visible; }
+  .talk-modes button { flex: 1 1 0; min-width: 0; justify-content: center; padding-inline: 6px; white-space: normal; line-height: 1.25; text-align: center; }
+  .talk-modes button svg { display: none; }
+}
+
+.day-strip { display: flex; gap: 8px; overflow-x: auto; padding-block: 4px 8px; scroll-snap-type: x proximity; }
+.day-chip {
+  flex: 0 0 auto; min-width: 64px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 10px;
+  border: 1.5px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); cursor: pointer; scroll-snap-align: start;
+}
+.day-chip strong { font-size: 1.2rem; line-height: 1.1; }
+.day-chip-wd, .day-chip-mo { font-size: .78rem; color: var(--text-muted); }
+.day-chip:hover:not(:disabled) { border-color: var(--border-strong); }
+.day-chip[aria-checked="true"] { border-color: var(--accent-ink); background: color-mix(in srgb, var(--mint-400) 14%, var(--surface)); }
+.day-chip:disabled { opacity: .4; cursor: not-allowed; }
+.book-day-title { margin: 4px 0 0; }
+.slot-group { gap: 6px; }
+.slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.slot-chip {
+  min-height: 42px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface-2); color: var(--text);
+  font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.slot-chip:hover { border-color: var(--accent-ink); }
+.slot-chip[aria-checked="true"] { background: var(--primary); color: var(--primary-text); border-color: transparent; }
+
+.book-summary { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+.book-summary dt { color: var(--text-muted); }
+.book-summary dd { margin: 0; font-weight: 600; }
+.book-done-head { display: flex; align-items: center; gap: 12px; }
+.book-done-head h3 { margin: 0; }
+.book-done-icon { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--mint-400); color: var(--navy-900); }
+.cal-buttons { gap: 8px; }
+
+.booking-item { display: flex; gap: 14px; align-items: flex-start; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; background: var(--surface-2); }
+.booking-item.is-live { border-color: color-mix(in srgb, var(--mint-400) 60%, var(--border)); }
+.booking-date {
+  flex: none; width: 58px; display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: 12px;
+  background: var(--navy-800); color: #fff; font-size: .75rem;
+}
+.booking-date strong { font-size: 1.3rem; line-height: 1.15; color: var(--mint-400); }
+.booking-body { flex: 1; min-width: 0; gap: 6px; }
+.past-toggle { align-self: flex-start; }
+
+.booking-banner { background: color-mix(in srgb, var(--mint-400) 18%, var(--surface)); border-block-end: 1px solid var(--border); }
+.booking-banner-inner { max-width: var(--page-w); margin: 0 auto; padding: 8px var(--gutter); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 600; }
+.booking-banner-inner .btn { margin-inline-start: auto; }
+.booking-banner.is-warn { background: var(--warn-bg); color: var(--warn-text); }
+.booking-banner.is-warn .btn-primary { margin-inline-start: auto; }
+.booking-banner.is-warn .icon-btn { color: inherit; }
+.slot-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; }
+.slot-now { font-size: .7rem; font-weight: 500; opacity: .8; }

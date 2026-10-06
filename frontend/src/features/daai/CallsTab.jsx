@@ -26,8 +26,39 @@ function pct(x, lang) {
   return new Intl.NumberFormat(lang === "ar" ? "ar-SA-u-nu-arab" : "en-GB", { style: "percent", maximumFractionDigits: 0 }).format(x);
 }
 
-function Queue({ me, onActive, onWaiting }) {
+/** Booked calls that start within 15 minutes (or are running): Start opens the room 5 minutes before. */
+function BookedSoon({ items, onStarted }) {
+  const { t, langName, fmtTime, fmtNum } = useI18n();
+  const [starting, setStarting] = useState(null);
+  const start = async (id) => {
+    setStarting(id);
+    try { const r = await api.dPost(`/api/daai/bookings/${id}/start`, {}); await onStarted(r.call_id); } catch (err) { toast(errorText(err, t), "error"); }
+    setStarting(null);
+  };
+  return (
+    <section className="card stack booked-soon">
+      <h3><Icon name="calendar" /> {t("ds.soon_title")}</h3>
+      {items.map((b) => (
+        <div className="queue-item" key={b.id}>
+          <div className="stack" style={{ gap: 2 }}>
+            <strong>{fmtTime(b.starts_at)} – {fmtTime(b.ends_at)} · {langName(b.lang)}</strong>
+            <span className="small muted">{t("ds.minutes", { n: fmtNum(b.minutes) })}{b.note ? " · " : ""}{b.note && <span dir="auto">{b.note}</span>}</span>
+          </div>
+          {b.has_card && <span className="badge badge-mint">{t("dc.card")}</span>}
+          {b.seeker_waiting && <span className="badge badge-purple">{t("ds.seeker_waiting")}</span>}
+          {b.can_start
+            ? <button type="button" className="btn btn-primary btn-sm" disabled={starting !== null} onClick={() => start(b.id)}><Icon name="talk" />{t(starting === b.id ? "dc.accepting" : "ds.start")}</button>
+            : <span className="small faint">{t("ds.start_at", { time: fmtTime(new Date(new Date(b.starts_at).getTime() - 5 * 60000).toISOString()) })}</span>}
+        </div>
+      ))}
+      <p className="small muted">{t("ds.quiet")}</p>
+    </section>
+  );
+}
+
+function Queue({ me, onActive, onWaiting, onBookings }) {
   const { t, fmtNum, langName } = useI18n();
+  const [booked, setBooked] = useState([]);
   const [waiting, setWaiting] = useState(null);   // null until the first answer
   const [failed, setFailed] = useState(null);
   const [accepting, setAccepting] = useState(null);
@@ -35,6 +66,8 @@ function Queue({ me, onActive, onWaiting }) {
     try {
       const data = await api.dGet("/api/daai/requests");
       setFailed(null);
+      setBooked(data.booked || []);
+      onBookings?.(data.bookings_today || 0);
       if (data.active.length) onActive(data.active[0].id);
       else setWaiting(data.waiting);
     } catch (err) { setFailed(err); }
@@ -59,6 +92,8 @@ function Queue({ me, onActive, onWaiting }) {
   if (!waiting) body = failed ? <p className="muted">{errorText(failed, t)}</p> : <Spinner />;
   else if (!waiting.length) body = <p className="muted">{t(me.available ? "dc.queue_empty" : "dc.queue_off")}</p>;
   return (
+    <>
+    {booked.length > 0 && <BookedSoon items={booked} onStarted={onActive} />}
     <section className="card stack">
       <h3>{t("dc.queue")}</h3>
       {body || waiting.map((r) => (
@@ -73,6 +108,7 @@ function Queue({ me, onActive, onWaiting }) {
         </div>
       ))}
     </section>
+    </>
   );
 }
 
@@ -234,6 +270,39 @@ function Experiment({ me }) {
   );
 }
 
+/** On a booked call's screen: its time, whether the seeker has come, and "the seeker didn't come" after 10 minutes. */
+function BookedCallBar({ callId, initial, onNoShow }) {
+  const { t, fmtTime } = useI18n();
+  const [b, setB] = useState(initial);
+  const [now, setNow] = useState(Date.now());
+  const [busy, setBusy] = useState(false);
+  usePolling(async () => {
+    const call = await api.dGet(`/api/daai/calls/${callId}`);
+    if (call.booking) setB(call.booking);
+    setNow(Date.now());
+  }, 5000, [callId]);
+  const noShow = async () => {
+    setBusy(true);
+    try { await api.dPost(`/api/daai/bookings/${b.id}/no-show`, {}); toast(t("ds.no_show_done"), "success"); onNoShow(); } catch (err) { toast(errorText(err, t), "error"); }
+    setBusy(false);
+  };
+  const late = now >= new Date(b.no_show_from).getTime();
+  return (
+    <div className="notice notice-mint booked-bar">
+      <Icon name="calendar" size={20} />
+      <div className="row spread" style={{ flex: 1 }}>
+        <span>
+          <strong>{t("ds.booked_call", { from: fmtTime(b.starts_at), to: fmtTime(b.ends_at) })}</strong>
+          {" · "}{b.seeker_waiting ? t("ds.seeker_came") : t("ds.seeker_not_yet")}
+        </span>
+        {!b.seeker_waiting && late && (
+          <button type="button" className="btn btn-sm btn-danger-soft" disabled={busy} onClick={noShow}>{t("ds.no_show")}</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Notices a call the seeker ended even if the signalling socket missed it. */
 function EndWatcher({ id, onEnded }) {
   usePolling(async () => {
@@ -244,7 +313,7 @@ function EndWatcher({ id, onEnded }) {
 }
 
 /** onCall(id | null): the call in progress, so the console can ask before signing out. onWaiting(n): requests waiting. */
-export default function CallsTab({ me, onCall, onWaiting }) {
+export default function CallsTab({ me, onCall, onWaiting, onBookings }) {
   const { t } = useI18n();
   const [view, setView] = useState({ name: "queue" });
   const inCall = view.name === "call" ? view.call.id : null;
@@ -259,6 +328,7 @@ export default function CallsTab({ me, onCall, onWaiting }) {
     return (
       <div className="stack">
         <EndWatcher id={call.id} onEnded={() => setView({ name: "feedback", id: call.id, hadCard: Boolean(call.card) })} />
+        {call.booking && <BookedCallBar callId={call.id} initial={call.booking} onNoShow={() => setView({ name: "queue" })} />}
         <CardView call={call} />
         <CallPanel callId={call.id} role="daai" token={daaiAuth.token} title={t("dc.active")}
           onEnded={() => setView({ name: "feedback", id: call.id, hadCard: Boolean(call.card) })} />
@@ -270,7 +340,7 @@ export default function CallsTab({ me, onCall, onWaiting }) {
   }
   return (
     <div className="stack">
-      <Queue me={me} onActive={openCall} onWaiting={onWaiting} />
+      <Queue me={me} onActive={openCall} onWaiting={onWaiting} onBookings={onBookings} />
       <Experiment me={me} />
     </div>
   );

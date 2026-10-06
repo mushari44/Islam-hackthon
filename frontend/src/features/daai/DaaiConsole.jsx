@@ -1,4 +1,4 @@
-// Da'i console: sign-in (through the shared card), availability and the tabs (calls, call log, groups, meetups, profile, and da'i accounts for the reviewer). Owner: Eman.
+// Da'i console: sign-in (through the shared card), availability and the tabs (calls, my schedule, call log, groups, meetups, profile, and da'i accounts for the reviewer). Owner: Eman.
 import "./strings.js";
 import "./daai.css";
 import { useEffect, useRef, useState } from "react";
@@ -13,10 +13,11 @@ import CallsTab, { callsTab } from "./CallsTab.jsx";
 import { groupsTab, meetupsTab } from "./CommunityTabs.jsx";
 import { profileTab, titledName } from "./ProfileTab.jsx";
 import { historyTab } from "./HistoryTab.jsx";
+import { scheduleTab } from "./ScheduleTab.jsx";
 import { adminTab } from "./AdminTab.jsx";
 
-const TABS = [callsTab, historyTab, groupsTab, meetupsTab, profileTab, adminTab];
-const tabsFor = (me) => TABS.filter((x) => !x.adminOnly || me?.role === "admin");
+const TABS = [callsTab, scheduleTab, historyTab, groupsTab, meetupsTab, profileTab, adminTab];
+const tabsFor = (me) => TABS.filter((x) => (!x.adminOnly || me?.role === "admin") && (!x.daaiOnly || me?.role === "daai"));
 // Only these mean the token is no longer good; anything else (offline, a server error) is worth a retry.
 const sessionGone = (err) => err && (err.status === 401 || err.status === 403);
 
@@ -26,6 +27,7 @@ export default function DaaiConsole({ query }) {
   const [check, setCheck] = useState(daaiAuth.token ? { state: "checking" } : { state: "done" });
   const [callId, setCallId] = useState(null);      // the call in progress, if any (reported by the calls tab)
   const [waiting, setWaiting] = useState(0);        // requests waiting, for the badge on the calls tab
+  const [booked, setBooked] = useState(0);          // booked calls in the next 24 hours, for the badge on "My schedule"
   const [switching, setSwitching] = useState(false);
   const tabsRef = useRef(null);
 
@@ -94,13 +96,17 @@ export default function DaaiConsole({ query }) {
               <span className="daai-tab-count" aria-hidden="true">{fmtNum(waiting)}</span>
               <span className="sr-only">{tn("dc.waiting_n", waiting)}</span>
             </>}
+            {x === scheduleTab && booked > 0 && <>
+              <span className="daai-tab-count" aria-hidden="true">{fmtNum(booked)}</span>
+              <span className="sr-only">{tn("ds.today_n", booked)}</span>
+            </>}
           </button>
         ))}
       </div>
       {/* The calls tab stays mounted while another tab is shown, so a call, its after-call form and the
           waiting-request count survive a look at the call log or the groups. */}
       <div className="section daai-panel" id="daai-panel-calls" role="tabpanel" aria-labelledby="daai-tab-calls" hidden={shown !== callsTab}>
-        <CallsTab me={me} onCall={setCallId} onWaiting={setWaiting} />
+        <CallsTab me={me} onCall={setCallId} onWaiting={setWaiting} onBookings={setBooked} />
       </div>
       {shown !== callsTab && (
         <div className="section daai-panel" id={`daai-panel-${shown.key}`} role="tabpanel" aria-labelledby={`daai-tab-${shown.key}`}>
