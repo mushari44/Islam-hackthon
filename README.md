@@ -29,7 +29,12 @@ The sample da'is are synthetic and created automatically on the first start. Det
 
 ## Run it yourself
 
-The fastest way to try Sabeeli is the live link above. To run the code on your own machine:
+The fastest way to try Sabeeli is the live link above. To run the code on your own machine, pick one:
+
+| | Docker (option 1) | Python and Node (option 2) |
+|---|---|---|
+| Search for answers | **BM25** (keyword search), like the live site | **Hybrid**: BM25 + the E5 embedding model, like the team's copy. Needs an **NVIDIA GPU with 8 GB of VRAM or more** to build the E5 index (see below); without one it stays on BM25 |
+| Everything else (AI answers with a key, videos, community, calls, da'i console) | The same | The same |
 
 **Option 1: Docker (one command).** Needs Docker Desktop, or Docker with Compose 2.24 or newer.
 
@@ -43,7 +48,7 @@ Open http://localhost:8000. The first build takes a few minutes; later starts ta
 
 **Full mode, with «بينات»:** `docker compose --profile full up --build sabeeli-full`. It also builds «بينات» from the scholarly package's own link on your machine (its rights are reserved, so the repo can't ship it). This adds a few minutes to the first build.
 
-**E5 mode, exactly like the team's copy:** `docker compose --profile e5 up --build sabeeli-e5` adds the E5 semantic-search index as well. It downloads about 3 GB and embeds about 15,000 passages, which takes **about 3 hours on a typical laptop CPU**. Docker always uses the CPU; for a GPU, use the steps without Docker below. It is optional: without it, search uses BM25, as on the live site.
+**Docker uses BM25 search only.** The hybrid search with the E5 embedding model needs a GPU, which a Docker build can't use; for it, follow option 2.
 
 We recommend the default command, or full mode, for judging. Add an OpenRouter key (below) for AI answers in any mode; it is the one thing the repo can't ship.
 
@@ -87,12 +92,11 @@ pip install pymupdf
 python scripts/ingest_bayyinat.py
 ```
 
-E5 semantic search is optional. It downloads the free `intfloat/multilingual-e5-large` model from Hugging Face (about 2.2 GB, no key needed), then embeds about 15,000 passages:
+**Hybrid search (BM25 + E5 embedding model), like the team's copy.** It uses the free `intfloat/multilingual-e5-large` model from Hugging Face (about 2.2 GB, downloaded on first use, no key needed) to embed about 15,000 passages into a search index.
 
-> **How long it takes**
-> - **CPU only (any computer, and always in Docker):** about **3 hours** on a typical laptop. The app works with BM25 meanwhile; restart it when the build ends.
-> - **NVIDIA GPU (without Docker only):** a few minutes. You need an NVIDIA card with **8 GB of VRAM or more**, a recent NVIDIA driver, and the CUDA build of PyTorch, installed **before** the line below from https://pytorch.org/get-started/locally/. The GPU is then picked up by itself (or set `SABEELI_EMBED_DEVICE=cuda` in `.env`).
-> - Apple Silicon and AMD GPUs are not used; they run it on the CPU.
+> **GPU requirement**
+> - You need an **NVIDIA GPU with 8 GB of VRAM or more**, a recent NVIDIA driver, and the CUDA build of PyTorch, installed **before** the lines below from https://pytorch.org/get-started/locally/. The index then builds in a few minutes, and the GPU is picked up by itself (or set `SABEELI_EMBED_DEVICE=cuda` in `.env`).
+> - Without such a GPU (CPU only, Apple Silicon or AMD), the same steps still work but take **about 3 hours**. Until the index exists the app uses BM25, so you can skip this part.
 
 ```bash
 pip install -r requirements-embeddings.txt
@@ -111,7 +115,7 @@ Then start the app again as above.
 
 Every other line in `.env` is explained there and can stay as it is. You might change `DEMO_PASSWORD` (the sample da'is' password), `SECRET_KEY` (keeps da'is signed in across restarts) or `SABEELI_PORT` (Docker's port). If you fork the repo, run `git update-index --skip-worktree .env` after adding a key so it is never committed.
 
-**Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search. Full mode adds «بينات», and E5 mode adds both. Password-reset emails need an SMTP server (the `SMTP_` lines in `.env`); trying the app doesn't need them.
+**Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search. Full mode (Docker) or the «بينات» steps above add «بينات»; the hybrid search needs option 2 with a GPU. Password-reset emails need an SMTP server (the `SMTP_` lines in `.env`); trying the app doesn't need them.
 
 **Accounts to sign in with.** These sample accounts are created on the first start, like the sample groups and events. They are synthetic, and the site shows them without a "demo" tag. All four are da'i accounts and share one password:
 
