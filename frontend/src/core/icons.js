@@ -11,6 +11,7 @@ export const PATHS = {
   send: '<path d="m4 12 16-8-6 16-2.5-6.5Z"/><path d="M11.5 13.5 20 4"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>',
   alert: '<path d="M12 3 2.5 20h19Z"/><path d="M12 10v4.5M12 17.5h.01"/>',
   shield: '<path d="M12 3 4.5 6v5.5c0 4.8 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.7 7.5-9.5V6Z"/><path d="m9 12 2.2 2.2L15.5 10"/>',

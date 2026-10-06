@@ -3,9 +3,10 @@
 // and every card and player links back to the item's IslamHouse page.
 import "./strings.js";
 import "./videos.css";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
+import { navigate } from "../../core/router.jsx";
 import { Icon, errorText } from "../../core/ui.jsx";
 import { VideoCard } from "./cards.jsx";
 
@@ -16,25 +17,41 @@ function savedVideoLang() {
   try { return localStorage.getItem(LANG_KEY) || ""; } catch { return ""; }
 }
 
-export default function VideosPage() {
+/** The topic, search and page kept in the address (#/videos?topic=..&q=..&page=..), so Back, reload and a shared link return to them. */
+function toQuery(topic, q, page) {
+  const params = new URLSearchParams();
+  if (topic) params.set("topic", String(topic));
+  if (q) params.set("q", q);
+  if (page > 1) params.set("page", String(page));
+  const qs = params.toString();
+  return qs ? `/videos?${qs}` : "/videos";
+}
+
+export default function VideosPage({ query = {} }) {
   const { t, tn, lang: uiLang, fmtNum } = useI18n();
   const [chosen, setChosen] = useState(savedVideoLang);    // video language, separate from the interface language
   const lang = chosen || uiLang;
   const [languages, setLanguages] = useState([]);
-  const [topic, setTopic] = useState(null);
-  const [page, setPage] = useState(1);
-  const [typed, setTyped] = useState("");
-  const [q, setQ] = useState("");
+  const [topic, setTopic] = useState(() => Number(query.topic) || null);
+  const [page, setPage] = useState(() => Math.max(1, parseInt(query.page, 10) || 1));
+  const [typed, setTyped] = useState(() => (query.q || "").slice(0, 100));
+  const [q, setQ] = useState(() => (query.q || "").slice(0, 100).trim());
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [attempt, setAttempt] = useState(0);       // bumped by "Try again" to load the same list once more
   const [loading, setLoading] = useState(false);   // a new page, topic or search is on its way
 
-  useEffect(() => { setTopic(null); setPage(1); setTyped(""); setQ(""); }, [lang]);
+  const shownLang = useRef(lang);
+  useEffect(() => {                       // another video language starts afresh (not on the first render)
+    if (shownLang.current === lang) return;
+    shownLang.current = lang;
+    setTopic(null); setPage(1); setTyped(""); setQ("");
+  }, [lang]);
   useEffect(() => {                       // wait for a pause in typing before searching
-    const timer = setTimeout(() => { setQ(typed.trim()); setPage(1); }, 350);
+    const timer = setTimeout(() => { const v = typed.trim(); if (v !== q) { setQ(v); setPage(1); } }, 350);
     return () => clearTimeout(timer);
-  }, [typed]);
+  }, [typed, q]);
+  useEffect(() => { navigate(toQuery(topic, q, page), { replace: true }); }, [topic, q, page]);
   useEffect(() => { api.pGet("/api/videos/languages").then(setLanguages).catch(() => {}); }, []);
 
   const pickLang = (code) => {
@@ -103,7 +120,7 @@ export default function VideosPage() {
           {data.topics.map((x) => (
             <button key={x.id} type="button" className="chip" aria-pressed={topic === x.id} title={tn("vid.count", x.count)}
               onClick={() => { setTopic(x.id); setPage(1); }}>
-              {x.title} <span className="vid-chip-n">{fmtNum(x.count)}</span>
+              <span lang={lang} dir="auto">{x.title}</span> <span className="vid-chip-n">{fmtNum(x.count)}</span>
             </button>
           ))}
         </div>

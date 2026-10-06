@@ -122,21 +122,56 @@ function Trace({ ans }) {
   );
 }
 
+const FB_REASONS = ["incorrect", "not_relevant", "missing_source", "other"];
+
 function Feedback({ turnId }) {
   const { t } = useI18n();
+  const [choice, setChoice] = useState(null);     // true (helpful) or false once a thumb is pressed
+  const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   if (!turnId) return <span />;
   if (done) return <span className="faint">{t("ask.thanks_fb")}</span>;
-  const send = async (helpful) => {
-    try { await api.post(`/api/ask/${turnId}/feedback`, { helpful }); } catch { /* best effort */ }
+  const send = async (helpful, reason = "") => {
+    setSending(true);
+    try { await api.post(`/api/ask/${turnId}/feedback`, { helpful, reason }); } catch { /* best effort */ }
+    setSending(false);
     setDone(true);
   };
   return (
-    <div className="row answer-actions">
-      <span className="faint">{t("ask.helpful")}</span>
-      <button type="button" className="icon-btn" aria-label={t("ask.fb_yes")} title={t("ask.fb_yes")} onClick={() => send(true)}><Icon name="thumbUp" /></button>
-      <button type="button" className="icon-btn" aria-label={t("ask.fb_no")} title={t("ask.fb_no")} onClick={() => send(false)}><Icon name="thumbDown" /></button>
+    <div className="stack fb">
+      <div className="row answer-actions">
+        <span className="faint">{t("ask.helpful")}</span>
+        <button type="button" className="icon-btn" aria-label={t("ask.fb_yes")} title={t("ask.fb_yes")} aria-pressed={choice === true}
+          disabled={sending || choice === false} onClick={() => { setChoice(true); send(true); }}><Icon name="thumbUp" /></button>
+        <button type="button" className="icon-btn" aria-label={t("ask.fb_no")} title={t("ask.fb_no")} aria-pressed={choice === false}
+          disabled={sending || choice === false} onClick={() => setChoice(false)}><Icon name="thumbDown" /></button>
+      </div>
+      {/* After a thumbs down: why? One tap sends it. */}
+      {choice === false && (
+        <div className="row fb-reasons" role="group" aria-label={t("ask.fb_why")}>
+          <span className="faint small">{t("ask.fb_why")}</span>
+          {FB_REASONS.map((r) => (
+            <button key={r} type="button" className="chip" disabled={sending} onClick={() => send(false, r)}>{t(`ask.fb_${r}`)}</button>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+/** Copies what the answer shows: its text, then the titles of the sources it cites. */
+function CopyAnswer({ bodyRef, ans }) {
+  const { t, fmtNum } = useI18n();
+  const copy = async () => {
+    const body = bodyRef.current?.querySelector(".answer-body");
+    const text = (body ? body.innerText : "").trim();
+    const titles = [...new Set(Object.values(ans.cards || {}).map((c) => c.title).filter(Boolean))];
+    const out = titles.length ? `${text}\n\n${t("ans.used", { n: fmtNum(titles.length) })}:\n${titles.map((x) => `- ${x}`).join("\n")}` : text;
+    try { await navigator.clipboard.writeText(out); toast(t("ask.copied"), "success"); }
+    catch { toast(t("common.error"), "error"); }
+  };
+  return (
+    <button type="button" className="icon-btn" aria-label={t("ask.copy")} title={t("ask.copy")} onClick={copy}><Icon name="copy" /></button>
   );
 }
 
@@ -150,12 +185,13 @@ const NO_LEVEL_KINDS = new Set(["greeting", "thanks", "clarify", "off_topic", "r
 
 function BotMessage({ ans, question, conv }) {
   const { t, lang } = useI18n();
+  const bodyRef = useRef(null);
   const analysis = (ans.trace && ans.trace.analysis) || {};
   const hints = [...(analysis.queries_ar || []), ...(analysis.queries_en || [])];
   return (
     <div className="msg msg-bot">
       <div className="msg-avatar" aria-hidden="true"><Icon name="sparkle" size={20} /></div>
-      <div className="msg-body">
+      <div className="msg-body" ref={bodyRef}>
         {ans.level && !NO_LEVEL_KINDS.has(ans.kind) && (
           <div className="msg-meta">
             <LevelBadge level={ans.level} />
@@ -167,6 +203,7 @@ function BotMessage({ ans, question, conv }) {
         <div className="row spread answer-foot">
           <Feedback turnId={ans.turn_id} />
           <div className="row">
+            <CopyAnswer bodyRef={bodyRef} ans={ans} />
             {ans.trace && (
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => openSheet({ title: t("ask.trace"), render: () => <Trace ans={ans} /> })}>
                 <Icon name="layers" />{t("ask.how")}
@@ -247,6 +284,25 @@ function TalkedNote({ calls }) {
   );
 }
 
+const SUGGESTIONS = ["ask.s1", "ask.s2", "ask.s3", "ask.s4", "ask.s5", "ask.s6"];
+
+/** An empty chat: how answers are made, and questions to start with (a tap asks one). */
+function Welcome({ onAsk }) {
+  const { t } = useI18n();
+  return (
+    <div className="card stack ask-welcome">
+      <h2>{t("ask.side_title")}</h2>
+      <ul className="ask-how">
+        {["ask.side_1", "ask.side_2", "ask.side_3"].map((k) => <li key={k}><Icon name="check" size={16} /><span>{t(k)}</span></li>)}
+      </ul>
+      <h3>{t("ask.try")}</h3>
+      <div className="row ask-try">
+        {SUGGESTIONS.map((k) => <button key={k} type="button" className="chip" onClick={() => onAsk(t(k))}>{t(k)}</button>)}
+      </div>
+    </div>
+  );
+}
+
 export default function AskPage({ query = {} }) {
   const { t, lang } = useI18n();
   // A question typed on the home page (#/ask?q=...) starts a new chat instead of joining the open one.
@@ -262,6 +318,7 @@ export default function AskPage({ query = {} }) {
   const [text, setText] = useState("");
   const [photo, setPhoto] = useState(null);       // {file, url}
   const [busy, setBusy] = useState(false);
+  const [announce, setAnnounce] = useState("");   // read out by screen readers when a new answer arrives
   const inputRef = useRef(null);
   const fileRef = useRef(null);
   const endRef = useRef(null);
@@ -337,6 +394,8 @@ export default function AskPage({ query = {} }) {
       }
       setConv(answer.conversation_id);
       setChat((c) => [...c, { role: "assistant", answer }]);
+      setAnnounce("");
+      setTimeout(() => { if (mounted.current) setAnnounce(t("ask.answer_ready")); }, 100);
       setListKey((k) => k + 1);
     } catch (err) {
       toast(errorText(err, t), "error");
@@ -385,7 +444,8 @@ export default function AskPage({ query = {} }) {
       <div className="ask-layout">
         <section className="ask-main">
           {conv && <TalkedNote calls={calls[conv]} />}
-          <div className="thread" aria-live="polite">
+          {chat.length === 0 && !busy && <Welcome onAsk={(q) => submit(q)} />}
+          <div className="thread">
             {chat.map((item, i) => (item.role === "user" ? <UserMessage key={i} item={item} />
               : <BotMessage key={i} ans={item.answer} conv={conv} question={(chat[i - 1] && chat[i - 1].text) || ""} />))}
             {busy && (
@@ -396,6 +456,7 @@ export default function AskPage({ query = {} }) {
             )}
             <div ref={endRef} />
           </div>
+          <div className="sr-only" role="status">{announce}</div>
           <form className="composer" onSubmit={(e) => { e.preventDefault(); submit(); }}>
             {photo && (
               <div className="composer-preview">
@@ -410,7 +471,7 @@ export default function AskPage({ query = {} }) {
               <textarea ref={inputRef} className="composer-input" rows={1} maxLength={2000} value={text}
                 placeholder={t("ask.placeholder")} aria-label={t("ask.placeholder")} onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }} />
-              <button type="submit" className="btn btn-primary composer-send" aria-label={t("ask.send")} disabled={busy}><Icon name="send" className="icon-send" /></button>
+              <button type="submit" className="btn btn-primary composer-send" aria-label={t("ask.send")} disabled={busy || (!text.trim() && !photo)}><Icon name="send" className="icon-send" /></button>
             </div>
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={onFile} />
           </form>

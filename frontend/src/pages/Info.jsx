@@ -34,7 +34,7 @@ register({
     "priv.3": "ملخص الإحالة ومحادثتك مع سَبِيلي لا يصلان إلى الداعية إلا بموافقتك الصريحة، ولكلٍّ منهما موافقة مستقلة. ولا يرى الداعية إلا المحادثة التي اخترتها، كما كانت لحظة موافقتك.",
     "priv.4": "المكالمات لا تُسجّل، ولا نطلب رقم هاتف. وعند حجز موعد لا يرى الداعية من أنت: فقط الوقت واللغة والموضوع إن كتبته. في المجموعات والفعاليات اسم مستعار فقط.",
     "priv.5": "لا نستنتج معتقدك أو أي صفة حساسة عنك، ولا نستخدم بياناتك لغير تقديم الخدمة.",
-    "priv.6": "تُرسل الأسئلة إلى نموذج Gemma عبر OpenRouter لتوليد الإجابة، وإلى مزوّدين لا يحفظون الطلبات ولا يدرّبون عليها فقط.",
+    "priv.6": "تُرسل الأسئلة إلى نموذج Gemma عبر OpenRouter لكتابة الإجابة. ولا نستخدم إلا مزوّدين لا يحفظون الطلبات ولا يدرّبون عليها.",
     "priv.7": "المقاطع المرئية وصورها تُحمَّل من خوادم دار الإسلام مباشرة، كأي زيارة لموقعهم. ولا يحفظ سَبِيلي ما تبحث عنه ولا ما تشاهده.",
     "priv.delete": "احذف بياناتي الآن", "priv.deleted": "حُذفت بياناتك من الخادم وبدأت جلسة جديدة.",
     "priv.delete_q": "تُحذف محادثاتك وطلبات الاتصال وحجوزاتك ومجموعاتك من الخادم، ولا يمكن التراجع.",
@@ -69,7 +69,7 @@ register({
     "priv.3": "The referral summary and your chat with Sabeeli only reach a da'i with your explicit consent, given separately for each. The da'i sees only the chat you chose, as it was when you agreed.",
     "priv.4": "Calls aren't recorded and we never ask for a phone number. When you book a time, the da'i doesn't see who you are: only the time, the language and the topic if you wrote one. Groups and events use nicknames only.",
     "priv.5": "We don't infer your beliefs or any sensitive trait, and we use your data only to provide the service.",
-    "priv.6": "Questions are sent to the Gemma model through OpenRouter to write answers, only to providers that neither store requests nor train on them.",
+    "priv.6": "Questions are sent to the Gemma model through OpenRouter to write answers. We only use providers that don't store requests or train on them.",
     "priv.7": "Videos and their thumbnails load straight from IslamHouse's servers, like any visit to their site. Sabeeli doesn't save what you search for or what you watch.",
     "priv.delete": "Delete my data now", "priv.deleted": "Your data was deleted from the server and a new session started.",
     "priv.delete_q": "Your chats, call requests, bookings and groups are deleted from the server. This can't be undone.",
@@ -164,7 +164,7 @@ export function Privacy() {
             </p>
             <div className="row">
               <button type="button" className="btn btn-danger" disabled={busy} onClick={wipe}><Icon name="trash" />{t("priv.delete_yes")}</button>
-              <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setSure(false)}>{t("common.cancel")}</button>
+              <button type="button" className="btn btn-ghost" disabled={busy} autoFocus onClick={() => setSure(false)}>{t("common.cancel")}</button>
             </div>
           </div>
         ) : <button type="button" className="btn btn-danger-soft" onClick={() => setSure(true)}><Icon name="trash" />{t("priv.delete")}</button>}

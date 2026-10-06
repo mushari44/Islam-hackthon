@@ -304,6 +304,7 @@ export default function Home() {
           {verse ? (
             <figure className="src-card verse-card compact home-verse fade-in">
               <p className="verse-text" lang="ar" dir="rtl"><span className="orn">﴿</span>{verse.text_ar}<span className="orn">﴾</span></p>
+              {lang !== "ar" && verse.translation_en && <p className="verse-translation" lang="en" dir="ltr">{verse.translation_en}</p>}
               <figcaption>{t("home.verse_ref")}</figcaption>
             </figure>
           ) : verse === undefined ? <div className="skeleton home-verse-skel" /> : null}

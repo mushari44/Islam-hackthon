@@ -51,8 +51,12 @@ p { margin: 0 0 .8em; }
 .nav a:hover { background: var(--bg-soft); color: var(--text); }
 .nav a[aria-current="page"] { background: var(--primary); color: var(--primary-text); }
 .nav a svg { width: 18px; height: 18px; }
+/* "Talk to a da'i" in full where the bar has room; the short "Talk" where the labelled buttons crowd it. */
+.nav .nav-short { display: none; }
+@media (min-width: 1240px) and (max-width: 1359px) { .nav .nav-long { display: none; } .nav .nav-short { display: inline; } }
 .top-actions { display: flex; gap: 6px; align-items: center; }
 .main { flex: 1; width: 100%; max-width: var(--page-w); margin: 0 auto; padding: 24px var(--gutter) 120px; }
+.main:focus { outline: none; }   /* focused by the router on a new page, for screen readers; not a visible control */
 .footer { border-top: 1px solid var(--border); color: var(--text-muted); font-size: .85rem; }
 /* Footer: a row of site links, then the AI notice and the © line. */
 .footer-inner { max-width: var(--page-w); margin: 0 auto; padding: 18px var(--gutter) 96px; display: flex; flex-direction: column; gap: 8px; }
