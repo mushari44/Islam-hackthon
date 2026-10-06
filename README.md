@@ -31,10 +31,13 @@ The sample da'is are synthetic and created automatically on the first start. Det
 
 The fastest way to try Sabeeli is the live link above. To run the code on your own machine, pick one:
 
-| | Docker (option 1) | Python and Node (option 2) |
+| | Search for answers | Needs |
 |---|---|---|
-| Search for answers | **BM25** (keyword search), like the live site | **Hybrid**: BM25 + the E5 embedding model, like the team's copy. Needs an **NVIDIA GPU with 8 GB of VRAM or more** to build the E5 index (see below); without one it stays on BM25 |
-| Everything else (AI answers with a key, videos, community, calls, da'i console) | The same | The same |
+| Docker, default or full mode | **BM25** (keyword search), like the live site | Docker only |
+| Docker, GPU mode | **Hybrid**: BM25 + the E5 embedding model, like the team's copy | An **NVIDIA GPU with 8 GB of VRAM or more** that Docker can use |
+| Python and Node (option 2) | BM25, or **hybrid** after the E5 steps | For hybrid: an **NVIDIA GPU with 8 GB of VRAM or more** (about 3 hours without one) |
+
+Everything else (AI answers with a key, videos, community, calls, da'i console) is the same in every mode.
 
 **Option 1: Docker (one command).** Needs Docker Desktop, or Docker with Compose 2.24 or newer.
 
@@ -48,7 +51,7 @@ Open http://localhost:8000. The first build takes a few minutes; later starts ta
 
 **Full mode, with «بينات»:** `docker compose --profile full up --build sabeeli-full`. It also builds «بينات» from the scholarly package's own link on your machine (its rights are reserved, so the repo can't ship it). This adds a few minutes to the first build.
 
-**Docker uses BM25 search only.** The hybrid search with the E5 embedding model needs a GPU, which a Docker build can't use; for it, follow option 2.
+**GPU mode, with hybrid search:** `docker compose --profile gpu up --build sabeeli-gpu`. It adds «بينات» and the hybrid search (BM25 + the E5 embedding model). It needs an NVIDIA GPU with **8 GB of VRAM or more** that Docker can use: on Windows, Docker Desktop with WSL2 and a recent NVIDIA driver; on Linux, the NVIDIA Container Toolkit; it doesn't work on a Mac. The image is large (the CUDA build of PyTorch, about 2.5 GB). On the first start the container downloads the E5 model (about 2.2 GB) and builds the index in a few minutes, then opens the site; later starts reuse both. If Docker can't see a GPU, it says so in the log and runs with BM25.
 
 We recommend the default command, or full mode, for judging. Add an OpenRouter key (below) for AI answers in any mode; it is the one thing the repo can't ship.
 
@@ -115,7 +118,7 @@ Then start the app again as above.
 
 Every other line in `.env` is explained there and can stay as it is. You might change `DEMO_PASSWORD` (the sample da'is' password), `SECRET_KEY` (keeps da'is signed in across restarts) or `SABEELI_PORT` (Docker's port). If you fork the repo, run `git update-index --skip-worktree .env` after adding a key so it is never committed.
 
-**Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search. Full mode (Docker) or the «بينات» steps above add «بينات»; the hybrid search needs option 2 with a GPU. Password-reset emails need an SMTP server (the `SMTP_` lines in `.env`); trying the app doesn't need them.
+**Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search. Full mode, GPU mode or the «بينات» steps above add «بينات»; the hybrid search needs GPU mode or option 2's E5 steps. Password-reset emails need an SMTP server (the `SMTP_` lines in `.env`); trying the app doesn't need them.
 
 **Accounts to sign in with.** These sample accounts are created on the first start, like the sample groups and events. They are synthetic, and the site shows them without a "demo" tag. All four are da'i accounts and share one password:
 

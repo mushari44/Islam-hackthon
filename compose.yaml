@@ -3,8 +3,10 @@
 # For AI answers: put an OpenRouter key in .env (OPENROUTER_API_KEY=...), then run the same command again.
 # Full mode adds «بينات», built from the package's link (a few extra minutes):
 #   docker compose --profile full up --build sabeeli-full
-# Docker uses BM25 search only. The hybrid search (BM25 + E5 embedding model) needs an NVIDIA GPU with 8 GB
-# of VRAM or more and is set up without Docker: see the README, "Run it yourself", option 2.
+# GPU mode adds the hybrid search (BM25 + the E5 embedding model) and «بينات». It needs an NVIDIA GPU with 8 GB of
+# VRAM or more, and Docker able to use it (Windows: Docker Desktop with WSL2 and a recent NVIDIA driver; Linux: the
+# NVIDIA Container Toolkit; not on a Mac). The first start downloads the model and builds the index (minutes):
+#   docker compose --profile gpu up --build sabeeli-gpu
 services:
   sabeeli:
     build: .
@@ -30,3 +32,34 @@ services:
         required: false
     restart: unless-stopped
 
+  sabeeli-gpu:
+    profiles: [gpu]
+    build:
+      context: .
+      args:
+        FULL: "1"
+        GPU: "1"
+    image: sabeeli-gpu
+    command: ["sh", "scripts/docker-start.sh"]
+    ports:
+      - "${SABEELI_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SABEELI_BUILD_INDEX: "1"
+    volumes:
+      - sabeeli-vectors:/app/data/cache   # the E5 index, built once
+      - sabeeli-models:/app/.hf           # the downloaded E5 model
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  sabeeli-vectors:
+  sabeeli-models:
