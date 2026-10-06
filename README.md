@@ -8,6 +8,15 @@
 
 *Sabeeli is a web app for people curious about Islam and for new Muslims. They ask in their own language, by text or with a photo, and get an explanation grounded in approved sources that are shown with every statement. They can call an available da'i who speaks their language, keep learning in da'i-led groups and in-person meetups, and watch IslamHouse videos in their own language.*
 
+## How to sign in (judges)
+
+| | Live site (https://sabeeli-self.vercel.app) | Local run (your machine) |
+|---|---|---|
+| **Seeker (user)** | No account needed to ask, watch videos or browse. To call or book a da'i, create one: «تسجيل الدخول» → «مستخدم» → «أنشئ حساباً», any username (3-24 letters or digits), a password of 8+ characters, sex and age range | The same |
+| **Da'i** | «تسجيل الدخول» → «داعية» (or `/#/daai`). Users `reviewer` (admin), `khalid`, `maryam`, `yusuf`. On the live site the password is a private random value set on the server, so it isn't in this public repo: **it is given in our submission form** | Same users. Password **`sabeeli-demo`** for all four (the `DEMO_PASSWORD` line in `.env`) |
+
+The sample da'is are synthetic and created automatically on the first start. Details: [Run it yourself](#run-it-yourself).
+
 ## What's inside
 
 | | Feature | Owner |
