@@ -4,6 +4,8 @@
 
 > مشروع في تحدي الذكاء الاصطناعي في خدمة المحتوى الإسلامي 2026 (المسار المفتوح). الفريق: Mushari Alothman و Eman Saheli.
 
+**Live:** https://sabeeli-self.vercel.app (website) · https://sabeeli.onrender.com/api/health (API; the free server sleeps when idle, so the first request can take about a minute)
+
 *Sabeeli is a web app for people curious about Islam and for new Muslims. They ask in their own language, by text or with a photo, and get an explanation grounded in approved sources that are shown with every statement. They can call an available da'i who speaks their language, keep learning in da'i-led groups and in-person meetups, and watch IslamHouse videos in their own language.*
 
 ## What's inside
@@ -42,7 +44,7 @@ The corpus is already in `data/corpus/`, except «بينات»: its publisher re
 ## Tests
 
 ```bash
-python -m pytest tests             # 80 tests; no API key needed (sources-only mode + mocked OpenRouter and Claude APIs)
+python -m pytest tests             # 229 tests; no API key needed (sources-only mode + mocked OpenRouter and Claude APIs)
 ```
 
 ## How the code is organised
@@ -70,7 +72,11 @@ Each person works only in their own folders. Shared code changes only by agreeme
 
 ## Challenge documents
 
-- **`STARTING_POINT.md`:** what existed before 4 October (the challenge judges only work done from 4 to 6 October).
-- **`THIRD_PARTY.md`:** sources, models, services and licences.
-- **`docs/RAG-PLAN.md`:** how the RAG system uses the approved sources, and how it is evaluated.
-- **Privacy:** seekers can ask and browse without an account (calling or booking a da'i needs a free username-and-password account, with no phone number or real name), questions are deleted after 24 hours, the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**. Videos and thumbnails load straight from IslamHouse's servers, search words are sent in a POST body, and Sabeeli stores no searches and no viewing history.
+- **[`docs/SOURCES.md`](docs/SOURCES.md):** the Islamic sources (with their page in the scholarly package) and how every source and every answer is verified.
+- **[`docs/AI-DECK.md`](docs/AI-DECK.md):** the content of the deck that explains the AI; the slides are in `docs/Sabeeli-AI-deck.pptx` and `.pdf`.
+- **[`eval/REPORT.md`](eval/REPORT.md):** the 60-case evaluation (3 runs each) and its results.
+- **[`STARTING_POINT.md`](STARTING_POINT.md):** what existed before 4 October 06:00 UTC (the challenge judges only work done from 4 to 6 October).
+- **[`THIRD_PARTY.md`](THIRD_PARTY.md):** licence record: sources, models, services and software with their licences.
+- **[`LICENSE`](LICENSE):** the team's code is under the MIT licence; the religious content keeps its publishers' terms.
+- **[`docs/RAG-PLAN.md`](docs/RAG-PLAN.md):** how the RAG system uses the approved sources, and how it is evaluated.
+- **Privacy:** seekers can ask and browse without an account (calling or booking a da'i needs a free username-and-password account, with no phone number or real name), an anonymous visitor's questions are deleted after 24 hours (a signed-in seeker keeps saved chats), the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**. Videos and thumbnails load straight from IslamHouse's servers, search words are sent in a POST body, and Sabeeli stores no searches and no viewing history.
