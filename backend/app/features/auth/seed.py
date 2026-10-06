@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 
 from .models import Daai
 from .routes import create_daai
+from .security import hash_password, verify_password
 
-DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "sabeeli-demo")
+DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "123")
 
 DEMO_DAAIS = [
     {"username": "khalid", "display_name": "خالد", "display_name_en": "Khalid", "gender": "m",
@@ -49,6 +50,9 @@ def seed_accounts(db: Session) -> dict[str, Daai]:
         if not user:
             user = create_daai(db, password=DEMO_PASSWORD, is_demo=True, **spec)
         elif user.is_demo:
+            # Sample accounts always use the current DEMO_PASSWORD (mushari, 6 October 2026), also in older databases.
+            if not verify_password(DEMO_PASSWORD, user.password_hash):
+                user.password_hash = hash_password(DEMO_PASSWORD)
             for field, old in _OLD_SEED[spec["username"]].items():
                 if getattr(user, field) == old:
                     setattr(user, field, spec[field])
