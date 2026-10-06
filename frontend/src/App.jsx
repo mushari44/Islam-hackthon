@@ -2,7 +2,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { LangProvider, useI18n } from "./core/i18n.jsx";
 import { match, useHashPath } from "./core/router.jsx";
-import { Icon, Logo, SheetHost, ToastHost } from "./core/ui.jsx";
+import { Icon, Logo, SheetHost, ToastHost, usePageTitle } from "./core/ui.jsx";
 import { AccountButton, AccountPage, useDaaiSignedIn } from "./features/account/index.js"; // Eman
 import { BookingBanner, TalkPage } from "./features/calls/index.js";   // Eman
 import { CommunityPage, GroupPage } from "./features/community/index.js"; // Mushari
@@ -11,22 +11,23 @@ import { VideosPage } from "./features/videos/index.js";               // Mushar
 import Home from "./pages/Home.jsx";
 import { About, More, NotFound, Privacy, Sources } from "./pages/Info.jsx";
 
+// `title` names the page in the browser tab (a page with a data title, like a group, refines it with useTitle).
 // Only da'is open the console: it loads on first visit instead of in every seeker's bundle.
 const DaaiConsole = lazy(() => import("./features/daai/index.js").then((m) => ({ default: m.DaaiConsole }))); // Eman
 
 const ROUTES = [
-  { path: "/", nav: "home", page: Home },
-  { path: "/ask", nav: "ask", page: AskPage },
-  { path: "/talk", nav: "talk", page: TalkPage },
-  { path: "/community", nav: "community", page: CommunityPage },
-  { path: "/videos", nav: "videos", page: VideosPage },
-  { path: "/groups/:id", nav: "community", page: GroupPage },
-  { path: "/account", nav: "more", page: AccountPage },
-  { path: "/daai", nav: "more", page: DaaiConsole },
-  { path: "/about", nav: "more", page: About },
-  { path: "/sources", nav: "more", page: Sources },
-  { path: "/privacy", nav: "more", page: Privacy },
-  { path: "/more", nav: "more", page: More },
+  { path: "/", nav: "home", page: Home, title: null },
+  { path: "/ask", nav: "ask", page: AskPage, title: "ask.title" },
+  { path: "/talk", nav: "talk", page: TalkPage, title: "nav.talk_long" },
+  { path: "/community", nav: "community", page: CommunityPage, title: "nav.community" },
+  { path: "/videos", nav: "videos", page: VideosPage, title: "vid.title" },
+  { path: "/groups/:id", nav: "community", page: GroupPage, title: "nav.community" },
+  { path: "/account", nav: "more", page: AccountPage, title: "nav.account" },
+  { path: "/daai", nav: "more", page: DaaiConsole, title: "nav.daai" },
+  { path: "/about", nav: "more", page: About, title: "nav.about" },
+  { path: "/sources", nav: "more", page: Sources, title: "nav.sources" },
+  { path: "/privacy", nav: "more", page: Privacy, title: "nav.privacy" },
+  { path: "/more", nav: "more", page: More, title: "nav.more" },
 ];
 
 const NAV = [
@@ -62,11 +63,12 @@ function Shell() {
   const Page = route ? route.page : NotFound;
   const current = route ? route.nav : "more";
 
+  const dataTitle = usePageTitle();
+  const pageName = dataTitle || (route ? route.title && t(route.title) : t("nf.title"));
   useEffect(() => {
-    const h1 = document.querySelector("main h1");
     const name = t("app.name");
-    document.title = h1 && h1.textContent !== name ? `${h1.textContent} · ${name}` : name;
-  });
+    document.title = pageName ? `${pageName} · ${name}` : name;
+  }, [pageName, t]);
 
   return (
     <>
@@ -79,14 +81,18 @@ function Shell() {
           </a>
           <nav className="nav" aria-label={t("nav.main_label")}>
             {NAV.map((n) => (
-              <a key={n.key} href={n.href} aria-current={current === n.key ? "page" : undefined}><Icon name={n.icon} />{t(`nav.${n.key}`)}</a>
+              <a key={n.key} href={n.href} aria-current={current === n.key ? "page" : undefined}><Icon name={n.icon} />
+                {n.key === "talk"
+                  ? <><span className="nav-long">{t("nav.talk_long")}</span><span className="nav-short">{t("nav.talk")}</span></>
+                  : t(`nav.${n.key}`)}
+              </a>
             ))}
           </nav>
           <div className="top-actions">
             <button type="button" className="btn btn-ghost btn-sm lang-btn" onClick={() => setLang(lang === "ar" ? "en" : "ar")} aria-label={t("common.lang_toggle")} lang={lang === "ar" ? "en" : "ar"}>
               <Icon name="globe" /><span className="btn-label">{t("common.lang_toggle")}</span><span className="btn-short" aria-hidden="true">{t("common.lang_short")}</span>
             </button>
-            <button type="button" className="icon-btn" aria-label={t("common.theme")} title={t("common.theme")} onClick={() => setTheme(isDark ? "light" : "dark")}>
+            <button type="button" className="icon-btn" aria-label={t(isDark ? "common.theme_light" : "common.theme_dark")} title={t(isDark ? "common.theme_light" : "common.theme_dark")} onClick={() => setTheme(isDark ? "light" : "dark")}>
               <Icon name={isDark ? "sun" : "moon"} size={20} />
             </button>
             <AccountButton />

@@ -56,6 +56,31 @@ export function usePolling(fn, ms, deps = [], enabled = true, { background = fal
 }
 
 // ---------------------------------------------------------------------------
+// Tab title. The shell names each route; a page whose title comes from data (a group's name, say)
+// calls useTitle(text) to replace that name while it is shown.
+
+let pageTitle = null;
+const titleListeners = new Set();
+const announceTitle = () => titleListeners.forEach((fn) => fn(pageTitle));
+
+/** Set the tab title to "<text> · <app name>" while the calling page is mounted. Empty text keeps the route's name. */
+export function useTitle(text) {
+  useEffect(() => {
+    if (!text) return undefined;
+    pageTitle = text;
+    announceTitle();
+    return () => { if (pageTitle === text) { pageTitle = null; announceTitle(); } };
+  }, [text]);
+}
+
+/** For the shell: the title a page set with useTitle, or null. */
+export function usePageTitle() {
+  const [title, setTitle] = useState(pageTitle);
+  useEffect(() => { titleListeners.add(setTitle); setTitle(pageTitle); return () => { titleListeners.delete(setTitle); }; }, []);
+  return title;
+}
+
+// ---------------------------------------------------------------------------
 // Toasts
 
 let pushToast = null;
@@ -144,7 +169,7 @@ export function Sheet({ title, wide, onClose, children }) {
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panel} tabIndex={-1}
         style={wide ? { width: "min(820px, 100%)" } : undefined}>
         <div className="sheet-head">
-          <h2 id={titleId}>{title}</h2>
+          <h2 id={titleId} dir="auto">{title}</h2>
           <button type="button" className="icon-btn" aria-label={t("common.close")} onClick={onClose}><Icon name="x" size={20} /></button>
         </div>
         {children}

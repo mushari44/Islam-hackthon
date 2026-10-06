@@ -25,7 +25,7 @@ function SourceLine({ item }) {
   );
 }
 
-function Player({ item }) {
+function Player({ item, dir }) {
   const { t, tn, lang, fmtNum } = useI18n();
   const [index, setIndex] = useState(0);
   const part = item.parts[index];
@@ -48,8 +48,10 @@ function Player({ item }) {
         </ol>
       )}
       <div className="stack vid-meta">
-        {item.authors.length > 0 && <span className="muted small">{t("vid.by", { names: joinNames(item.authors, item.lang || lang) })}</span>}
-        <p className="vid-desc">{item.description || <span className="faint">{t("vid.no_desc")}</span>}</p>
+        {item.authors.length > 0 && (
+          <span className="muted small">{t("vid.by", { names: "" })}<span lang={item.lang} dir={dir}>{joinNames(item.authors, item.lang || lang)}</span></span>
+        )}
+        {item.description ? <p className="vid-desc" lang={item.lang} dir={dir}>{item.description}</p> : <p className="vid-desc faint">{t("vid.no_desc")}</p>}
         {/* One link back to the item's IslamHouse page; the credit beside it stays as plain text. */}
         <div className="row spread">
           <span className="vid-credit">{t("vid.source")}</span>
@@ -62,7 +64,7 @@ function Player({ item }) {
 
 export function openPlayer(item) {
   const dir = RTL.has(item.lang) ? "rtl" : "ltr";
-  openSheet({ title: item.title, wide: true, render: () => <div lang={item.lang} dir={dir}><Player item={item} /></div> });
+  openSheet({ title: item.title, wide: true, render: () => <Player item={item} dir={dir} /> });
 }
 
 export function VideoCard({ item, compact = false }) {
@@ -71,7 +73,7 @@ export function VideoCard({ item, compact = false }) {
   const youtube = item.parts.every((p) => p.kind === "youtube");
   const [thumbOk, setThumbOk] = useState(Boolean(item.thumbnail));   // many IslamHouse thumbnails are missing (404)
   return (
-    <article className={`card vid-card ${compact ? "vid-card-compact" : ""}`} lang={item.lang} dir={dir}>
+    <article className={`card vid-card ${compact ? "vid-card-compact" : ""}`}>
       <button type="button" className="vid-thumb" onClick={() => openPlayer(item)} aria-label={`${t("vid.watch")}: ${item.title}`}>
         {thumbOk
           ? <img src={item.thumbnail} alt="" loading="lazy" onError={() => setThumbOk(false)} />
@@ -83,9 +85,9 @@ export function VideoCard({ item, compact = false }) {
         </span>
       </button>
       <div className="vid-body">
-        {item.topic && <span className="badge badge-mint vid-topic">{item.topic}</span>}
-        <h3><button type="button" className="vid-title" onClick={() => openPlayer(item)}>{item.title}</button></h3>
-        {item.authors.length > 0 && <span className="faint">{joinNames(item.authors, item.lang || lang)}</span>}
+        {item.topic && <span className="badge badge-mint vid-topic" lang={item.lang} dir={dir}>{item.topic}</span>}
+        <h3 lang={item.lang} dir={dir}><button type="button" className="vid-title" onClick={() => openPlayer(item)}>{item.title}</button></h3>
+        {item.authors.length > 0 && <span className="faint" lang={item.lang} dir={dir}>{joinNames(item.authors, item.lang || lang)}</span>}
         {!compact && <SourceLine item={item} />}
       </div>
     </article>
