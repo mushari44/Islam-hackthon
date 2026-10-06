@@ -32,11 +32,13 @@ function QaAnswer({ text, verses }) {
   return <div className="qa-answer" lang="ar" dir="rtl">{out}</div>;
 }
 
-function SourceLink({ url }) {
+/** The icon link to a source's page; its label names the source, since a list shows several side by side. */
+function SourceLink({ url, title }) {
   const { t } = useI18n();
   if (!url) return null;
+  const label = title ? `${t("src.open")}: ${title}` : t("src.open");
   return (
-    <a className="icon-btn src-link" href={url} target="_blank" rel="noopener noreferrer" aria-label={t("src.open")} title={t("src.open")}>
+    <a className="icon-btn src-link" href={url} target="_blank" rel="noopener noreferrer" aria-label={label} title={label}>
       <Icon name="external" />
     </a>
   );
@@ -55,7 +57,7 @@ export function SourceCard({ card, num = null, compact = false }) {
       <span className="badge badge-mint">{t(`src.${kind}`)}</span>
       {extra}
       <span className="src-title">{card.title}</span>
-      <SourceLink url={card.url} />
+      <SourceLink url={card.url} title={card.title} />
     </div>
   );
   if (card.kind === "quran") {
@@ -210,7 +212,7 @@ export function Answer({ answer, compact = false }) {
                   <button type="button" className="src-mini-title" onClick={() => openSource(id)}>{cards[id].title}</button>
                   <span className="faint small">{cards[id].source}</span>
                 </span>
-                <SourceLink url={cards[id].url} />
+                <SourceLink url={cards[id].url} title={cards[id].title} />
               </li>
             ))}
           </ol>

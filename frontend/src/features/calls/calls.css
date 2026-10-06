@@ -64,3 +64,8 @@
 
 .share-chat { gap: 4px; }
 .share-chat p { margin: 0; padding-inline-start: 28px; }
+
+/* The call-ended actions: a long "Call <name> again" wraps inside the card, and on a phone each takes a full row. */
+.talk-end-actions { justify-content: center; }
+.talk-end-actions .btn { white-space: normal; max-inline-size: 100%; text-align: center; line-height: 1.3; padding-block: 8px; }
+@media (max-width: 480px) { .talk-end-actions .btn { flex: 1 1 100%; } }

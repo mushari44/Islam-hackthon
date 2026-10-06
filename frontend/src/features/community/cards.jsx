@@ -7,7 +7,7 @@ import { Icon, errorText, toast } from "../../core/ui.jsx";
 import { audienceKey, countryName, openJoin, openRsvp, placeOf, useWhen } from "./shared.jsx";
 
 export function GroupCard({ g }) {
-  const { t, lang, fmtNum, langName } = useI18n();
+  const { t, tn, lang, langName } = useI18n();
   return (
     <article className="card group-card">
       <div className="row spread">
@@ -16,7 +16,7 @@ export function GroupCard({ g }) {
           {g.audience !== "all" && <span className="badge badge-purple">{t(audienceKey(g.audience))}</span>}
           {g.age_group && g.age_group !== "all" && <span className="badge">{t(`com.age.${g.age_group}`)}</span>}
         </div>
-        <span className="faint"><Icon name="users" size={16} /> {t("com.members", { n: fmtNum(g.members) })}</span>
+        <span className="faint"><Icon name="users" size={16} /> {tn("com.members", g.members)}</span>
       </div>
       <h3 dir="auto">{g.title}</h3>
       <p className="muted small" dir="auto">{g.description}</p>
@@ -34,6 +34,7 @@ export function GroupCard({ g }) {
 function MeetupActions({ m, w, reload, account }) {
   const { t } = useI18n();
   const [asking, setAsking] = useState(false);     // the "cancel your booking?" step
+  const [busy, setBusy] = useState(false);         // a second click while it cancels must not send it twice
   const open = m.registration === "open";
   const online = m.format === "online";
   if (m.status === "cancelled" || w.ended) return null;
@@ -48,7 +49,13 @@ function MeetupActions({ m, w, reload, account }) {
     );
   }
   const cancel = async () => {
-    try { await api.post(`/api/meetups/${m.id}/cancel-rsvp`, {}); setAsking(false); reload(); } catch (err) { toast(errorText(err, t), "error"); }
+    setBusy(true);
+    try {
+      await api.post(`/api/meetups/${m.id}/cancel-rsvp`, {});
+      toast(t(open ? "com.left_toast" : "com.cancelled_toast"), "success");
+      setAsking(false);
+      reload();
+    } catch (err) { toast(errorText(err, t), "error"); } finally { setBusy(false); }
   };
   const code = !online && !open ? m.my_rsvp.code : "";
   return (
@@ -63,18 +70,18 @@ function MeetupActions({ m, w, reload, account }) {
       {!w.live && (asking ? (
         <span className="row cancel-ask">
           <span className="small">{t(open ? "com.leave_q" : "com.cancel_q")}</span>
-          <button type="button" className="btn btn-sm btn-danger" onClick={cancel}>{t(open ? "com.leave_yes" : "com.cancel_yes")}</button>
-          <button type="button" className="btn btn-ghost btn-sm" autoFocus onClick={() => setAsking(false)}>{t("com.cancel_keep")}</button>
+          <button type="button" className="btn btn-sm btn-danger" disabled={busy} aria-busy={busy} onClick={cancel}>{t(open ? "com.leave_yes" : "com.cancel_yes")}</button>
+          <button type="button" className="btn btn-ghost btn-sm" autoFocus disabled={busy} onClick={() => setAsking(false)}>{t("com.cancel_keep")}</button>
         </span>
       ) : (
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAsking(true)}>{t(open ? "com.leave_event" : "com.cancel_rsvp")}</button>
+        <button type="button" className="btn btn-danger-soft btn-sm" onClick={() => setAsking(true)}>{t(open ? "com.leave_event" : "com.cancel_rsvp")}</button>
       ))}
     </div>
   );
 }
 
 export function MeetupCard({ m, reload, account }) {
-  const { t, lang, fmtNum, langName } = useI18n();
+  const { t, tn, lang, langName } = useI18n();
   const w = useWhen(m);
   const online = m.format === "online";
   const open = m.registration === "open";
@@ -103,7 +110,7 @@ export function MeetupCard({ m, reload, account }) {
         {m.description && <p className="muted small" dir="auto">{m.description}</p>}
         <ul className="meta-list">
           <li>
-            <Icon name="clock" size={16} />{w.date} · {w.time} · {t("com.minutes", { n: fmtNum(m.duration_min) })}
+            <Icon name="clock" size={16} />{w.date} · {w.time} · {tn("com.minutes", m.duration_min)}
             {w.countdown && !cancelled && <span className="when-rel">{w.countdown}</span>}
           </li>
           <li>{online
@@ -114,7 +121,7 @@ export function MeetupCard({ m, reload, account }) {
         <div className="row spread meetup-actions">
           {cancelled || w.ended ? <span /> : (
             <span className={few ? "spots-few" : "faint"}>
-              {open ? t("com.going", { n: fmtNum(m.going) }) : full ? t("com.full") : t(few ? "com.spots_few" : "com.spots", { n: fmtNum(m.spots_left) })}
+              {open ? tn("com.going", m.going) : full ? t("com.full") : tn(few ? "com.spots_few" : "com.spots", m.spots_left)}
             </span>
           )}
           <MeetupActions m={m} w={w} reload={reload} account={account} />

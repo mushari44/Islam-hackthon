@@ -1,5 +1,4 @@
 /* Seeker account. Owner: Eman. */
-.account-card { max-width: 520px; }
 .account-head { display: flex; align-items: center; gap: 16px; }
 .account-head h1 { margin: 0; }
 .account-head p { margin: 0; }
@@ -18,9 +17,6 @@
 @media (max-width: 860px) { .account-btn-label { display: none; } }
 .email-row { flex-wrap: nowrap; }
 .email-row .input { flex: 1; min-width: 0; }
-/* the three tabs share the card width, so none scrolls out of view on a phone */
-.account-card .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; overflow: visible; }
-.account-card .tabs button { white-space: normal; padding: 8px 6px; line-height: 1.3; font-size: .9rem; }
 
 /* "About me" fields in the sign-up form */
 .about-fields { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin: 0; min-inline-size: 0; }
@@ -31,3 +27,29 @@
 .account-dot { position: absolute; inset-block-start: 4px; inset-inline-end: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--mint-400); }
 .complete-about { border-color: var(--mint-400); }
 .complete-about h3 { display: flex; align-items: center; gap: 8px; margin: 0; }
+
+/* Signed out, the button keeps its "Sign in" label on every screen, so it reads as the way in rather than a bare lock. */
+.top-actions .account-btn.is-signin .account-btn-label { display: inline; }
+/* Last in the bar (the far left in Arabic), set apart from the other buttons by a gap and a thin divider. */
+.top-actions .account-btn { margin-inline-start: 14px; }
+.top-actions .account-btn::before {
+  content: ""; position: absolute; inset-inline-start: -9px; inset-block: 8px; border-inline-start: 1px solid var(--border);
+}
+@media (max-width: 420px) { .top-actions .account-btn { margin-inline-start: 8px; } .top-actions .account-btn::before { inset-inline-start: -6px; } }
+
+/* The signed-in seeker's menu under their name (the usual account dropdown). */
+.account-menu { position: relative; display: flex; }
+.account-pop {
+  position: absolute; inset-inline-end: 0; inset-block-start: calc(100% + 8px); z-index: 70; min-width: 210px;
+  display: flex; flex-direction: column; padding: 6px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); animation: rise .18s var(--ease);
+}
+.account-pop-name { margin: 0 0 4px; padding: 8px 12px; font-weight: 700; border-block-end: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; }
+.account-pop a, .account-pop button {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-radius: 10px; background: none;
+  color: var(--text); font: inherit; text-align: start; text-decoration: none; cursor: pointer;
+}
+.account-pop a:hover, .account-pop button:hover, .account-pop a:focus-visible, .account-pop button:focus-visible { background: var(--bg-soft); outline: none; }
+.account-pop svg { width: 18px; height: 18px; color: var(--text-muted); }
+.account-pop .account-pop-out { color: var(--danger); margin-block-start: 4px; border-block-start: 1px solid var(--border); border-radius: 0 0 10px 10px; }
+.account-pop .account-pop-out svg { color: currentColor; }

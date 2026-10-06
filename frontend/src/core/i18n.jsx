@@ -46,6 +46,12 @@ export function LangProvider({ children }) {
       lang,
       setLang,
       t: (key, vars) => translate(lang, key, vars),
+      // Counted text: "key.one", "key.two", "key.few", "key.many" (CLDR plural forms) when this language has them,
+      // else "key". {n} is the formatted number. Arabic needs all of them; English needs only "key.one".
+      tn: (key, n, vars = {}) => {
+        const form = `${key}.${new Intl.PluralRules(lang).select(n)}`;
+        return translate(lang, dict[lang][form] !== undefined ? form : key, { ...vars, n: new Intl.NumberFormat(loc).format(n) });
+      },
       fmtNum: (n) => new Intl.NumberFormat(loc).format(n),
       fmtDate: (iso, opts = { weekday: "long", day: "numeric", month: "long" }) => new Intl.DateTimeFormat(loc, opts).format(new Date(iso)),
       fmtTime: (iso) => new Intl.DateTimeFormat(loc, { hour: "numeric", minute: "2-digit" }).format(new Date(iso)),
@@ -80,12 +86,14 @@ register({
     "common.optional": "اختياري", "common.continue": "متابعة", "common.done": "تم",
     "footer.ai": "سَبِيلي مساعد بالذكاء الاصطناعي، وليس عالماً ولا مفتياً. المصادر تظهر مع كل إجابة.",
     "footer.challenge": "مشروع في تحدي الذكاء الاصطناعي في خدمة المحتوى الإسلامي 2026",
+    "footer.links": "روابط الموقع", "footer.daai": "دخول الدعاة", "nav.main_label": "القائمة الرئيسية",
+    "nf.title": "الصفحة غير موجودة", "nf.lead": "ربما تغيّر الرابط أو كُتب خطأ. ارجع إلى الرئيسية أو اسأل سؤالك مباشرة.",
     "unit.s": "{n} ث", "unit.m": "{n} د",
     "err.full": "اكتمل العدد.", "err.nickname taken in this group": "هذا الاسم مستخدم في المجموعة، اختر غيره.",
     "err.choose another nickname": "اختر اسماً مستعاراً آخر.", "err.please accept the group rules": "يلزم الموافقة على قواعد المجموعة.",
-    "err.please confirm the audience of this meetup": "يرجى تأكيد أن اللقاء يناسبك.", "err.unsupported image type": "نوع الصورة غير مدعوم. استخدم JPG أو PNG أو WEBP.",
+    "err.please confirm the audience of this meetup": "يرجى تأكيد أن الفعالية تناسبك.", "err.unsupported image type": "نوع الصورة غير مدعوم. استخدم JPG أو PNG أو WEBP.",
     "err.image too large (max 5 MB)": "حجم الصورة أكبر من 5 ميجابايت.", "err.join the group first": "انضم إلى المجموعة أولاً.",
-    "err.meetups must be at a public venue": "يجب أن يكون اللقاء في مكان عام.", "err.already taken or no longer waiting": "قبل داعية آخر هذا الطلب.",
+    "err.meetups must be at a public venue": "يجب أن تكون الفعالية في مكان عام.", "err.already taken or no longer waiting": "قبل داعية آخر هذا الطلب.",
     "err.empty question": "اكتب سؤالك أولاً.", "err.not found": "غير موجود.", "err.session": "تعذر بدء الجلسة، حاول مرة أخرى.",
   },
   en: {
@@ -99,12 +107,14 @@ register({
     "common.optional": "optional", "common.continue": "Continue", "common.done": "Done",
     "footer.ai": "Sabeeli is an AI assistant, not a scholar or a mufti. Sources are shown with every answer.",
     "footer.challenge": "A project in the AI Challenge Serving Islamic Content 2026",
+    "footer.links": "Site links", "footer.daai": "Da'i sign-in", "nav.main_label": "Main menu",
+    "nf.title": "Page not found", "nf.lead": "The link may have changed or been mistyped. Go back home or ask your question directly.",
     "unit.s": "{n}s", "unit.m": "{n} min",
-    "err.full": "This meetup is full.", "err.nickname taken in this group": "That nickname is taken in this group; choose another.",
+    "err.full": "This event is full.", "err.nickname taken in this group": "That nickname is taken in this group; choose another.",
     "err.choose another nickname": "Please choose another nickname.", "err.please accept the group rules": "Please accept the group rules.",
-    "err.please confirm the audience of this meetup": "Please confirm this meetup is for you.", "err.unsupported image type": "Unsupported image type. Use JPG, PNG or WEBP.",
+    "err.please confirm the audience of this meetup": "Please confirm this event is for you.", "err.unsupported image type": "Unsupported image type. Use JPG, PNG or WEBP.",
     "err.image too large (max 5 MB)": "The photo is larger than 5 MB.", "err.join the group first": "Join the group first.",
-    "err.meetups must be at a public venue": "Meetups must be at a public venue.", "err.already taken or no longer waiting": "Another da'i took this request.",
+    "err.meetups must be at a public venue": "Events must be at a public venue.", "err.already taken or no longer waiting": "Another da'i took this request.",
     "err.empty question": "Type your question first.", "err.not found": "Not found.", "err.session": "Couldn't start a session; please try again.",
   },
 });

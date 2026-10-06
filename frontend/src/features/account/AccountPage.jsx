@@ -1,4 +1,4 @@
-// Seeker account page: sign in, sign up, recover, and "my account". Owner: Eman.
+// Account page: the sign-in card (seekers and da'is), sign up, and "my account". Owner: Eman.
 // Accounts are optional: a username, a password, the seeker's sex and age band, and an optional email and place
 // (see features/auth on the backend).
 import "./strings.js";
@@ -6,10 +6,11 @@ import "./account.css";
 import { useEffect, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
+import { navigate, useHashPath } from "../../core/router.jsx";
 import { Icon, errorText, toast } from "../../core/ui.jsx";
 import { COUNTRIES, NewMuslimPrompt, countryName } from "../community/public.js";
 import { AboutFields, CompleteAbout, needsAbout } from "./fields.jsx";
-import { setAccount, useAccount } from "./store.js";
+import { setAccount, setDaaiToken, signOutSeeker, useAccount } from "./store.js";
 
 function accError(err, t) {
   if (err && err.status === 422) return t("acc.err.invalid");
@@ -27,7 +28,8 @@ function Field({ id, label, hint, ...props }) {
   );
 }
 
-const ORDERED = ["SA", ...COUNTRIES.filter((c) => c !== "SA")];
+// Built on first use: community imports this feature too, so nothing from it is read while the modules load.
+const ordered = () => ["SA", ...COUNTRIES.filter((c) => c !== "SA")];
 
 /** Country and city (city only once a country is chosen); cities other members use are suggested. */
 function PlaceFields({ f, setF, prefix }) {
@@ -41,7 +43,7 @@ function PlaceFields({ f, setF, prefix }) {
         <label htmlFor={`${prefix}-country`}>{t("acc.country")}</label>
         <select id={`${prefix}-country`} className="select" value={f.country} onChange={(e) => setF({ ...f, country: e.target.value, city: "" })}>
           <option value="">{t("acc.no_country")}</option>
-          {ORDERED.map((c) => <option key={c} value={c}>{countryName(c, lang)}</option>)}
+          {ordered().map((c) => <option key={c} value={c}>{countryName(c, lang)}</option>)}
         </select>
       </div>
       <div className="field">
@@ -54,80 +56,88 @@ function PlaceFields({ f, setF, prefix }) {
   );
 }
 
-function SignedOut() {
+const ROLE_KEY = "sabeeli.signin_as";      // how this device signed in last time: "user" or "daai"
+function lastRole() { try { return localStorage.getItem(ROLE_KEY) === "daai" ? "daai" : "user"; } catch { return "user"; } }
+function rememberRole(role) { try { localStorage.setItem(ROLE_KEY, role); } catch { /* private mode */ } }
+
+const DAAI_ERRORS = { 401: "acc.err.daai_bad", 403: "acc.err.daai_disabled", 429: "acc.err.daai_too_many" };
+
+/**
+ * The one sign-in card for seekers and da'is: a switch at the top says who is signing in, and the same username and
+ * password go to the matching sign-in. Only seekers can sign up here; da'i accounts are added by the reviewer.
+ * role ("user" | "daai") preselects the switch, else the way this device signed in last time.
+ * onDaaiSignIn(me) runs after a da'i signs in; without it the card opens the da'i console.
+ * next: where a seeker goes after signing in (the page that sent them here), else their account.
+ */
+export function SignInCard({ role: preset, onDaaiSignIn, next }) {
   const { t, lang, setLang } = useI18n();
-  const [mode, setMode] = useState("signin");          // signin | signup | forgot
-  const [step, setStep] = useState("ask");             // forgot: ask -> email (code sent) | recovery (use backup code)
+  const { account } = useAccount();
+  const { path } = useHashPath();
+  const [role, setRole] = useState(() => preset || lastRole());
+  const [mode, setMode] = useState("signin");          // signin | signup (seekers only)
   // The interface language by default; sex and age band are left for the seeker to pick (no default, no "prefer not to say").
-  const [f, setF] = useState({ username: "", password: "", email: "", code: "", lang, country: "", city: "", age_band: "", gender: "" });
+  const [f, setF] = useState({ username: "", password: "", email: "", lang, country: "", city: "", age_band: "", gender: "" });
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const pick = (m) => { setMode(m); setStep("ask"); };
+  const daai = role === "daai" || Boolean(account);     // a seeker who is already signed in only needs the da'i sign-in
+  const signup = !daai && mode === "signup";
+  const pick = (r) => { setRole(r); setMode("signin"); };
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signin") {
-        const r = await api.post("/api/account/signin", { username: f.username, password: f.password });
-        if (r.account.lang) setLang(r.account.lang);   // the account's language follows the seeker to this device
-        setAccount(r.account);
-        toast(t("acc.welcome", { u: r.account.username }), "success");
-      } else if (mode === "signup") {
-        const r = await api.post("/api/account/signup", {
+      if (daai) {
+        const r = await api.post("/api/daai/login", { username: f.username, password: f.password }, { as: "none" });
+        setDaaiToken(r.token);
+        rememberRole("daai");
+        if (onDaaiSignIn) onDaaiSignIn(r.me); else navigate("/daai");
+        return;
+      }
+      const r = signup
+        ? await api.post("/api/account/signup", {
           username: f.username, password: f.password, email: f.email, lang: f.lang,
           country: f.country, city: f.city, age_band: f.age_band, gender: f.gender,
-        });
-        setLang(r.account.lang);
-        setAccount(r.account);
-        toast(t("acc.welcome", { u: r.account.username }), "success");
-      } else if (step === "ask") {
-        const r = await api.post("/api/account/forgot", { login: f.username });
-        setStep(r.via === "email" ? "email" : "recovery");
-      } else if (step === "email") {
-        const r = await api.post("/api/account/reset", { login: f.username, code: f.code, new_password: f.password });
-        setAccount(r.account);
-        toast(t("acc.reset_done"), "success");
-      } else {
-        // Recovery codes are no longer shown at sign-up; older accounts that saved one can still use it here.
-        const r = await api.post("/api/account/recover", { username: f.username, recovery_code: f.code, new_password: f.password });
-        setAccount(r.account);
-        toast(t("acc.reset_done"), "success");
-      }
+        })
+        : await api.post("/api/account/signin", { username: f.username, password: f.password });
+      if (r.account.lang) setLang(r.account.lang);       // the account's language follows the seeker to this device
+      setAccount(r.account);
+      rememberRole("user");
+      toast(t("acc.welcome", { u: r.account.username }), "success");
+      if (next) navigate(next); else if (!path.startsWith("/account")) navigate("/account");
     } catch (err) {
-      toast(accError(err, t), "error");
+      toast(daai ? (DAAI_ERRORS[err.status] ? t(DAAI_ERRORS[err.status]) : errorText(err, t)) : accError(err, t), "error");
     } finally {
       setBusy(false);
     }
   };
-  const forgot = mode === "forgot";
-  const askOnly = forgot && step === "ask";
+  // A plain login card: title, who is signing in, the fields, one full-width button, and a link to sign up (seekers only).
+  // Password reset needs email (SMTP), which isn't set up, so there is no "forgot password" link.
   return (
-    <section className="card stack account-card">
-      <div className="tabs" role="tablist">
-        {["signin", "signup", "forgot"].map((m) => (
-          <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => pick(m)}>{t(`acc.${m}`)}</button>
-        ))}
+    <section className={`card auth-card${signup ? " is-signup" : ""}`} aria-labelledby="auth-title">
+      <div className="auth-head">
+        <span className="auth-icon" aria-hidden="true"><Icon name={signup ? "users" : "lock"} size={22} /></span>
+        <h1 id="auth-title">{t(signup ? "acc.signup_title" : "acc.signin_title")}</h1>
+        {signup && <p className="muted">{t("acc.signup_lead")}</p>}
       </div>
+      {!signup && !account && (
+        <div className="tabs tabs-fit auth-role" role="radiogroup" aria-label={t("acc.role_label")}>
+          {[["user", "acc.role_user"], ["daai", "acc.role_daai"]].map(([r, k]) => (
+            <button key={r} type="button" role="radio" aria-checked={role === r} onClick={() => pick(r)}>{t(k)}</button>
+          ))}
+        </div>
+      )}
+      {!signup && <p className="auth-lead muted">{t(daai ? "acc.daai_lead" : "acc.signin_lead")}</p>}
       <form className="stack" onSubmit={submit}>
-        {forgot && !askOnly && <p className="small muted">{t(`acc.forgot_${step}`)}</p>}
-        <Field id="acc-user" label={forgot ? t("acc.login") : t("acc.username")} hint={mode === "signup" ? t("acc.username_hint") : null}
-          autoComplete="username" required minLength={3} maxLength={forgot ? 254 : 24} value={f.username} onChange={set("username")}
-          readOnly={forgot && !askOnly} />
-        {mode === "signup" && (
+        <Field id="acc-user" label={t("acc.username")} hint={signup ? t("acc.username_hint") : null}
+          autoComplete="username" required minLength={daai ? 1 : 3} maxLength={daai ? 64 : 24} value={f.username} onChange={set("username")} />
+        {signup && (
           <Field id="acc-email" type="email" dir="ltr" label={t("acc.email_optional")} hint={t("acc.email_hint")}
             autoComplete="email" maxLength={254} value={f.email} onChange={set("email")} />
         )}
-        {forgot && !askOnly && (
-          <Field id="acc-code" label={step === "email" ? t("acc.email_code") : t("acc.code")} dir="ltr" autoComplete="one-time-code"
-            inputMode={step === "email" ? "numeric" : "text"} required value={f.code} onChange={set("code")} />
-        )}
-        {!askOnly && (
-          <Field id="acc-pass" type="password" label={forgot ? t("acc.new_password") : t("acc.password")}
-            hint={mode === "signin" ? null : t("acc.password_hint")}
-            autoComplete={mode === "signin" ? "current-password" : "new-password"} required minLength={mode === "signin" ? 1 : 8}
-            value={f.password} onChange={set("password")} />
-        )}
-        {mode === "signup" && (
+        <Field id="acc-pass" type="password" label={t("acc.password")} hint={signup ? t("acc.password_hint") : null}
+          autoComplete={signup ? "new-password" : "current-password"} required minLength={signup ? 8 : 1}
+          value={f.password} onChange={set("password")} />
+        {signup && (
           <fieldset className="stack about-fields">
             <legend>{t("acc.about")}</legend>
             <p className="small muted">{t("acc.about_lead")}</p>
@@ -135,28 +145,39 @@ function SignedOut() {
             <PlaceFields f={f} setF={setF} prefix="su" />
           </fieldset>
         )}
-        {mode === "signup" && <p className="small muted">{t("acc.keep_note")}</p>}
-        <div className="row">
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            <Icon name={mode === "signin" ? "lock" : askOnly ? "send" : "check"} />
-            {t(mode === "signin" ? "acc.do_signin" : mode === "signup" ? "acc.do_signup" : askOnly ? "acc.send_code" : "acc.do_recover")}
-          </button>
-          {forgot && step === "email" && (
-            <button type="button" className="btn btn-ghost" onClick={() => setStep("recovery")}>{t("acc.use_recovery")}</button>
-          )}
-        </div>
+        {signup && <p className="small muted">{t("acc.keep_note")}</p>}
+        <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
+          {t(signup ? "acc.do_signup" : "acc.do_signin")}
+        </button>
       </form>
+      {daai ? (
+        <div className="auth-switch auth-note">
+          <p>{t("acc.daai_note")}</p>
+          <p className="faint small">{t("acc.daai_demo")}</p>
+        </div>
+      ) : (
+        <p className="auth-switch">
+          {t(signup ? "acc.have_account" : "acc.no_account")}{" "}
+          <button type="button" className="link-btn" onClick={() => setMode(signup ? "signin" : "signup")}>
+            {t(signup ? "acc.signin_title" : "acc.create_account")}
+          </button>
+        </p>
+      )}
     </section>
   );
 }
 
+// Every form below disables its button while it saves, so a double click can't send it twice.
 function EmailCard({ account }) {
   const { t } = useI18n();
   const [email, setEmail] = useState(account.email || "");
+  const [busy, setBusy] = useState(false);
   const save = async (e) => {
     e.preventDefault();
+    setBusy(true);
     try { setAccount((await api.post("/api/account/profile", { email })).account); toast(t("acc.saved"), "success"); }
     catch (err) { toast(accError(err, t), "error"); }
+    finally { setBusy(false); }
   };
   return (
     <form className="card stack" onSubmit={save}>
@@ -165,7 +186,7 @@ function EmailCard({ account }) {
       <div className="row email-row">
         <input id="acc-email-edit" className="input" type="email" dir="ltr" aria-label={t("acc.email_title")} autoComplete="email"
           maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} />
-        <button type="submit" className="btn btn-primary" disabled={email === (account.email || "")}><Icon name="check" />{t("acc.save")}</button>
+        <button type="submit" className="btn btn-primary" disabled={busy || email === (account.email || "")}><Icon name="check" />{t("acc.save")}</button>
       </div>
     </form>
   );
@@ -174,17 +195,21 @@ function EmailCard({ account }) {
 function PlaceCard({ account }) {
   const { t } = useI18n();
   const [f, setF] = useState({ country: account.country || "", city: account.city || "" });
+  const [busy, setBusy] = useState(false);
+  const unchanged = f.country === (account.country || "") && f.city === (account.city || "");
   const save = async (e) => {
     e.preventDefault();
+    setBusy(true);
     try { setAccount((await api.post("/api/account/profile", f)).account); toast(t("acc.saved"), "success"); }
     catch (err) { toast(accError(err, t), "error"); }
+    finally { setBusy(false); }
   };
   return (
     <form className="card stack" onSubmit={save}>
       <h3>{t("acc.place")}</h3>
       <p className="small muted">{t("acc.place_lead")}</p>
       <PlaceFields f={f} setF={setF} prefix="acc" />
-      <div className="row"><button type="submit" className="btn btn-primary"><Icon name="check" />{t("acc.save")}</button></div>
+      <div className="row"><button type="submit" className="btn btn-primary" disabled={busy || unchanged}><Icon name="check" />{t("acc.save")}</button></div>
     </form>
   );
 }
@@ -193,15 +218,18 @@ function AboutCard({ account }) {
   const { t, setLang } = useI18n();
   const saved = { lang: account.lang || "ar", gender: account.gender || "", age_band: account.age_band || "" };
   const [f, setF] = useState(saved);
+  const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const save = async (e) => {
     e.preventDefault();
+    setBusy(true);
     try {
       const r = await api.post("/api/account/profile", f);
       setLang(r.account.lang);
       setAccount(r.account);
       toast(t("acc.saved"), "success");
     } catch (err) { toast(accError(err, t), "error"); }
+    finally { setBusy(false); }
   };
   return (
     <form className="card stack" onSubmit={save}>
@@ -210,7 +238,7 @@ function AboutCard({ account }) {
       <AboutFields f={f} set={set} prefix="ab" />
       {f.age_band === "u18" && <p className="small muted">{t("acc.age_minor")}</p>}
       <div className="row">
-        <button type="submit" className="btn btn-primary" disabled={JSON.stringify(f) === JSON.stringify(saved) || !f.gender || !f.age_band}>
+        <button type="submit" className="btn btn-primary" disabled={busy || JSON.stringify(f) === JSON.stringify(saved) || !f.gender || !f.age_band}>
           <Icon name="check" />{t("acc.save")}
         </button>
       </div>
@@ -236,7 +264,7 @@ function Activity() {
           {data.events.length ? (
             <ul className="activity-list">
               {data.events.map((m) => (
-                <li key={m.id}><Icon name="calendar" size={16} /><a href="#/community?tab=meetups">{m.title}</a>
+                <li key={m.id}><Icon name="calendar" size={16} /><a href="#/community?tab=mine">{m.title}</a>
                   <span className="faint">{fmtDate(m.starts_at, { day: "numeric", month: "short" })}</span></li>
               ))}
             </ul>
@@ -292,21 +320,20 @@ function Security() {
   const { t } = useI18n();
   const [pw, setPw] = useState({ password: "", new_password: "" });
   const [del, setDel] = useState(null);
+  const [busy, setBusy] = useState("");   // "password" | "delete" while that request runs
   const change = async (e) => {
     e.preventDefault();
+    setBusy("password");
     try { await api.post("/api/account/password", pw); setPw({ password: "", new_password: "" }); toast(t("acc.password_changed"), "success"); }
     catch (err) { toast(accError(err, t), "error"); }
+    finally { setBusy(""); }
   };
-  const signout = async () => {
-    await api.post("/api/account/signout", {}).catch(() => {});
-    try { sessionStorage.removeItem("sabeeli.chat"); } catch { /* ignore */ }   // the saved chat stays in the account
-    setAccount(null);
-    toast(t("acc.signed_out"));
-  };
+  const signout = async () => { await signOutSeeker(); toast(t("acc.signed_out")); };
   const remove = async (e) => {
     e.preventDefault();
+    setBusy("delete");
     try { await api.post("/api/account/delete", { password: del }); setAccount(null); toast(t("acc.deleted")); }
-    catch (err) { toast(accError(err, t), "error"); }
+    catch (err) { toast(accError(err, t), "error"); setBusy(""); }
   };
   return (
     <section className="card stack">
@@ -316,10 +343,10 @@ function Security() {
           value={pw.password} onChange={(e) => setPw({ ...pw, password: e.target.value })} />
         <Field id="acc-new" type="password" label={t("acc.new_password")} hint={t("acc.password_hint")} autoComplete="new-password"
           required minLength={8} value={pw.new_password} onChange={(e) => setPw({ ...pw, new_password: e.target.value })} />
-        <div className="row"><button type="submit" className="btn"><Icon name="lock" />{t("acc.change_password")}</button></div>
+        <div className="row"><button type="submit" className="btn" disabled={busy === "password"}><Icon name="lock" />{t("acc.change_password")}</button></div>
       </form>
       <div className="row spread account-actions">
-        <button type="button" className="btn btn-ghost" onClick={signout}><Icon name="logout" />{t("acc.signout")}</button>
+        <button type="button" className="btn btn-danger-soft" onClick={signout}><Icon name="logout" />{t("acc.signout")}</button>
         {del === null && <button type="button" className="btn btn-ghost danger-text" onClick={() => setDel("")}><Icon name="trash" />{t("acc.delete")}</button>}
       </div>
       {del !== null && (
@@ -328,7 +355,7 @@ function Security() {
           <Field id="acc-del" type="password" label={t("acc.delete_confirm")} autoComplete="current-password" required
             value={del} onChange={(e) => setDel(e.target.value)} />
           <div className="row">
-            <button type="submit" className="btn btn-danger"><Icon name="trash" />{t("acc.do_delete")}</button>
+            <button type="submit" className="btn btn-danger" disabled={busy === "delete"}><Icon name="trash" />{t("acc.do_delete")}</button>
             <button type="button" className="btn btn-ghost" onClick={() => setDel(null)}>{t("common.cancel")}</button>
           </div>
         </form>
@@ -337,16 +364,16 @@ function Security() {
   );
 }
 
-export default function AccountPage() {
+export default function AccountPage({ query = {} }) {
   const { t, fmtDate } = useI18n();
   const { account, loaded } = useAccount();
   if (!loaded) return null;
   if (!account) {
+    const role = ["user", "daai"].includes(query.as) ? query.as : undefined;   // #/account?as=daai opens on "da'i"
+    // #/account?next=/ask brings the seeker back to that page once signed in (only paths inside this site).
+    const next = /^\/(?![/\\])/.test(query.next || "") ? query.next : undefined;
     return (
-      <>
-        <div className="page-head"><h1>{t("acc.signin")}</h1></div>
-        <SignedOut />
-      </>
+      <div className="auth-page"><SignInCard role={role} next={next} /></div>
     );
   }
   return (

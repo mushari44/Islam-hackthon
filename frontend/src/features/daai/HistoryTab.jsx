@@ -7,6 +7,7 @@ import { useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { LoadError } from "./bits.jsx";
 import { openSharedChat } from "./CallsTab.jsx";
 import NewMuslimButton from "./NewMuslimButton.jsx";
 
@@ -43,8 +44,13 @@ function HistoryTab() {
   };
   const [month, setMonth] = useState("");
   const [data, setData] = useState(null);
-  usePolling(async () => setData(await api.dGet(`/api/daai/calls${month ? `?month=${month}` : ""}`)), 20000, [month]);
-  if (!data) return <Spinner />;
+  const [failed, setFailed] = useState(null);
+  const load = async () => {
+    try { setData(await api.dGet(`/api/daai/calls${month ? `?month=${month}` : ""}`)); setFailed(null); } catch (err) { setFailed(err); }
+  };
+  usePolling(load, 20000, [month]);
+  // A later refresh that fails keeps the table on screen; only a first load that fails shows the error.
+  if (!data) return failed ? <LoadError err={failed} onRetry={() => { setFailed(null); load(); }} /> : <Spinner />;
   const { calls, summary: s } = data;
   const monthName = (m) => fmtDate(`${m}-15T12:00:00Z`, { month: "long", year: "numeric" });
 

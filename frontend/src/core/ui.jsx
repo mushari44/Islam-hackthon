@@ -59,22 +59,30 @@ export function usePolling(fn, ms, deps = [], enabled = true, { background = fal
 // Toasts
 
 let pushToast = null;
-export function toast(message, kind = "info", ms = 3200) {
+// Errors stay longer (people need time to read what went wrong) and can be closed by hand, like other toasts.
+export function toast(message, kind = "info", ms = kind === "error" ? 6500 : 3200) {
   if (pushToast) pushToast({ id: Math.random(), message, kind, ms });
 }
 
 export function ToastHost() {
+  const { t } = useI18n();
   const [items, setItems] = useState([]);
+  const drop = (id) => setItems((list) => list.filter((x) => x.id !== id));
   useEffect(() => {
     pushToast = (item) => {
-      setItems((list) => [...list, item]);
-      setTimeout(() => setItems((list) => list.filter((x) => x.id !== item.id)), item.ms);
+      setItems((list) => [...list.slice(-2), item]);   // at most three at once: older ones make way
+      setTimeout(() => drop(item.id), item.ms);
     };
     return () => { pushToast = null; };
   }, []);
   return (
-    <div className="toasts" role="status" aria-live="polite">
-      {items.map((x) => <div key={x.id} className={`toast ${x.kind === "error" ? "error" : ""}`}>{x.message}</div>)}
+    <div className="toasts" aria-live="polite">
+      {items.map((x) => (
+        <div key={x.id} className={`toast ${x.kind === "error" ? "error" : ""}`} role={x.kind === "error" ? "alert" : "status"}>
+          <span>{x.message}</span>
+          <button type="button" className="toast-close" aria-label={t("common.close")} onClick={() => drop(x.id)}><Icon name="x" size={14} /></button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -101,16 +109,30 @@ export function SheetHost() {
   return sheets.map((s) => <Sheet key={s.id} title={s.title} wide={s.wide} onClose={s.close}>{s.render(s.close)}</Sheet>);
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+let openSheets = 0;   // the page behind stops scrolling while any sheet is open
+
 export function Sheet({ title, wide, onClose, children }) {
   const { t } = useI18n();
   const titleId = useId();
   const panel = useRef(null);
   useEffect(() => {
+    if (openSheets++ === 0) document.body.classList.add("sheet-open");
+    return () => { if (--openSheets === 0) document.body.classList.remove("sheet-open"); };
+  }, []);
+  useEffect(() => {
     const prev = document.activeElement;
     const onKey = (e) => {
-      if (e.key !== "Escape") return;
-      const open = document.querySelectorAll(".sheet");   // sheets stack: Escape closes only the top one
-      if (open[open.length - 1] === panel.current) onClose();
+      const open = document.querySelectorAll(".sheet");   // sheets stack: keys act on the top one only
+      if (open[open.length - 1] !== panel.current) return;
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      // Keep Tab inside the dialog, as a modal should.
+      const items = [...panel.current.querySelectorAll(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0]; const last = items[items.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     document.addEventListener("keydown", onKey);
     const focusable = panel.current?.querySelector("input, textarea, select, button:not(.icon-btn)");

@@ -23,9 +23,9 @@ export function PlaceFields({ f, setF, idPrefix = "p", genderLabel = "dp.gender"
     <>
       <div className="field">
         <span className="field-label">{t(genderLabel)}</span>
-        <div className="tabs" role="radiogroup" aria-label={t(genderLabel)}>
+        <div className="tabs tabs-fit" role="radiogroup" aria-label={t(genderLabel)}>
           {[["m", "dp.gender_m"], ["f", "dp.gender_f"]].map(([v, k]) => (
-            <button key={v} type="button" role="radio" aria-checked={f.gender === v} aria-selected={f.gender === v} onClick={() => setF({ ...f, gender: v })}>{t(k)}</button>
+            <button key={v} type="button" role="radio" aria-checked={f.gender === v} onClick={() => setF({ ...f, gender: v })}>{t(k)}</button>
           ))}
         </div>
       </div>
@@ -52,7 +52,7 @@ export function titledName(me, lang, t) {
 }
 
 function ProfileTab({ me, onMe }) {
-  const { t, lang, langName } = useI18n();
+  const { t, lang, langName, fmtNum } = useI18n();
   const [f, setF] = useState(() => fromProfile(me));
   const [saving, setSaving] = useState(false);
   const saved = fromProfile(me);
@@ -91,7 +91,7 @@ function ProfileTab({ me, onMe }) {
         <div className="grid grid-2">
           <div className="field">
             <label htmlFor="p-name">{t("dp.name")}</label>
-            <input id="p-name" className="input" required minLength={2} maxLength={120} value={f.name} onChange={set("name")} />
+            <input id="p-name" className="input" dir="auto" required minLength={2} maxLength={120} value={f.name} onChange={set("name")} />
           </div>
           <div className="field">
             <label htmlFor="p-name-en">{t("dp.name_en")}</label>
@@ -115,8 +115,8 @@ function ProfileTab({ me, onMe }) {
 
         <div className="field">
           <label htmlFor="p-bio">{t("dp.bio")}</label>
-          <textarea id="p-bio" className="textarea" rows={3} maxLength={600} value={f.bio} onChange={set("bio")} />
-          <span className="faint">{t("dp.count", { n: f.bio.length })}</span>
+          <textarea id="p-bio" className="textarea" dir="auto" rows={3} maxLength={600} value={f.bio} onChange={set("bio")} />
+          <span className="faint">{t("dp.count", { n: fmtNum(f.bio.length), max: fmtNum(600) })}</span>
         </div>
         <div className="field">
           <label htmlFor="p-bio-en">{t("dp.bio_en")}</label>

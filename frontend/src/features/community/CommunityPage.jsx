@@ -19,7 +19,7 @@ const AUDIENCE_FROM_GENDER = { f: "women", m: "men" };
 const AGE_FROM_BAND = { "18_24": "youth", "35_44": "adults", "45_54": "adults" };
 
 export default function CommunityPage({ query }) {
-  const { t, lang, fmtNum, langName } = useI18n();
+  const { t, tn, lang, fmtNum, langName } = useI18n();
   // The tab lives in the address (#/community?tab=mine), so links such as "Go to My activities" always work.
   const tab = TABS.includes(query.tab) ? query.tab : "groups";
   const setTab = (k) => navigate(`/community?tab=${k}`);
@@ -63,6 +63,9 @@ export default function CommunityPage({ query }) {
 
   // Which list is showing: a new list shows a placeholder while it loads; a refresh after booking keeps the old one.
   const listKey = [tab, langFilter, country, city, audience, ageValue, series, fmt, lang].join("|");
+  // Any filter narrowing the list: then the count line offers "Clear filters", as list pages usually do.
+  const filtered = Boolean(langFilter || country || city || audience || ageValue || (tab === "meetups" && (series || fmt)));
+  const clearFilters = () => { setLangFilter(""); setFmt(""); setSeries(""); setCountry(""); setCity(""); setAudience(""); setAge(""); };
   useEffect(() => {
     if (tab === "mine") return undefined;
     let alive = true;
@@ -94,72 +97,83 @@ export default function CommunityPage({ query }) {
             </button>
           ))}
         </div>
-        {tab !== "mine" && (
-          <div className="row">
-            {["", "ar", "en"].map((l) => (
-              <button key={l || "all"} type="button" className="chip" aria-pressed={langFilter === l} onClick={() => setLangFilter(l)}>
-                {l ? langName(l) : t("com.all_langs")}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
       {tab === "mine" && <MyActivities data={mine} reload={reload} account={account} browse={setTab} />}
       {tab !== "mine" && (
         <>
-          {tab === "meetups" && (
-            <div className="row format-filter" role="group" aria-label={t("com.format")}>
-              {["", ...FORMATS].map((f) => (
-                <button key={f || "all"} type="button" className="chip" aria-pressed={fmt === f} onClick={() => setFmt(f)}>
-                  {f && <Icon name={f === "online" ? "globe" : "pin"} size={16} />}{t(`com.fmt.${f || "all"}`)}
+          <div className="com-filter-panel" role="group" aria-label={t("com.filters")}>
+            <div className="row" role="group" aria-label={t("com.lang")}>
+              {["", "ar", "en"].map((l) => (
+                <button key={l || "all"} type="button" className="chip" aria-pressed={langFilter === l} onClick={() => setLangFilter(l)}>
+                  {l ? langName(l) : t("com.all_langs")}
                 </button>
               ))}
             </div>
-          )}
-          {fmt !== "online" || tab !== "meetups" ? (
-            <div className="place-filters">
-              <Icon name="pin" size={18} />
-              <label className="sr-only" htmlFor="f-country">{t("com.country")}</label>
-              <select id="f-country" className="select" value={country} onChange={(e) => { setCountry(e.target.value); setCity(""); }}>
-                <option value="">{t("com.all_countries")}</option>
-                {places.map((p) => <option key={p.country} value={p.country}>{countryName(p.country, lang)}</option>)}
-              </select>
-              {country && cities.length > 0 && (
-                <>
-                  <label className="sr-only" htmlFor="f-city">{t("com.city")}</label>
-                  <select id="f-city" className="select" value={city} onChange={(e) => setCity(e.target.value)}>
-                    <option value="">{t("com.all_cities")}</option>
-                    {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </>
-              )}
-              {tab === "meetups" && country && !fmt && <span className="faint small">{t("com.online_everywhere")}</span>}
-            </div>
-          ) : null}
-          <div className="com-filters">
-            <div className="row" role="group" aria-label={t("com.open_to")}>
-              <span className="faint">{t("com.open_to")}</span>
-              {["", "women", "men"].map((a) => (
-                <button key={a || "all"} type="button" className="chip" aria-pressed={audience === a} onClick={() => setAudience(a)}>
-                  {t(`com.for.${a || "all"}`)}
+            {tab === "meetups" && (
+              <div className="row format-filter" role="group" aria-label={t("com.format")}>
+                {["", ...FORMATS].map((f) => (
+                  <button key={f || "all"} type="button" className="chip" aria-pressed={fmt === f} onClick={() => setFmt(f)}>
+                    {f && <Icon name={f === "online" ? "globe" : "pin"} size={16} />}{t(`com.fmt.${f || "all"}`)}
+                  </button>
+                ))}
+              </div>
+            )}
+            {fmt !== "online" || tab !== "meetups" ? (
+              <div className="place-filters">
+                <Icon name="pin" size={18} />
+                <label className="sr-only" htmlFor="f-country">{t("com.country")}</label>
+                <select id="f-country" className="select" value={country} onChange={(e) => { setCountry(e.target.value); setCity(""); }}>
+                  <option value="">{t("com.all_countries")}</option>
+                  {places.map((p) => <option key={p.country} value={p.country}>{countryName(p.country, lang)}</option>)}
+                </select>
+                {country && cities.length > 0 && (
+                  <>
+                    <label className="sr-only" htmlFor="f-city">{t("com.city")}</label>
+                    <select id="f-city" className="select" value={city} onChange={(e) => setCity(e.target.value)}>
+                      <option value="">{t("com.all_cities")}</option>
+                      {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </>
+                )}
+                {tab === "meetups" && country && !fmt && <span className="faint small">{t("com.online_everywhere")}</span>}
+              </div>
+            ) : null}
+            <div className="com-filters">
+              <div className="row" role="group" aria-label={t("com.open_to")}>
+                <span className="faint">{t("com.open_to")}</span>
+                {["", "women", "men"].map((a) => (
+                  <button key={a || "all"} type="button" className="chip" aria-pressed={audience === a} onClick={() => setAudience(a)}>
+                    {t(`com.for.${a || "all"}`)}
+                  </button>
+                ))}
+              </div>
+              <label className="row age-filter">
+                <span className="faint">{t("com.age")}</span>
+                <select className="select" value={ageValue} onChange={(e) => setAge(e.target.value)}>
+                  {ages.map((a) => <option key={a} value={a === "all" ? "" : a}>{t(`com.age.${a}`)}</option>)}
+                </select>
+              </label>
+              {tab === "meetups" && SERIES.map((sr) => (
+                <button key={sr} type="button" className="chip series-chip" aria-pressed={series === sr} onClick={() => setSeries(series === sr ? "" : sr)}>
+                  <Icon name={sr === "ramadan" ? "moon" : "layers"} size={16} />{t(`com.series.${sr}`)}
                 </button>
               ))}
             </div>
-            <label className="row age-filter">
-              <span className="faint">{t("com.age")}</span>
-              <select className="select" value={ageValue} onChange={(e) => setAge(e.target.value)}>
-                {ages.map((a) => <option key={a} value={a === "all" ? "" : a}>{t(`com.age.${a}`)}</option>)}
-              </select>
-            </label>
-            {tab === "meetups" && SERIES.map((sr) => (
-              <button key={sr} type="button" className="chip series-chip" aria-pressed={series === sr} onClick={() => setSeries(series === sr ? "" : sr)}>
-                <Icon name={sr === "ramadan" ? "moon" : "layers"} size={16} />{t(`com.series.${sr}`)}
-              </button>
-            ))}
           </div>
           {tab === "meetups" && series && <p className="series-lead"><Icon name={series === "ramadan" ? "moon" : "layers"} size={18} />{t(`com.series_lead.${series}`)}</p>}
-          {error && <p className="empty">{errorText(error, t)}</p>}
+          {error && (
+            <div className="empty">
+              <p>{errorText(error, t)}</p>
+              <button type="button" className="btn btn-sm" onClick={reload}>{t("common.retry")}</button>
+            </div>
+          )}
           {!error && items?.key !== listKey && <div className="skeleton" style={{ height: 120 }} />}
+          {!error && items?.key === listKey && (
+            <div className="row spread com-results">
+              <span className="faint small" role="status">{tn(tab === "groups" ? "com.n_groups" : "com.n_meetups", items.data.length)}</span>
+              {filtered && <button type="button" className="link-btn small" onClick={clearFilters}><Icon name="x" size={14} />{t("com.clear_filters")}</button>}
+            </div>
+          )}
           {!error && items?.key === listKey && tab === "groups" && (items.data.length
             ? <div className="grid grid-2">{items.data.map((g) => <GroupCard key={g.id} g={g} />)}</div>
             : <p className="empty">{t("com.empty_groups")}</p>)}

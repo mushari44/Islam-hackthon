@@ -41,7 +41,39 @@
 .priv-list li { display: flex; gap: 12px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 16px; }
 .priv-list svg { width: 22px; height: 22px; flex: none; color: var(--accent-ink); }
 
-.login-card { max-width: 440px; }
+/* Sign-in screens (seekers and da'is): one card centred on the page, the usual width of a login form. */
+.auth-page { display: flex; justify-content: center; padding-block: clamp(8px, 4vh, 48px); }
+.auth-card { width: 100%; max-width: 420px; padding: clamp(20px, 4vw, 32px); display: flex; flex-direction: column; gap: 20px; }
+.auth-card.is-signup { max-width: 560px; }
+.auth-head { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.auth-head h1 { margin: 0; font-size: 1.6rem; }
+.auth-head p { margin: 0; font-size: .95rem; }
+.auth-icon {
+  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; margin-block-end: 4px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent-ink);
+}
+.auth-card .btn-block { margin-block-start: 4px; }
+.auth-switch { margin: 0; text-align: center; font-size: .92rem; color: var(--text-muted); }
+/* "Sign in as: user | da'i", two equal halves across the card, with a line under it about the chosen side. */
+.tabs.auth-role { display: flex; width: 100%; }
+.tabs.auth-role button { flex: 1 1 0; min-width: 0; }
+.tabs.auth-role button[aria-checked="true"] { background: var(--mint-400); color: var(--navy-900); }   /* green, like the current tab */
+.auth-lead { margin: -8px 0 0; text-align: center; font-size: .92rem; }
+.auth-note { display: flex; flex-direction: column; gap: 6px; }
+.auth-note p { margin: 0; }
+
+/* Not found */
+.not-found { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-block: 64px; }
+.not-found .nf-code { margin: 0; font-size: 3rem; font-weight: 800; color: var(--peri-400); line-height: 1; }
+.not-found h1 { margin: 0; font-size: 1.6rem; color: var(--text); }
+.not-found p { margin: 0; max-width: 46ch; }
+.nf-actions { justify-content: center; margin-block-start: 12px; }
+.empty .btn svg { width: 18px; height: 18px; margin: 0; color: currentColor; }
+
+/* "More" page: each row ends with a chevron, like a settings list */
+.more-link { display: flex; align-items: center; gap: 12px; }
+.more-link span { flex: 1; }
+.card.card-link.row svg.more-chev { width: 18px; height: 18px; color: var(--text-faint); }
 .daai-panel { min-height: 40vh; }
 .card.card-link.row svg { width: 22px; height: 22px; color: var(--accent-ink); }
 

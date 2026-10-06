@@ -1,2 +1,2 @@
 // What other features may use from Account. Owner: Eman.
-export { loadAccount, useAccount } from "./store.js";
+export { loadAccount, setDaaiToken, useAccount, useDaaiSignedIn } from "./store.js";

@@ -54,8 +54,13 @@ p { margin: 0 0 .8em; }
 .top-actions { display: flex; gap: 6px; align-items: center; }
 .main { flex: 1; width: 100%; max-width: var(--page-w); margin: 0 auto; padding: 24px var(--gutter) 120px; }
 .footer { border-top: 1px solid var(--border); color: var(--text-muted); font-size: .85rem; }
-.footer-inner { max-width: var(--page-w); margin: 0 auto; padding: 18px var(--gutter) 96px; display: flex; flex-wrap: wrap; gap: 8px 22px; }
+/* Footer: a row of site links, then the AI notice and the © line. */
+.footer-inner { max-width: var(--page-w); margin: 0 auto; padding: 18px var(--gutter) 96px; display: flex; flex-direction: column; gap: 8px; }
 .footer a { color: var(--text-muted); }
+.footer-links { display: flex; flex-wrap: wrap; gap: 6px 22px; font-weight: 600; }
+.footer-links a { text-decoration: none; }
+.footer-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.footer-note { margin: 0; }
 
 /* Header widths: the full bar (nav labels + labelled buttons) needs ~1240px. Below that the buttons
    on the end become icons; at tablet width and below (<=1024px) the nav moves to the bottom tab bar. */
@@ -95,8 +100,14 @@ p { margin: 0 0 .8em; }
   .brand { gap: 8px; min-width: 0; }
   .brand-mark { width: 34px; height: 34px; }
   .brand-name { font-size: 1.2rem; }
+  .lang-btn svg { display: none; }   /* "EN" / "ع" alone is enough on a phone, and leaves room for the name */
+  .top-actions .lang-btn { min-width: 38px; justify-content: center; }
   .tabbar a { font-size: .66rem; }
 }
+/* On the narrowest phones, while the bar shows the labelled "Sign in" button, the logo stands alone so the two never touch
+   (the Arabic label is longer, so it needs the room sooner). */
+@media (max-width: 374px) { [dir="rtl"] .topbar-inner:has(.account-btn.is-signin) .brand-name { display: none; } }
+@media (max-width: 344px) { .topbar-inner:has(.account-btn.is-signin) .brand-name { display: none; } }
 
 /* ---------- buttons ---------- */
 .btn {
@@ -114,6 +125,18 @@ p { margin: 0 0 .8em; }
 .btn-accent { --btn-bg: var(--accent); --btn-fg: var(--accent-text); --btn-bd: transparent; }
 .btn-ghost { --btn-bg: transparent; --btn-bd: transparent; }
 .btn-danger { --btn-bg: var(--danger); --btn-fg: #fff; --btn-bd: transparent; }
+/* Leaving or cancelling (sign out, cancel a booking, leave a group): red text and outline, a little wider than a plain button. */
+.btn-danger-soft {
+  --btn-bg: color-mix(in srgb, var(--danger) 8%, transparent); --btn-fg: var(--danger);
+  --btn-bd: color-mix(in srgb, var(--danger) 45%, transparent); padding-inline: 22px;
+}
+.btn-danger-soft:hover { --btn-bg: var(--danger); --btn-fg: #fff; }
+.btn-sm.btn-danger-soft { padding-inline: 16px; }
+.btn-block { display: flex; width: 100%; }
+.link-btn {
+  background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--accent-ink);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
 .btn-sm { min-height: 34px; padding: 0 12px; font-size: .88rem; }
 .btn-lg { min-height: 54px; padding: 0 26px; font-size: 1.05rem; }
 .icon-btn {
@@ -235,6 +258,15 @@ p { margin: 0 0 .8em; }
   font-size: .92rem; animation: rise .25s var(--ease); pointer-events: auto; max-width: min(92vw, 520px);
 }
 .toast.error { background: var(--red-600); }
+.toast { display: flex; align-items: center; gap: 10px; border-radius: 16px; padding-inline: 18px 12px; }
+.toast-close {
+  flex: none; display: grid; place-items: center; width: 24px; height: 24px; margin-inline-end: -6px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: .75; cursor: pointer;
+}
+.toast-close:hover { opacity: 1; background: rgba(255, 255, 255, .15); }
+body.sheet-open { overflow: hidden; }
+/* A "send" paper plane points the way the text runs, so it flips in Arabic. */
+[dir="rtl"] .icon-send { transform: scaleX(-1); }
 
 /* ---------- misc ---------- */
 .skeleton { background: linear-gradient(90deg, var(--bg-soft), var(--border), var(--bg-soft)); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 8px; height: 14px; }

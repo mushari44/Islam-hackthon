@@ -3,9 +3,11 @@
 import "./daai.css";
 import { useEffect, useState } from "react";
 import { api } from "../../core/api.js";
+import { setDaaiToken } from "../account/public.js";
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, errorText, toast } from "../../core/ui.jsx";
+import { Icon, Spinner, errorText, toast } from "../../core/ui.jsx";
 import { countryName } from "../community/public.js";
+import { AskFirst, LoadError } from "./bits.jsx";
 import { LANGUAGES, PlaceFields } from "./ProfileTab.jsx";
 
 const EMPTY = { username: "", password: "", name: "", name_en: "", languages: ["ar"], gender: "m", country: "", city: "" };
@@ -50,7 +52,7 @@ function AddForm({ onAdded }) {
         </div>
         <div className="field">
           <label htmlFor="na-pass">{t("da.first_password")}</label>
-          <input id="na-pass" className="input" type="password" autoComplete="new-password" required minLength={8} value={f.password} onChange={set("password")} />
+          <input id="na-pass" className="input" type="password" autoComplete="new-password" required minLength={8} maxLength={200} value={f.password} onChange={set("password")} />
           <span className="faint">{t("da.pass_hint")}</span>
         </div>
         <div className="field">
@@ -78,16 +80,23 @@ function AddForm({ onAdded }) {
   );
 }
 
-function Row({ d, me, onChange }) {
+function Row({ d, me, onChange, onMe }) {
   const { t, lang, langName } = useI18n();
   const [pw, setPw] = useState(null);
+  const [busy, setBusy] = useState(false);
   const save = async (body, msg) => {
+    setBusy(true);
     try { onChange(await api.dPost(`/api/daai/admin/daais/${d.id}`, body)); toast(t(msg), "success"); return true; }
     catch (err) { toast(adminError(err, t), "error"); return false; }
+    finally { setBusy(false); }
   };
+  const self = d.id === me.id;   // a reviewer can't disable themself
   const reset = async (e) => {
     e.preventDefault();
-    if (await save({ password: pw }, "da.reset_done")) setPw(null);
+    if (!(await save({ password: pw }, self ? "da.reset_self_done" : "da.reset_done"))) return;
+    setPw(null);
+    // A new password signs this account out everywhere, this browser too: go straight to the sign-in card.
+    if (self) { setDaaiToken(null); onMe?.(null); }
   };
   const place = [d.city, countryName(d.country, lang)].filter(Boolean).join(lang === "ar" ? "، " : ", ");
   return (
@@ -103,18 +112,17 @@ function Row({ d, me, onChange }) {
         </div>
       </div>
       <div className="row">
-        {d.id !== me.id && (
-          <button type="button" className="btn btn-sm" onClick={() => save({ active: !d.active }, d.active ? "da.disabled_done" : "da.enabled_done")}>
-            <Icon name={d.active ? "x" : "check"} />{t(d.active ? "da.disable" : "da.enable")}
-          </button>
+        {!self && (
+          <AskFirst label={t(d.active ? "da.disable" : "da.enable")} icon={d.active ? "x" : "check"} ask={d.active} className="btn btn-sm"
+            question={t("da.disable_q")} disabled={busy} onYes={() => save({ active: !d.active }, d.active ? "da.disabled_done" : "da.enabled_done")} />
         )}
         {pw === null && <button type="button" className="btn btn-sm btn-ghost" onClick={() => setPw("")}><Icon name="lock" />{t("da.reset")}</button>}
       </div>
       {pw !== null && (
         <form className="row admin-reset" onSubmit={reset}>
           <input className="input" type="password" autoComplete="new-password" aria-label={t("da.new_password")} placeholder={t("da.new_password")}
-            required minLength={8} value={pw} onChange={(e) => setPw(e.target.value)} />
-          <button type="submit" className="btn btn-sm btn-primary"><Icon name="check" />{t("dp.save")}</button>
+            required minLength={8} maxLength={200} value={pw} onChange={(e) => setPw(e.target.value)} />
+          <button type="submit" className="btn btn-sm btn-primary" disabled={busy}><Icon name="check" />{t("dp.save")}</button>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setPw(null)}>{t("common.cancel")}</button>
         </form>
       )}
@@ -122,10 +130,12 @@ function Row({ d, me, onChange }) {
   );
 }
 
-function AdminTab({ me }) {
+function AdminTab({ me, onMe }) {
   const { t } = useI18n();
   const [list, setList] = useState(null);
-  useEffect(() => { api.dGet("/api/daai/admin/daais").then(setList).catch((err) => { toast(errorText(err, t), "error"); setList([]); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [failed, setFailed] = useState(null);
+  const load = () => { setFailed(null); api.dGet("/api/daai/admin/daais").then(setList).catch(setFailed); };
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
   const replace = (d) => setList((xs) => xs.map((x) => (x.id === d.id ? d : x)));
   return (
     <div className="stack">
@@ -133,7 +143,8 @@ function AdminTab({ me }) {
       <section className="card stack">
         <h3>{t("da.list")}</h3>
         <p className="small muted">{t("da.list_lead")}</p>
-        {list && <ul className="admin-list">{list.map((d) => <Row key={d.id} d={d} me={me} onChange={replace} />)}</ul>}
+        {!list && (failed ? <LoadError err={failed} onRetry={load} /> : <Spinner />)}
+        {list && <ul className="admin-list">{list.map((d) => <Row key={d.id} d={d} me={me} onChange={replace} onMe={onMe} />)}</ul>}
       </section>
     </div>
   );

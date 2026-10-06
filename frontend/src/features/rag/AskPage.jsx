@@ -64,7 +64,7 @@ function Timings({ timings }) {
   const names = Object.keys(steps).sort((x, y) => STEP_ORDER.indexOf(x) - STEP_ORDER.indexOf(y));
   if (!names.length) return null;
   const sub = new Set(["bm25", "embed_query", "faiss", "fusion"]);
-  const fmt = (ms) => (ms >= 1000 ? t("unit.s", { n: fmtNum(Math.round(ms / 100) / 10) }) : `${fmtNum(Math.round(ms))} ms`);
+  const fmt = (ms) => (ms >= 1000 ? t("unit.s", { n: fmtNum(Math.round(ms / 100) / 10) }) : t("ask.unit_ms", { n: fmtNum(Math.round(ms)) }));
   return (
     <div>
       <h3>{t("ask.trace_steps")}</h3>
@@ -75,8 +75,8 @@ function Timings({ timings }) {
             <li key={n} className={sub.has(n) ? "sub" : ""}>
               <span>{t(`ask.step_${n}`)}</span> <strong>{fmt(steps[n])}</strong>
               {calls.map((c, i) => (
-                <span key={i} className="faint small">{` · ${c.provider} · ${fmtNum(c.in || 0)}→${fmtNum(c.out || 0)} tokens`}
-                  {c.tok_s ? ` · ${fmtNum(c.tok_s)} tok/s` : ""}</span>
+                <span key={i} className="faint small">{` · ${c.provider} · ${t("ask.tokens", { in: fmtNum(c.in || 0), out: fmtNum(c.out || 0) })}`}
+                  {c.tok_s ? ` · ${t("ask.tok_s", { n: fmtNum(c.tok_s) })}` : ""}</span>
               ))}
             </li>
           );
@@ -216,7 +216,10 @@ function ChatList({ convs, current, calls, saved, onOpen, onDelete, inSheet = fa
                   {daai && <span className="badge badge-mint">{t("ask.talked_with", { name: lang === "ar" ? daai.name : daai.name_en || daai.name })}</span>}
                 </button>
                 {sure === c.id ? (
-                  <button type="button" className="btn btn-sm btn-danger" onClick={() => { setSure(null); onDelete(c.id); }}>{t("ask.delete_sure")}</button>
+                  <span className="row chat-delete-ask">
+                    <button type="button" className="btn btn-sm btn-danger" onClick={() => { setSure(null); onDelete(c.id); }}>{t("ask.delete_sure")}</button>
+                    <button type="button" className="btn btn-sm btn-ghost" autoFocus onClick={() => setSure(null)}>{t("common.cancel")}</button>
+                  </span>
                 ) : (
                   <button type="button" className="icon-btn" aria-label={t("ask.delete_chat")} title={t("ask.delete_chat")} onClick={() => setSure(c.id)}><Icon name="trash" /></button>
                 )}
@@ -225,7 +228,7 @@ function ChatList({ convs, current, calls, saved, onOpen, onDelete, inSheet = fa
           })}
         </ul>
       )}
-      <p className="small faint">{saved ? <><Icon name="lock" size={14} /> {t("ask.saved_note")}</> : <>{t("ask.anon_note")} <a href="#/account">{t("ask.sign_in")}</a></>}</p>
+      <p className="small faint">{saved ? <><Icon name="lock" size={14} /> {t("ask.saved_note")}</> : <>{t("ask.anon_note")} <a href="#/account?next=%2Fask">{t("ask.sign_in")}</a></>}</p>
     </div>
   );
 }
@@ -407,17 +410,13 @@ export default function AskPage({ query = {} }) {
               <textarea ref={inputRef} className="composer-input" rows={1} maxLength={2000} value={text}
                 placeholder={t("ask.placeholder")} aria-label={t("ask.placeholder")} onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }} />
-              <button type="submit" className="btn btn-primary composer-send" aria-label={t("ask.send")} disabled={busy}><Icon name="send" /></button>
+              <button type="submit" className="btn btn-primary composer-send" aria-label={t("ask.send")} disabled={busy}><Icon name="send" className="icon-send" /></button>
             </div>
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={onFile} />
           </form>
         </section>
         <aside className="ask-side stack">
           <ChatList convs={convs} current={conv} calls={calls} saved={saved} onOpen={openChat} onDelete={deleteChat} />
-          <div className="card stack">
-            <p className="small muted">{t("ask.side_cta")}</p>
-            <a className="btn btn-accent" href="#/talk"><Icon name="talk" />{t("nav.talk")}</a>
-          </div>
         </aside>
       </div>
     </>

@@ -2,7 +2,8 @@
 // The da'i sends the offer once both people are in the room; the seeker answers.
 import { api, wsUrl } from "../../core/api.js";
 
-export async function createRoom({ callId, role, token, onState = () => {}, onChat = () => {}, onEnded = () => {} }) {
+// onSocket(open) says whether text messages can be sent right now.
+export async function createRoom({ callId, role, token, onState = () => {}, onChat = () => {}, onEnded = () => {}, onSocket = () => {} }) {
   let cfg = { iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }], iceTransportPolicy: "all" };
   try { cfg = await api.pGet("/api/rtc-config"); } catch { /* use the default */ }
 
@@ -23,7 +24,14 @@ export async function createRoom({ callId, role, token, onState = () => {}, onCh
   const pendingIce = [];
   let closed = false;
   const ws = new WebSocket(wsUrl(`/ws/call/${callId}?role=${role}&token=${encodeURIComponent(token)}`));
-  const send = (msg) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg)); };
+  /** True only when the message went out: a closed or still-opening socket drops it. */
+  const send = (msg) => {
+    if (ws.readyState !== WebSocket.OPEN) return false;
+    ws.send(JSON.stringify(msg));
+    return true;
+  };
+  ws.addEventListener("open", () => onSocket(true));
+  ws.addEventListener("close", () => onSocket(false));
 
   pc.onicecandidate = (e) => { if (e.candidate) send({ type: "ice", candidate: e.candidate.toJSON() }); };
   pc.onconnectionstatechange = () => onState(pc.connectionState);
@@ -92,7 +100,7 @@ export async function createRoom({ callId, role, token, onState = () => {}, onCh
   return {
     hasMic: Boolean(local),
     mute(on) { if (local) local.getAudioTracks().forEach((track) => { track.enabled = !on; }); },
-    sendChat(text) { send({ type: "chat", text }); },
+    sendChat(text) { return send({ type: "chat", text }); },
     end() { send({ type: "end" }); setTimeout(cleanup, 150); },
     close: cleanup,
   };
