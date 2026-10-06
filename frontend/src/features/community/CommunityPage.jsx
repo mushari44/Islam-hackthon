@@ -91,9 +91,10 @@ export default function CommunityPage({ query }) {
       <NewMuslimPrompt manage />
       <div className="row spread com-bar">
         <div className="tabs" role="tablist">
-          {[["groups", "com.groups"], ["meetups", "com.meetups"], ["mine", "com.mine"]].map(([k, label]) => (
+          {[["groups", "com.groups"], ["meetups", "com.meetups", "com.meetups_short"], ["mine", "com.mine"]].map(([k, label, short]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
-              {t(label)}{k === "mine" && upcoming > 0 && <span className="tab-count">{fmtNum(upcoming)}</span>}
+              {short ? <><span className="tab-long">{t(label)}</span><span className="tab-short">{t(short)}</span></> : t(label)}
+              {k === "mine" && upcoming > 0 && <span className="tab-count">{fmtNum(upcoming)}</span>}
             </button>
           ))}
         </div>

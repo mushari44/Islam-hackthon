@@ -4,7 +4,7 @@ import { register } from "../../core/i18n.jsx";
 register({
   ar: {
     "com.title": "المجتمع", "com.lead": "تابع تعلّمك مع آخرين في مجموعات يقودها دعاة، واحضر فعاليات في أماكن عامة أو عن بُعد. بلا رسائل خاصة بين الأعضاء، وبأسماء مستعارة.",
-    "com.groups": "المجموعات", "com.meetups": "فعاليات المجتمع المسلم", "com.all_langs": "كل اللغات",
+    "com.groups": "المجموعات", "com.meetups": "لقاءات ودروس المجتمع المسلم", "com.meetups_short": "اللقاءات والدروس", "com.all_langs": "كل اللغات",
     // Counted text (tn): Arabic has a form for 0, 1, 2, 3–10, 11–99; the plain key is the form for 100 and more.
     "com.members": "{n} عضو", "com.members.zero": "لا أعضاء بعد", "com.members.one": "عضو واحد", "com.members.two": "عضوان",
     "com.members.few": "{n} أعضاء", "com.members.many": "{n} عضواً",
@@ -111,7 +111,7 @@ register({
     "gnm.badge": "New Muslim", "gnm.shared_state": "This badge shows next to your nickname in groups.",
     "gnm.remove": "Hide the badge", "gnm.remove_q": "Hide the badge and delete the welcome messages from your groups?", "gnm.remove_yes": "Yes, hide it",
     "com.title": "Community", "com.lead": "Keep learning with others in groups led by da'is, and join events at public venues or online. No private messages between members, and nicknames only.",
-    "com.groups": "Groups", "com.meetups": "Muslim community events", "com.all_langs": "All languages",
+    "com.groups": "Groups", "com.meetups": "Muslim community meetups and lessons", "com.meetups_short": "Meetups & lessons", "com.all_langs": "All languages",
     "com.members": "{n} members", "com.members.one": "{n} member", "com.led_by": "Led by {name}", "com.join": "Join", "com.open": "Open group",
     "com.women": "Women", "com.men": "Men", "com.families": "Families", "com.everyone": "Everyone",
     "com.join_title": "Join “{title}”", "com.nickname": "A nickname other members will see", "com.nick_hint": "Don't use your real name or anything that identifies you.",
