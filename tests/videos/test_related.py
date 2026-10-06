@@ -54,6 +54,22 @@ def test_words_alone_need_a_strong_match():
     assert related.related(idx, "ما الطقس اليوم في الرياض؟") == []
 
 
+def test_words_alone_need_the_subject_in_the_title():
+    """Live server, no encoder: «ما هو التوحيد؟» matched every video on the «التوحيد وأقسامه» shelf."""
+    idx = _index()
+    idx.items += [
+        _vid(7, "أسماء الله الحسنى: الرحمن", "التوحيد وأقسامه"),
+        _vid(8, "التعريف بموقع دار الإسلام", "التوحيد وأقسامه", "تعريف بالموقع وما فيه من مواد"),
+        _vid(9, "التوحيد وما يكفر من الذنوب", "التوحيد وأقسامه"),
+    ]
+    # «الله» is in many titles, as on the real list
+    idx.items += [_vid(500 + i, f"من صفات الله {i}", "متفرقات") for i in range(40)]
+    hints = ["تعريف التوحيد، أقسام التوحيد، معنى توحيد الله",
+             "definition of Tawhid, types of Tawhid, meaning of monotheism in Islam"]
+    hits = {h["id"] for h in related.related(idx, "ما هو التوحيد؟", hints)}
+    assert hits == {5, 9}                                  # titles that name tawhid; not the shelf's other videos
+
+
 def test_meaning_and_words_must_both_agree():
     idx = _index()
     st = related._stats(idx)

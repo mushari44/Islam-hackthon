@@ -43,6 +43,12 @@ MEANING = 0.85
 COVERAGE = 0.45           # share of the question's words (idf-weighted; words no video uses count fully)
 # Without the encoder, words alone must be much stronger.
 WORDS_ONLY_SCORE, WORDS_ONLY_COVERAGE = 10.0, 0.6
+# ...and the title itself must name the subject. A topic is a broad shelf: on the live server (no encoder)
+# «ما هو التوحيد؟» matched every video filed under «التوحيد وأقسامه», including «أسماء الله الحسنى: الرحمن»,
+# and the search phrase «تعريف التوحيد» let in «التعريف بموقع دار الإسلام». So the title must carry one of
+# the question's own words. Only when no title has any of them («كيف أصلي؟») may a search-phrase word
+# stand in, and only a rare one (in at most this share of the videos): «الله» names no subject.
+TITLE_HINT_MAX_SHARE = 0.05
 # When the person asks for a video ("I want a video showing me how to pray", «أريد مقطعاً عن الصلاة»), the
 # request words are left out of the match and the bars are a little lower: a close video is the answer.
 VIDEO_REQUEST = re.compile(
@@ -70,6 +76,7 @@ class _Stats:
     def __init__(self, items: list[dict]):
         self.items = items
         self.fields: list[dict[str, float]] = []
+        self.title_vocab: set[str] = set()
         df: Counter = Counter()
         for it in items:
             weights: dict[str, float] = {}
@@ -78,8 +85,10 @@ class _Stats:
                 for tok in set(tokens(text)):
                     weights[tok] = max(weights.get(tok, 0.0), w)
             self.fields.append(weights)
+            self.title_vocab.update(t for t, w in weights.items() if w >= TITLE)
             df.update(weights.keys())
         n = len(items) or 1
+        self.df = df
         self.idf = {t: math.log(1 + (n - c + 0.5) / (c + 0.5)) for t, c in df.items()}
         self.vectors = None          # numpy array (n, dim) once embedded
         self.embedding = False
@@ -150,22 +159,25 @@ def prepare(get_index, get_encoder, langs=("ar", "en"), wait_s: float = 600.0) -
     threading.Thread(target=run, daemon=True).start()
 
 
-def _word_ranking(st: _Stats, q_toks: set[str], h_toks: set[str]) -> list[tuple[int, float, float]]:
-    """(video index, score, coverage) for videos sharing a meaningful title/topic word with the question.
+def _word_ranking(st: _Stats, q_toks: set[str], h_toks: set[str]) -> list[tuple[int, float, float, bool]]:
+    """(video index, score, coverage, titled) for videos sharing a meaningful title/topic word with the question.
 
     coverage is the larger of: the share of the question's own words the video has (a word no video
     uses counts at full rarity, so a question about something the list lacks stays low), and the share
-    of the search phrases' known words (the analysis' rewording of the question)."""
+    of the search phrases' known words (the analysis' rewording of the question). titled: the title has
+    one of the question's words (or, when no title has any, a rare word of the search phrases)."""
     max_idf = math.log(1 + len(st.items))
     q_total = sum(st.idf.get(t, max_idf) for t in q_toks)
     h_known = {t for t in h_toks if t in st.idf}
     h_total = sum(st.idf[t] for t in h_known)
     if not q_total and not h_total:
         return []
+    n = len(st.items) or 1
+    title_words = q_toks & st.title_vocab or {t for t in h_known if st.df[t] <= max(1, TITLE_HINT_MAX_SHARE * n)}
     out = []
     for i, fields in enumerate(st.fields):
         score = q_cov = h_cov = 0.0
-        anchored = False
+        anchored = titled = False
         for t in q_toks | h_known:
             fw = fields.get(t)
             if fw is None:
@@ -177,9 +189,10 @@ def _word_ranking(st: _Stats, q_toks: set[str], h_toks: set[str]) -> list[tuple[
             if t in h_known:
                 h_cov += st.idf[t]
             anchored = anchored or fw >= TOPIC
+            titled = titled or (fw >= TITLE and t in title_words)
         coverage = max(q_cov / q_total if q_total else 0.0, h_cov / h_total if h_total else 0.0)
         if anchored and score >= MIN_SCORE:
-            out.append((i, score, coverage))
+            out.append((i, score, coverage, titled))
     out.sort(key=lambda x: (x[1], x[2], st.items[x[0]].get("added") or 0), reverse=True)
     return out
 
@@ -212,7 +225,7 @@ def related(idx, question: str, hints: list[str] | None = None, k: int = 3, enco
             if encoder is not None and st.vectors is not None else None)   # None: embedding failed, words only
     meaning_bar, coverage_bar = (REQUESTED_MEANING, REQUESTED_COVERAGE) if requested else (MEANING, COVERAGE)
     if sims is None:   # words only: keep strong matches
-        words = [w for w in words if w[1] >= WORDS_ONLY_SCORE and w[2] >= WORDS_ONLY_COVERAGE]
+        words = [w for w in words if w[1] >= WORDS_ONLY_SCORE and w[2] >= WORDS_ONLY_COVERAGE and w[3]]
         meaning: list[tuple[int, float]] = []
     else:              # both must agree: close in meaning, and most of the question's words in title/topic
         words = [w for w in words if w[2] >= coverage_bar and sims[w[0]] >= meaning_bar]
@@ -222,7 +235,7 @@ def related(idx, question: str, hints: list[str] | None = None, k: int = 3, enco
         fused[i] = fused.get(i, 0.0) + (1 - DENSE_WEIGHT if sims is not None else 1.0) / (RRF_C + rank)
     for rank, (i, _) in enumerate(meaning, start=1):
         fused[i] = fused.get(i, 0.0) + DENSE_WEIGHT / (RRF_C + rank)
-    word_info = {i: (s, c) for i, s, c in words}
+    word_info = {i: (s, c) for i, s, c, _ in words}
     sim = dict(meaning)
     out, seen_titles = [], set()
     for i, _ in sorted(fused.items(), key=lambda kv: (-kv[1], -(st.items[kv[0]].get("added") or 0))):
