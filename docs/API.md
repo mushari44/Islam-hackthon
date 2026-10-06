@@ -72,14 +72,17 @@ Every authenticated da'i request updates `last_seen`. That is what makes a da'i 
 | POST | `/api/groups/{gid}/join` | seeker | `?ui=`; `{nickname: 2–40 chars, accept_rules: bool, confirm_audience?: bool}` (must be `true` for `women` / `men` groups) | Group with `membership`. 400 if the rules or the audience aren't confirmed, or the nickname is rejected (abusive, contact details, or posing as the assistant or a moderator), 409 if the nickname is taken. Joining again only changes the nickname; rejoining after leaving brings back the same membership, so a mute stays |
 | POST | `/api/groups/{gid}/leave` | seeker | – | `{ok: true}` |
 | GET | `/api/groups/{gid}/messages` | a member seeker, or the group's leader da'i | `?after=<last id>` (default 0) | `[GroupMessage]`, oldest first, at most 200. With `after=0`, the newest 200 (re-fetch it to pick up deletions and resolved flags); otherwise the 200 after that id. 403 if you are neither |
-| POST | `/api/groups/{gid}/messages` | seeker (member) | `{text: ≤ 2000, lang: ar\|en}` | GroupMessage plus `redacted: bool`. 403 `join the group first` / `muted`. 422 with detail `too_long` \| `too_fast` \| `abuse` \| `empty` (3 `abuse` strikes mute the member). A message mentioning `@سبيلي` / `@sabeeli` gets a bot reply posted later in the background; poll to see it. If the assistant fails, the bot posts a short notice with `needs_leader: true` instead |
+| POST | `/api/groups/{gid}/messages` | seeker (member) | `{text: ≤ 1000, lang: ar\|en}` | GroupMessage plus `redacted: bool`. 403 `join the group first` / `muted`. 422 with detail `too_long` \| `too_fast` \| `abuse` \| `empty` (3 `abuse` strikes mute the member). A message mentioning `@سبيلي` / `@sabeeli` gets a bot reply posted later in the background; poll to see it. If the assistant fails, the bot posts a short notice with `needs_leader: true` instead |
 | GET | `/api/daai/groups` | daai | `?ui=` | `[Group + needs_leader: int]` (the groups I lead) |
 | POST | `/api/daai/groups` | daai | `?ui=`; `{title: 3–160, description?: ≤ 2000, lang: 2–3 lowercase letters, country?: ≤ 64, city?: ≤ 64, audience: all\|women\|men, age_group?: all\|youth\|adults\|seniors (default all)}` | Group. 400 for a bad audience or age group, 422 if a field is out of range |
+| POST | `/api/groups/{gid}/messages/{mid}/report` | seeker (member) | – | `{ok: true}`. Flags someone else's message for the leader (`reported: true` on it, counted in the da'i list's `needs_leader`); one member counts once. 400 for your own message, 403 if not a member |
+| POST | `/api/groups/{gid}/messages/{mid}/delete` | seeker (member, author) | – | `{ok: true}` (soft delete, as the leader's). 403 unless it is your own message |
 | POST | `/api/daai/groups/{gid}/messages` | daai (leader) | `{text}` | GroupMessage (author is the leader's name in the group's language) |
 | POST | `/api/daai/groups/{gid}/messages/{mid}/delete` | daai (leader) | – | `{ok: true}` (soft delete) |
-| POST | `/api/daai/groups/{gid}/messages/{mid}/resolve` | daai (leader) | – | `{ok: true}` (clears `needs_leader`) |
+| POST | `/api/daai/groups/{gid}/messages/{mid}/resolve` | daai (leader) | – | `{ok: true}` (clears `needs_leader` and member reports) |
 | POST | `/api/daai/groups/{gid}/members/{member_id}/mute` | daai (leader) | `{muted: bool}` | `{ok: true, muted}` |
-| GET | `/api/meetups` | seeker? | `?country=&city=&lang=&registration=&age=&series=&audience=women\|men&format=in_person\|online&ui=` | `[Meetup]`: status `open`, starting no earlier than 3 h ago, soonest first. `age` keeps that age group and `all`; `audience` keeps what that person can attend (their own, `all` and `families`); `country` / `city` keep online meetups too (they can be joined from anywhere) |
+| GET | `/api/meetups` | seeker? | `?country=&city=&lang=&registration=&age=&series=&audience=women\|men&format=in_person\|online&ui=` | `[Meetup]`: status `open` and not yet ended (start + `duration_min` in the future), soonest first. `age` keeps that age group and `all`; `audience` keeps what that person can attend (their own, `all` and `families`); `country` / `city` keep online meetups too (they can be joined from anywhere) |
+| GET | `/api/meetups/{mid}` | seeker? | `?ui=` | Meetup (any status, so old links say it was cancelled or ended), with `my_rsvp` for this seeker. 404 if unknown |
 | POST | `/api/meetups/{mid}/rsvp` | seeker | `?ui=`; `{nickname: 2–40, confirm_audience?: bool}` (must be `true` for `women` / `men` meetups) | Meetup with `my_rsvp` (and `online_url` for an online meetup). Safe to repeat. 400 (audience, or nickname rejected as for groups), 404, 409 `full` / `meetup already started` |
 | POST | `/api/meetups/{mid}/cancel-rsvp` | seeker | – | `{ok: true}` |
 | GET | `/api/meetups/{mid}/ics` | none | – | `text/calendar` attachment (linked with a plain `<a href download>`); `STATUS:CANCELLED` once the host cancels. For an online meetup the location is "Online" and the link is left out (this file is public) |
@@ -310,14 +313,14 @@ Limits after cleaning: `question`, `context` and `unclear` ≤ 600 chars, `langu
 ```json
 {"id": 901, "author_type": "bot", "author": "Sabeeli (AI assistant)", "member_id": null, "text": "…",
  "deleted": false, "payload": {"segments": [], "cards": {}, "sources": [], "notices": [], "kind": "answer",
- "level": "B", "mode": "ai", "quote_check": null, "lang": "en"}, "reply_to": 900, "needs_leader": false, "at": "…Z",
+ "level": "B", "mode": "ai", "quote_check": null, "lang": "en"}, "reply_to": 900, "needs_leader": false, "reported": false, "at": "…Z",
  "new_muslim": false}
 ```
 
 - `author_type`: `seeker` | `daai` | `bot` | `system`. `member_id` is set for seekers, and for a `system` welcome message (`payload: {kind: "new_muslim"}`) it is the member being welcomed.
 - `new_muslim` is true on a seeker's posts when they chose to share that they embraced Islam (show a badge next to their nickname).
 - `payload` is `{}` except on bot answers. For bot answers, render `payload` with the Answer component, **not** `text`: `text` is the joined raw segment text and still contains the markers.
-- `needs_leader` is true for bot answers at level C or D, or when the bot abstained. A deleted message has `text: ""` and `payload: {}`.
+- `needs_leader` is true for bot answers at level C or D, or when the bot abstained. A deleted message has `text: ""` and `payload: {}`. `reported` is true (only meaningful to the leader) while members have reported the message and the leader has not resolved it.
 
 ### Meetup
 

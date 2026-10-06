@@ -18,7 +18,7 @@ export function GroupCard({ g }) {
         </div>
         <span className="faint"><Icon name="users" size={16} /> {tn("com.members", g.members)}</span>
       </div>
-      <h3 dir="auto">{g.title}</h3>
+      <h3 dir="auto"><a className="card-link" href={`#/groups/${g.id}`}>{g.title}</a></h3>
       <p className="muted small" dir="auto">{g.description}</p>
       <div className="row spread">
         <span className="faint">{[[g.city, countryName(g.country, lang)].filter(Boolean).join(lang === "ar" ? "، " : ", "), g.leader ? t("com.led_by", { name: g.leader.name }) : ""].filter(Boolean).join(" · ")}</span>
@@ -80,7 +80,7 @@ function MeetupActions({ m, w, reload, account }) {
   );
 }
 
-export function MeetupCard({ m, reload, account }) {
+export function MeetupCard({ m, reload, account, full: page = false }) {
   const { t, tn, lang, langName } = useI18n();
   const w = useWhen(m);
   const online = m.format === "online";
@@ -106,7 +106,7 @@ export function MeetupCard({ m, reload, account }) {
           {state}
         </div>
         {m.series && <span className={`series-tag series-${m.series}`}><Icon name={m.series === "ramadan" ? "moon" : "layers"} size={16} />{t(`com.series.${m.series}`)}</span>}
-        <h3 dir="auto">{m.title}</h3>
+        <h3 dir="auto">{page ? m.title : <a className="card-link" href={`#/events/${m.id}`}>{m.title}</a>}</h3>
         {m.description && <p className="muted small" dir="auto">{m.description}</p>}
         <ul className="meta-list">
           <li>

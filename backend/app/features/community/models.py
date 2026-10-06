@@ -52,6 +52,7 @@ class GroupMessage(Base):
     reply_to: Mapped[int | None] = mapped_column(Integer, nullable=True)
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     needs_leader: Mapped[bool] = mapped_column(Boolean, default=False)   # the assistant asks the leader to step in
+    reports: Mapped[int] = mapped_column(Integer, default=0)   # members who reported it; the leader sees it until resolved
 
 
 class Meetup(Base):
