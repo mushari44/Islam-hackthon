@@ -23,9 +23,9 @@ ARG GPU=0
 ENV HF_HOME=/app/.hf
 COPY requirements-embeddings.txt ./
 RUN if [ "$FULL" = "1" ]; then pip install --no-cache-dir pymupdf; fi
-# The CUDA build of PyTorch (about 2.5 GB), then the E5 / LangChain / FAISS packages.
+# The CUDA 12.8 build of PyTorch (about 2.5 GB; 12.8 also covers RTX 50-series cards), then the E5 packages.
 RUN if [ "$GPU" = "1" ]; then \
-      pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu124 && \
+      pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu128 && \
       pip install --no-cache-dir -r requirements-embeddings.txt; \
     fi
 COPY backend ./backend
