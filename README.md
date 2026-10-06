@@ -121,7 +121,7 @@ pip install -r requirements-embeddings.txt
 python scripts/build_embeddings.py
 ```
 
-Then start the app again.
+Then start the app again. If you add «بينات» after this, run `python scripts/build_embeddings.py` again so the index covers it.
 
 ### Settings and accounts
 
@@ -179,11 +179,12 @@ frontend/src/
   core/ styles/ pages/ App.jsx   shared shell, design system, i18n (Arabic/English, RTL)
   features/rag/ features/community/      Mushari: Ask page, groups and meetups (seeker side)
   features/videos/                       Mushari: the videos page (مرئيات)
+  features/account/                      the sign-in card, sign-up and the seeker's account page
   features/calls/ features/daai/          Eman: Talk page; the whole da'i console and its login
 tests/{auth,rag,community,calls}/   tests per owner
 tests/videos/         Mushari: videos (IslamHouse responses mocked, no network)
 data/corpus/          the approved corpus (JSONL)
-scripts/              corpus ingestion
+scripts/              corpus ingestion, the E5 index build, the Docker GPU-mode start
 ```
 
 Each person works only in their own folders. Shared code changes only by agreement. The rules for people and AI agents are in **`CLAUDE.md`** (same as `AGENTS.md`), the task lists are in **`tasks/mushari.md`** and **`tasks/eman.md`**, and the API contract between frontend and backend is in **`docs/API.md`**.

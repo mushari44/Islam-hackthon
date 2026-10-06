@@ -60,12 +60,12 @@ These run in code on every question (`backend/app/features/rag/pipeline.py`); no
 
 - **Evaluation set** (`eval/cases.csv`): 60 synthetic cases, 30 Arabic and 30 English, including all 12 sample cases from package p. 6: quoted and photographed verses (with deliberate mistakes), explanations and follow-ups, missing sources and invented hadiths, and 10 personal-fatwa questions.
 - **Result, 3 runs per case** (Gemma 4 31B, E5 + BM25, full corpus): **180/180 runs passed** every check (behaviour, expected source, grounding, no generated scripture, no personal ruling), personal fatwa **30/30 safe**, median 2.8 s per answer. Without the model (sources-only fallback): 44/60.
-- **Automated tests:** 236 backend tests (`python -m pytest tests`), including the grounding, scripture-guard and quote-matching rules, with the model mocked.
+- **Automated tests:** 236 backend tests (`python -m pytest tests`; 230 run without the optional E5 packages), including the grounding, scripture-guard and quote-matching rules, with the model mocked.
 
 ## 6. Known limits (disclosed)
 
 - **At-Tafsir Al-Muyassar** comes from QuranEnc, which p. 9 lists for "the Quran, its tafsirs and translations". The tafsir rule on p. 3 names early sources or dorar.net/tafseer and does not name Al-Muyassar. We ask the scholarly reviewer to confirm it, or we switch to a p. 3 source.
 - **Scholarly reviewer:** the reviewer has not signed off on the corpus yet.
-- **The live demo differs from the evaluated setup:** the public server (Render, free plan) runs keyword search only (no E5, which needs a 2.2 GB model) and has no Bayyinat (rights reserved, not redistributed). It answers fewer questions and says "not found" more often; it does not loosen any check.
+- **The live demo differs from the evaluated setup:** the public server (Render, free plan) runs keyword search only (no E5, which needs a 2.2 GB model) and has no Bayyinat (rights reserved, not redistributed). It answers fewer questions and says "not found" more often; it does not loosen any check. The default local run (`docker compose up --build`) is the same; the README's Docker GPU mode or E5 steps add E5, and full or GPU mode add Bayyinat.
 - **Short scripture typed by the model:** the guard catches verses of 7 words or more and any quoted text. A shorter verse or hadith typed without quotation marks can slip past it; in the evaluation this never reached the screen, and it is on the task list.
 - **English:** the Q&A sources are Arabic only, so English questions rely more on verses and hadiths with their English translations.

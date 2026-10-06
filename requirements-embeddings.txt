@@ -1,7 +1,7 @@
 # Optional: semantic search (backend/app/features/rag/embeddings.py, scripts/build_embeddings.py).
 # The app runs without these packages, with BM25 alone.
 # For a GPU, install the CUDA build of torch first (https://pytorch.org/get-started/locally/);
-# otherwise pip installs the CPU build, which works but builds the index much more slowly.
+# otherwise pip installs PyPI's default build (CPU only on Windows and macOS): it works, but the index takes about 3 hours.
 -r requirements.txt
 torch>=2.3
 sentence-transformers==4.0.1
