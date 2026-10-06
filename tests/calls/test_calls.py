@@ -2,8 +2,8 @@
 from tests.conftest import seeker_headers
 
 
-def test_referral_needs_consent(client, seeker, daai_login):
-    h = seeker_headers(seeker)
+def test_referral_needs_consent(client, caller, daai_login):
+    h = seeker_headers(caller)
     client.post("/api/ask", data={"question": "ما معنى التوحيد؟", "lang": "ar"}, headers=h)
     draft = client.post("/api/referral/draft", json={"lang": "ar"}, headers=h).json()
     assert draft["card"]["question"] == "ما معنى التوحيد؟"     # template card in offline mode
@@ -16,8 +16,8 @@ def test_referral_needs_consent(client, seeker, daai_login):
     client.post(f"/api/daai/calls/{call['id']}/end", json={}, headers=d)
 
 
-def test_full_call_flow(client, seeker, daai_login):
-    h = seeker_headers(seeker)
+def test_full_call_flow(client, caller, daai_login):
+    h = seeker_headers(caller)
     draft = client.post("/api/referral/draft", json={"lang": "ar"}, headers=h).json()
     client.post(f"/api/referral/{draft['id']}/confirm", json={"consent": True, "card": {"question": "سؤالي"}}, headers=h)
     d = daai_login("khalid")
@@ -35,7 +35,7 @@ def test_full_call_flow(client, seeker, daai_login):
     assert client.post(f"/api/daai/requests/{call['id']}/accept", headers=other).status_code == 409
 
     url = f"/ws/call/{call['id']}"
-    with client.websocket_connect(f"{url}?role=seeker&token={seeker['_token']}") as ws1, \
+    with client.websocket_connect(f"{url}?role=seeker&token={caller['_token']}") as ws1, \
             client.websocket_connect(f"{url}?role=daai&token={d['_token']}") as ws2:
         assert ws1.receive_json()["type"] == "joined"
         assert ws2.receive_json()["present"] == ["seeker", "daai"]
@@ -53,8 +53,8 @@ def test_full_call_flow(client, seeker, daai_login):
     assert stats["arms"]["model"]["calls"] >= 1 or stats["arms"].get("template", {}).get("calls", 0) >= 1
 
 
-def test_wrong_people_cannot_join_the_room(client, seeker, daai_login):
-    h = seeker_headers(seeker)
+def test_wrong_people_cannot_join_the_room(client, caller, daai_login):
+    h = seeker_headers(caller)
     call = client.post("/api/calls", json={"lang": "ar"}, headers=h).json()
     d = daai_login("khalid")
     client.post(f"/api/daai/requests/{call['id']}/accept", headers=d)
@@ -67,16 +67,16 @@ def test_wrong_people_cannot_join_the_room(client, seeker, daai_login):
     client.post(f"/api/daai/calls/{call['id']}/end", json={}, headers=d)
 
 
-def test_cancel_and_delete_my_data(client, seeker):
-    h = seeker_headers(seeker)
+def test_cancel_and_delete_my_data(client, caller):
+    h = seeker_headers(caller)
     call = client.post("/api/calls", json={"lang": "en"}, headers=h).json()
     assert client.post(f"/api/calls/{call['id']}/cancel", headers=h).json()["status"] == "cancelled"
     assert client.delete("/api/me", headers=h).status_code == 200
     assert client.get(f"/api/calls/{call['id']}", headers=h).status_code == 401
 
 
-def test_call_log_shows_only_my_ended_calls(client, seeker, daai_login):
-    h = seeker_headers(seeker)
+def test_call_log_shows_only_my_ended_calls(client, caller, daai_login):
+    h = seeker_headers(caller)
     d = daai_login("khalid")
     client.post("/api/daai/availability", json={"available": True}, headers=d)
     call = client.post("/api/calls", json={"lang": "ar"}, headers=h).json()
@@ -115,7 +115,15 @@ def test_rtc_config_accepts_several_turn_urls(client, monkeypatch):
     assert turn["urls"] == ["turn:a.example:80", "turns:a.example:443?transport=tcp"] and turn["username"] == "u"
 
 
-def test_only_supported_languages(client, seeker):
-    h = seeker_headers(seeker)
+def test_only_supported_languages(client, caller):
+    h = seeker_headers(caller)
     assert client.post("/api/calls", json={"lang": "fr"}, headers=h).status_code == 400
     assert client.post("/api/calls", json={"lang": "en"}, headers=h).status_code == 200
+
+
+def test_calling_needs_an_account(client, seeker):
+    h = seeker_headers(seeker)
+    res = client.post("/api/calls", json={"lang": "ar"}, headers=h)
+    assert res.status_code == 403 and res.json()["detail"] == "sign in to call"
+    # reading the (empty) call log still works for a signed-out browser
+    assert client.get("/api/calls", headers=h).json() == []

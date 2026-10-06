@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from ...core.config import settings
 from ...core.db import Setting, get_db, iso, utcnow
-from ..auth.public import Daai, SeekerSession, admin, daai, seeker
+from ..auth.public import Daai, SeekerSession, admin, daai, is_account, seeker
 from ..community.public import mark_new_muslim, new_muslim_calls, unmark_new_muslim
 from ..rag.public import shared_conversation, source_card
 from . import booking
@@ -93,6 +93,10 @@ def _expire(db: Session, call: CallRequest) -> None:
 
 @router.post("/calls")
 def request_call(body: CallIn, me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
+    # A live call needs a seeker account, as booking does: the da'i talks to someone who can be reached again,
+    # and the call log, rating and "call the same da'i again" follow the seeker to any device.
+    if not is_account(db, me.id):
+        raise HTTPException(403, "sign in to call")
     if body.lang not in LANGS:
         raise HTTPException(400, "unsupported language")
     if body.gender_pref not in ("", "m", "f"):

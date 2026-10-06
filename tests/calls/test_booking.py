@@ -126,7 +126,7 @@ def test_join_start_talk_and_done(client, daai_login, clock):
     assert client.post(f"/api/bookings/{b['id']}/join", headers=h).status_code == 409
     assert client.post(f"/api/daai/bookings/{b['id']}/start", headers=khalid).status_code == 409
     # within 15 minutes, the da'i's general queue is held back for the booked call
-    anon = {"X-Seeker": client.post("/api/session").json()["token"]}
+    anon = account(client)
     general = client.post("/api/calls", json={"lang": "ar"}, headers=anon).json()
     clock(at(start) - timedelta(minutes=10))
     req = client.get("/api/daai/requests", headers=khalid).json()

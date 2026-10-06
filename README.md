@@ -35,7 +35,7 @@ Open http://localhost:8000. For frontend development, run `npm run dev` in `fron
 
 **Deploying:** the website goes on Vercel and the API on Render; see [docs/DEPLOY.md](docs/DEPLOY.md).
 
-To try a call locally, open the app in two browsers: in one, sign in as a da'i and switch on "Available"; in the other, go to **تحدّث**.
+To try a call locally, open the app in two browsers: in one, sign in as a da'i and switch on "Available"; in the other, create a user account (calling a da'i needs one) and go to **تحدّث**.
 
 The corpus is already in `data/corpus/`, except «بينات»: its publisher reserves the rights, so each copy builds it from the package's link with `pip install pymupdf` and `python scripts/ingest_bayyinat.py` (the app works without it). To refresh the rest from the official APIs, run `python scripts/ingest_quran.py`, `python scripts/ingest_hadith.py` and `python scripts/ingest_icadb.py`.
 
@@ -73,4 +73,4 @@ Each person works only in their own folders. Shared code changes only by agreeme
 - **`STARTING_POINT.md`:** what existed before 4 October (the challenge judges only work done from 4 to 6 October).
 - **`THIRD_PARTY.md`:** sources, models, services and licences.
 - **`docs/RAG-PLAN.md`:** how the RAG system uses the approved sources, and how it is evaluated.
-- **Privacy:** seekers have no accounts, questions are deleted after 24 hours, the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**. Videos and thumbnails load straight from IslamHouse's servers, search words are sent in a POST body, and Sabeeli stores no searches and no viewing history.
+- **Privacy:** seekers can ask and browse without an account (calling or booking a da'i needs a free username-and-password account, with no phone number or real name), questions are deleted after 24 hours, the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**. Videos and thumbnails load straight from IslamHouse's servers, search words are sent in a POST body, and Sabeeli stores no searches and no viewing history.

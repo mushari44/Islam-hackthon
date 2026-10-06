@@ -7,6 +7,7 @@ import { api, seekerToken } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
 import { Icon, Notice, Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { useAccount } from "../account/public.js";
 import { NewMuslimPrompt } from "../community/public.js";
 import BookFlow from "./BookFlow.jsx";
 import CallPanel, { Clock, useClock } from "./CallPanel.jsx";
@@ -86,11 +87,22 @@ function ModeTabs({ mode, query }) {
 function Choose({ query, initialDaai, initialLang, onRequested, onBook }) {
   const { t, lang: uiLang, fmtNum, langName } = useI18n();
   const [lang, setLang] = useState(initialLang || query.lang || uiLang);
-  const [gender, setGender] = useState("");
+  const [gender, setGender] = useState(["m", "f"].includes(query.gender) ? query.gender : "");
   const [daai, setDaai] = useState(initialDaai || (query.daai ? Number(query.daai) : null));
   const [availability, setAvailability] = useState({});
   const [busy, setBusy] = useState(false);
+  const { account, loaded } = useAccount();
+  const signedOut = loaded && !account;
   usePolling(async () => setAvailability((await api.pGet("/api/availability")).languages || {}), 8000);
+
+  // Calling needs an account. Signing in brings the seeker back here with what they chose (and the referral card).
+  const signIn = () => {
+    const q = new URLSearchParams({ lang });
+    if (gender) q.set("gender", gender);
+    if (daai) q.set("daai", String(daai));
+    for (const k of ["ref", "card", "chat"]) if (query[k]) q.set(k, query[k]);
+    return `#/account?next=${encodeURIComponent(`/talk?${q}`)}`;
+  };
 
   const request = async () => {
     setBusy(true);
@@ -100,6 +112,7 @@ function Choose({ query, initialDaai, initialLang, onRequested, onBook }) {
       onRequested(res.id);
       navigate("/talk"); // a referral is used once; a later "new call" starts without it
     } catch (err) {
+      if (err.status === 403 && err.detail === "sign in to call") { window.location.hash = signIn(); return; }
       toast(errorText(err, t), "error");
       setBusy(false);
     }
@@ -107,6 +120,14 @@ function Choose({ query, initialDaai, initialLang, onRequested, onBook }) {
 
   return (
     <div className="card stack talk-card">
+      {signedOut && (
+        <Notice kind="warn" icon="lock">
+          <div className="stack">
+            <span>{t("talk.need_account")}</span>
+            <div className="row"><a className="btn btn-primary btn-sm" href={signIn()}>{t("acc.signin_btn")}</a></div>
+          </div>
+        </Notice>
+      )}
       <h3>{t("talk.lang")}</h3>
       <div className="lang-grid">
         {LANGS.map((code) => {
@@ -135,7 +156,9 @@ function Choose({ query, initialDaai, initialLang, onRequested, onBook }) {
       {query.card && <Notice kind="mint" icon="check">{t("talk.with_card")}</Notice>}
       {query.chat && <Notice kind="mint" icon="chat">{t("talk.with_chat")}</Notice>}
       <div className="row">
-        <button type="button" className="btn btn-primary btn-lg" disabled={busy} onClick={request}><Icon name="talk" />{t("talk.call")}</button>
+        {signedOut
+          ? <a className="btn btn-primary btn-lg" href={signIn()}><Icon name="lock" />{t("talk.signin_call")}</a>
+          : <button type="button" className="btn btn-primary btn-lg" disabled={busy || !loaded} onClick={request}><Icon name="talk" />{t("talk.call")}</button>}
       </div>
       <p className="faint">{t("talk.safety")}</p>
     </div>
