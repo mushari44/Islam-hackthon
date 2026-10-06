@@ -4,7 +4,7 @@ import "./community.css";
 import { useEffect, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, errorText } from "../../core/ui.jsx";
+import { Icon, errorText, useTitle } from "../../core/ui.jsx";
 import { useAccount } from "../account/public.js";
 import { MeetupCard } from "./cards.jsx";
 
@@ -14,6 +14,7 @@ export default function MeetupPage({ params }) {
   const mid = Number(params.id);
   const [m, setM] = useState(null);
   const [error, setError] = useState(null);
+  useTitle(m?.title);
   const load = () => { setError(null); return api.get(`/api/meetups/${mid}?ui=${lang}`).then(setM).catch(setError); };
   useEffect(() => { load(); }, [mid, lang, account]); // eslint-disable-line react-hooks/exhaustive-deps
   const back = (

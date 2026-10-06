@@ -152,3 +152,6 @@
 .card-link { color: inherit; text-decoration: none; }
 .card-link:hover, .card-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .meetup-page { margin-block-start: 12px; }
+/* Scrolling to the newest message stops above the sticky composer (and the phone tab bar), not under it. */
+.g-end { scroll-margin-block-end: 110px; }
+@media (max-width: 1024px) { .g-end { scroll-margin-block-end: 240px; } }

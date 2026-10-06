@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
-import { Icon, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { Icon, errorText, toast, usePolling, useTitle } from "../../core/ui.jsx";
 import { Answer } from "../rag/public.js";
 import { NewMuslimPrompt } from "./NewMuslim.jsx";
 import { Rules, openJoin } from "./shared.jsx";
@@ -109,6 +109,7 @@ export default function GroupPage({ params }) {
     setMessages([]); setLoaded(false); setWaitingBot(false); setError(null); setLeaving(null);
   }, [gid]);
 
+  useTitle(group?.title);
   const load = () => api.get(`/api/groups/${gid}?ui=${lang}`).then(setGroup).catch(setError);
   useEffect(() => { load(); }, [gid, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -247,7 +248,7 @@ export default function GroupPage({ params }) {
                   return <GroupMessage key={m.id} m={m} mine={mine} tools={<MemberTools gid={gid} m={m} mine={mine} onDone={removed} />} />;
                 })}
                 {waitingBot && <div className="g-msg bot pending"><div className="row"><div className="spinner" /><span className="muted">{t("gr.bot_thinking")}</span></div></div>}
-                <div ref={endRef} />
+                <div ref={endRef} className="g-end" />
               </div>
               {unseen && (
                 <button type="button" className="btn btn-primary btn-sm g-unseen" onClick={toEnd}>

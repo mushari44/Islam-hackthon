@@ -149,7 +149,7 @@ function MeetupRow({ m }) {
   const w = useWhen(m);
   const where = m.format === "online" ? t("home.online") : [m.city, m.venue].filter(Boolean).join(" · ") || t("home.in_person");
   return (
-    <a className="home-row fade-in" href="#/community?tab=meetups">
+    <a className="home-row fade-in" href={`#/events/${m.id}`}>
       <span className="home-date" aria-hidden="true"><strong>{w.day}</strong><span>{w.month}</span></span>
       <span className="home-row-text">
         <strong dir="auto">{m.title}</strong>

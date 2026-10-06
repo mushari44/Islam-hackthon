@@ -5,7 +5,7 @@ import { match, useHashPath } from "./core/router.jsx";
 import { Icon, Logo, SheetHost, ToastHost, usePageTitle } from "./core/ui.jsx";
 import { AccountButton, AccountPage, useDaaiSignedIn } from "./features/account/index.js"; // Eman
 import { BookingBanner, TalkPage } from "./features/calls/index.js";   // Eman
-import { CommunityPage, GroupPage } from "./features/community/index.js"; // Mushari
+import { CommunityPage, GroupPage, MeetupPage } from "./features/community/index.js"; // Mushari
 import { AskPage } from "./features/rag/index.js";                      // Mushari
 import { VideosPage } from "./features/videos/index.js";               // Mushari
 import Home from "./pages/Home.jsx";
@@ -22,6 +22,7 @@ const ROUTES = [
   { path: "/community", nav: "community", page: CommunityPage, title: "nav.community" },
   { path: "/videos", nav: "videos", page: VideosPage, title: "vid.title" },
   { path: "/groups/:id", nav: "community", page: GroupPage, title: "nav.community" },
+  { path: "/events/:id", nav: "community", page: MeetupPage, title: "nav.community" },
   { path: "/account", nav: "more", page: AccountPage, title: "nav.account" },
   { path: "/daai", nav: "more", page: DaaiConsole, title: "nav.daai" },
   { path: "/about", nav: "more", page: About, title: "nav.about" },
