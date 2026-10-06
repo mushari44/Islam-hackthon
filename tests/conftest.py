@@ -13,7 +13,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{(_TMP / 'test.db').as_posix()}"
 os.environ["SABEELI_OFFLINE"] = "1"      # never spend API credits in tests
 os.environ["SEED_DEMO"] = "1"
 os.environ.setdefault("SECRET_KEY", "test-secret")
-os.environ.setdefault("DEMO_PASSWORD", "sabeeli-demo")
+os.environ.setdefault("DEMO_PASSWORD", "123")
 
 from fastapi.testclient import TestClient  # noqa: E402
 

@@ -3,8 +3,12 @@
 # For AI answers: put an OpenRouter key in .env (OPENROUTER_API_KEY=...), then run the same command again.
 # Full mode adds «بينات», built from the package's link (a few extra minutes):
 #   docker compose --profile full up --build sabeeli-full
-# E5 mode also builds the E5 semantic-search index, exactly like the team's copy (about 3 GB; HOURS on a CPU):
-#   docker compose --profile e5 up --build sabeeli-e5
+# GPU mode adds the hybrid search (BM25 + the E5 embedding model) and «بينات». It needs an NVIDIA GPU with 8 GB of
+# VRAM or more, and Docker able to use it (Windows: Docker Desktop with WSL2 and a recent NVIDIA driver; Linux: the
+# NVIDIA Container Toolkit; not on a Mac). The first start downloads the model and builds the index (minutes):
+#   docker compose --profile gpu up --build sabeeli-gpu
+# EXPERIMENTAL: tested and working on one machine only (RTX 5070, 12 GB; first start about 4 minutes). If Docker or PyTorch can't use the GPU, it logs a warning and
+# runs with BM25. Without a GPU, SABEELI_INDEX_ON_CPU=1 in .env builds the index on the CPU: about 3 HOURS.
 services:
   sabeeli:
     build: .
@@ -30,17 +34,35 @@ services:
         required: false
     restart: unless-stopped
 
-  sabeeli-e5:
-    profiles: [e5]
+  sabeeli-gpu:
+    profiles: [gpu]
     build:
       context: .
       args:
         FULL: "1"
-        E5: "1"
-    image: sabeeli-e5
+        GPU: "1"
+        TORCH_CUDA: ${SABEELI_TORCH_CUDA:-cu128}
+    image: sabeeli-gpu
+    command: ["sh", "scripts/docker-start.sh"]
     ports:
       - "${SABEELI_PORT:-8000}:8000"
     env_file:
       - path: .env
         required: false
+    environment:
+      SABEELI_BUILD_INDEX: "1"
+    volumes:
+      - sabeeli-vectors:/app/data/cache   # the E5 index, built once
+      - sabeeli-models:/app/.hf           # the downloaded E5 model
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     restart: unless-stopped
+
+volumes:
+  sabeeli-vectors:
+  sabeeli-models:

@@ -12,8 +12,8 @@
 
 | | Live site (https://sabeeli-self.vercel.app) | Local run (your machine) |
 |---|---|---|
-| **Seeker (user)** | There are no preset user accounts: **create your own** in a few seconds. No account is needed to ask, watch videos or browse; to call or book a da'i, create one: «تسجيل الدخول» → «مستخدم» → «أنشئ حساباً», any username (3-24 letters or digits), a password of 8+ characters, sex and age range | The same |
-| **Da'i** | «تسجيل الدخول» → «داعية» (or `/#/daai`). Users `reviewer` (admin), `khalid`, `maryam`, `yusuf`. Password **`123`** for all four | Same users. Password **`123`** for all four (the `DEMO_PASSWORD` line in `.env`) |
+| **Seeker (user)** | There are no preset user accounts: **create your own** in a few seconds. No account is needed to ask, watch videos or browse groups and events; to call or book a da'i, join a group, post in it or book a seat at an event, create one: «تسجيل الدخول» → «مستخدم» → «أنشئ حساباً», any username (3-24 letters or digits), a password of 8+ characters, sex and age range | The same |
+| **Da'i** | «تسجيل الدخول» → «داعية» (or `/#/daai`). Users `reviewer` (admin), `khalid`, `maryam`, `yusuf`. Password **`123`** for all four. The sign-in card lists them too: tap a name to fill it in | Same users. Password **`123`** for all four (the `DEMO_PASSWORD` line in `.env`) |
 
 The sample da'is are synthetic and created automatically on the first start. Details: [Run it yourself](#run-it-yourself).
 
@@ -29,9 +29,20 @@ The sample da'is are synthetic and created automatically on the first start. Det
 
 ## Run it yourself
 
-The fastest way to try Sabeeli is the live link above. To run the code on your own machine:
+The fastest way to try Sabeeli is the live link above. To run the code on your own machine, pick **one** of these:
 
-**Option 1: Docker (one command).** Needs Docker Desktop, or Docker with Compose 2.24 or newer.
+| Way to run | Command | Search for answers | What you need | First start |
+|---|---|---|---|---|
+| **1. Docker (recommended)** | `docker compose up --build` | BM25 (keyword search), like the live site | Docker | A few minutes |
+| 1b. Docker, full mode | `docker compose --profile full up --build sabeeli-full` | BM25, plus the «بينات» book | Docker | A few minutes more |
+| 1c. Docker, GPU mode (**experimental**) | `docker compose --profile gpu up --build sabeeli-gpu` | **Hybrid** (BM25 + E5 embedding model), plus «بينات» | Docker and an **NVIDIA GPU with 8 GB VRAM or more** | Large downloads (about 5 GB), then minutes |
+| **2. Python and Node** | see below | BM25; **hybrid** after the optional E5 steps | Python 3.11+ and Node 18+ (hybrid: the same NVIDIA GPU) | A few minutes |
+
+Everything else (AI answers with a key, videos, community, calls, da'i console) is the same in every mode. For judging, way 1 or 1b is enough. AI answers in any mode need one thing the repo can't ship: an OpenRouter key in `.env` (see [AI answers](#ai-answers) below).
+
+### Way 1: Docker
+
+Needs Docker Desktop, or Docker with Compose 2.24 or newer.
 
 ```bash
 git clone https://github.com/mushari44/Islam-hackthon.git
@@ -39,15 +50,26 @@ cd Islam-hackthon
 docker compose up --build
 ```
 
-Open http://localhost:8000. The first build takes a few minutes; later starts take seconds. Port 8000 busy? Run `SABEELI_PORT=8080 docker compose up` (PowerShell: `$env:SABEELI_PORT=8080; docker compose up`) and open port 8080. Stop with Ctrl+C, or `docker compose down`.
+- Open http://localhost:8000. Later starts take seconds. Stop with Ctrl+C, or `docker compose down`.
+- Port 8000 busy? `SABEELI_PORT=8080 docker compose up` (PowerShell: `$env:SABEELI_PORT=8080; docker compose up`), then open port 8080.
+- **Full mode (1b)** also builds «بينات» from the scholarly package's own link on your machine (its rights are reserved, so the repo can't ship it).
 
-**Full mode, with «بينات»:** `docker compose --profile full up --build sabeeli-full`. It also builds «بينات» from the scholarly package's own link on your machine (its rights are reserved, so the repo can't ship it). This adds a few minutes to the first build.
+### Way 1c: Docker GPU mode (experimental)
 
-**E5 mode, exactly like the team's copy:** `docker compose --profile e5 up --build sabeeli-e5` adds the E5 semantic-search index as well. It downloads about 3 GB and embeds about 15,000 passages, which takes **about 3 hours on a typical laptop CPU** (minutes on a GPU, without Docker). It is optional: without it, search uses BM25, as on the live site.
+`docker compose --profile gpu up --build sabeeli-gpu` adds «بينات» and the **hybrid search** (BM25 + the E5 embedding model) on an NVIDIA GPU.
 
-We recommend the default command, or full mode, for judging. Add an OpenRouter key (below) for AI answers in any mode; it is the one thing the repo can't ship.
+> **Read this first**
+> - **You need:** an NVIDIA GPU with **8 GB of VRAM or more**, and Docker able to use it. Windows: Docker Desktop with WSL2 and a recent NVIDIA driver. Linux: the NVIDIA Container Toolkit. It does **not** work on a Mac.
+> - **Which cards:** the default build supports NVIDIA **GTX 16xx and RTX 20xx, 30xx, 40xx and 50xx** (checked: its PyTorch lists sm_75 to sm_120), for example an RTX 3060 12 GB. **Older cards such as the GTX 10xx** (for example a GTX 1080) are not supported by that build: add `SABEELI_TORCH_CUDA=cu126` to `.env` before building to get PyTorch for CUDA 12.6, which still supports them (not tested by us). Cards with less than 8 GB of VRAM may run out of memory.
+> - **Downloads:** PyTorch for CUDA 12.8 (about 2.5 GB, while building) and the E5 model (about 2.2 GB, on the first start). The first start then builds the search index in a few minutes before the site opens. Later starts reuse both.
+> - **Status:** experimental. Tested and working on one machine: NVIDIA RTX 5070 (12 GB), Windows with Docker Desktop. There the first start took about **4 minutes** (model download and index build) and the log showed `semantic search on (intfloat/multilingual-e5-large, cuda, ...)`. Not yet confirmed on other GPUs, drivers or systems.
+> - **If it can't use your GPU,** the log says why and the site **still runs, with BM25 search**. Nothing breaks.
+> - **On a CPU it is very slow.** To build the index without a GPU anyway, set `SABEELI_INDEX_ON_CPU=1` in `.env`: the first start then takes **about 3 hours**. Not recommended for judging.
+> - **To check it:** `docker compose --profile gpu logs -f sabeeli-gpu`. The line `semantic search on (intfloat/multilingual-e5-large, cuda, ...)` means the hybrid search runs on the GPU. A line `Failed to load GPU Faiss ...` is harmless: the vector index (FAISS) runs on the CPU, the E5 model on the GPU.
 
-**Option 2: without Docker (Python and Node).** Install [Python 3.11 or newer](https://www.python.org/downloads/) (on Windows, tick "Add python.exe to PATH") and [Node.js 18 or newer](https://nodejs.org/), then run these lines one at a time in a terminal.
+### Way 2: Python and Node (no Docker)
+
+Install [Python 3.11 or newer](https://www.python.org/downloads/) (on Windows, tick "Add python.exe to PATH") and [Node.js 18 or newer](https://nodejs.org/), then run these lines one at a time in a terminal.
 
 Windows (PowerShell or Command Prompt):
 
@@ -76,29 +98,36 @@ cd frontend && npm install && npm run build && cd ..
 python -m uvicorn backend.app.main:app --port 8000
 ```
 
-If PowerShell refuses the `activate` line, run `Set-ExecutionPolicy -Scope Process Bypass` first, or use Command Prompt.
+- Open http://localhost:8000 and keep the terminal open (Ctrl+C stops it). The first start takes about 15 seconds while the search index loads.
+- If PowerShell refuses the `activate` line, run `Set-ExecutionPolicy -Scope Process Bypass` first, or use Command Prompt.
+- To start again later: open a terminal in the folder, run the `activate` line, then the last line.
+- Without Git: download the code as a ZIP from GitHub (green "Code" button) and start from the `cd` line.
+- Frontend development: `npm run dev` in `frontend/`, then open http://localhost:5173 (API calls are proxied to port 8000).
 
-Open http://localhost:8000 and keep the terminal open while you use the app (Ctrl+C stops it). The first start takes about 15 seconds while the search index loads. To start it again later: open a terminal in the folder, activate the environment (the `activate` line above), then run the last line. Without Git, download the code as a ZIP from GitHub (green "Code" button) and start from the `cd` line. For frontend development, run `npm run dev` in `frontend/` and open http://localhost:5173; API calls are proxied to port 8000.
-
-**Full mode without Docker**, with the environment active. «بينات» takes a few minutes:
+**Optional: «بينات»** (a few minutes), with the environment active:
 
 ```bash
 pip install pymupdf
 python scripts/ingest_bayyinat.py
 ```
 
-E5 semantic search is optional. It downloads about 2.2 GB, and building the index takes about 3 hours on a CPU (minutes with an NVIDIA GPU and the CUDA build of PyTorch):
+**Optional: hybrid search (BM25 + E5 embedding model).** It uses the free `intfloat/multilingual-e5-large` model from Hugging Face (about 2.2 GB, downloaded on first use, no key needed) to index about 15,000 passages.
+
+> - **With an NVIDIA GPU (8 GB VRAM or more):** first install the CUDA build of PyTorch from https://pytorch.org/get-started/locally/ (CUDA 12.8 for GTX 16xx and RTX 20xx to 50xx; CUDA 12.6 for older cards such as the GTX 10xx), then run the two lines below. The index builds in a few minutes; the GPU is picked up by itself (or set `SABEELI_EMBED_DEVICE=cuda` in `.env`).
+> - **Without one** (CPU only, Apple Silicon or AMD), the same lines work but take **about 3 hours**. Until the index exists the app uses BM25, so you can skip this part.
 
 ```bash
 pip install -r requirements-embeddings.txt
 python scripts/build_embeddings.py
 ```
 
-Then start the app again as above.
+Then start the app again.
+
+### Settings and accounts
 
 **What works with no setup:** the repo includes a ready [`.env`](.env) settings file, and the app runs with it as is. Questions get answers built only from the approved sources, with every passage cited (sources-only mode), search uses BM25, and all sample accounts, groups and events are created on the first start. Sign in as a da'i with user `reviewer` and password `123` (header «تسجيل الدخول», then «داعية», or go to `#/daai`).
 
-**AI answers and photo reading** need an OpenRouter key (https://openrouter.ai/keys). The key is the only setting you need to fill in:
+<a id="ai-answers"></a>**AI answers and photo reading** need an OpenRouter key (https://openrouter.ai/keys). The key is the only setting you need to fill in:
 
 1. Open [`.env`](.env) in the project folder.
 2. Paste the key after `OPENROUTER_API_KEY=` (section 1 at the top, no quotes).
@@ -106,7 +135,7 @@ Then start the app again as above.
 
 Every other line in `.env` is explained there and can stay as it is. You might change `DEMO_PASSWORD` (the sample da'is' password), `SECRET_KEY` (keeps da'is signed in across restarts) or `SABEELI_PORT` (Docker's port). If you fork the repo, run `git update-index --skip-worktree .env` after adding a key so it is never committed.
 
-**Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search. Full mode adds «بينات», and E5 mode adds both. Password-reset emails need an SMTP server (the `SMTP_` lines in `.env`); trying the app doesn't need them.
+**Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search. Full mode, GPU mode or the «بينات» steps above add «بينات»; the hybrid search needs GPU mode (1c) or way 2's E5 steps. Password-reset emails need an SMTP server (the `SMTP_` lines in `.env`); trying the app doesn't need them.
 
 **Accounts to sign in with.** These sample accounts are created on the first start, like the sample groups and events. They are synthetic, and the site shows them without a "demo" tag. All four are da'i accounts and share one password:
 
@@ -117,13 +146,15 @@ Every other line in `.env` is explained there and can stay as it is. You might c
 | `maryam` | `123` | Maryam (da'iyah), Arabic and English | The same, as a da'iyah |
 | `yusuf` | `123` | Yusuf, English only | The same, for an English-speaking seeker |
 
-To sign in as a da'i: «تسجيل الدخول» in the header, then «داعية» (or go straight to http://localhost:8000/#/daai). The password is the `DEMO_PASSWORD` line in `.env`; change it there before putting the app online.
+To sign in as a da'i: «تسجيل الدخول» in the header, then «داعية» (or go straight to http://localhost:8000/#/daai). The sign-in card lists the four accounts; tap one to fill in its name and password. The password is the `DEMO_PASSWORD` line in `.env`; change it there before putting the app online.
 
-**Seeker (user) side:** no account is needed to ask questions, watch videos or browse groups and events. Calling or booking a da'i needs a seeker account (it also keeps your chats), which takes a few seconds: «تسجيل الدخول», then «مستخدم», then «أنشئ حساباً». Choose any username (3 to 24 letters or digits) and a password of at least 8 characters, and pick sex and age range.
+**Seeker (user) side:** no account is needed to ask questions, watch videos or browse groups and events. Calling or booking a da'i, joining a group, posting in it and booking a seat at an event need a seeker account (it also keeps your chats), which takes a few seconds: «تسجيل الدخول», then «مستخدم», then «أنشئ حساباً». Choose any username (3 to 24 letters or digits) and a password of at least 8 characters, and pick sex and age range.
 
 **Deploying:** the website goes on Vercel and the API on Render; see [docs/DEPLOY.md](docs/DEPLOY.md).
 
 **To try a call** on one computer, use two browsers, or a normal and a private window. In one, sign in as `khalid` and switch on «متاح لاستقبال المكالمات» (Available for calls). In the other, create a seeker account and go to **تحدّث**. Allow the microphone when the browser asks.
+
+**A call between two people on different networks** (one judge as the seeker, another as the da'i) works on the live site: a local run is only reachable from the machine it runs on. The call request, accept and in-call text chat go through the server, so they work from any network. The voice goes straight between the two browsers: it works on most home and mobile networks with the default STUN setting; strict networks (some offices and mobile carriers) also need a TURN server, set with the `TURN_` lines in `.env` (or the host's environment).
 
 The corpus is already in `data/corpus/`, except «بينات»: its publisher reserves the rights, so each copy builds it from the package's link with `pip install pymupdf` and `python scripts/ingest_bayyinat.py` (the app works without it). To refresh the rest from the official APIs, run `python scripts/ingest_quran.py`, `python scripts/ingest_hadith.py` and `python scripts/ingest_icadb.py`.
 
@@ -131,7 +162,7 @@ The corpus is already in `data/corpus/`, except «بينات»: its publisher re
 
 ```bash
 python -m pytest tests             # no API key needed (sources-only mode + mocked OpenRouter and Claude APIs)
-                                   # 222 tests with requirements.txt; 229 with requirements-embeddings.txt too
+                                   # 230 pass with requirements.txt (the E5 tests are skipped); 236 with requirements-embeddings.txt too
 ```
 
 ## How the code is organised
@@ -166,4 +197,4 @@ Each person works only in their own folders. Shared code changes only by agreeme
 - **[`THIRD_PARTY.md`](THIRD_PARTY.md):** licence record: sources, models, services and software with their licences.
 - **[`LICENSE`](LICENSE):** the team's code is under the MIT licence; the religious content keeps its publishers' terms.
 - **[`docs/RAG-PLAN.md`](docs/RAG-PLAN.md):** how the RAG system uses the approved sources, and how it is evaluated.
-- **Privacy:** seekers can ask and browse without an account (calling or booking a da'i needs a free username-and-password account, with no phone number or real name), an anonymous visitor's questions are deleted after 24 hours (a signed-in seeker keeps saved chats), the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**. Videos and thumbnails load straight from IslamHouse's servers, search words are sent in a POST body, and Sabeeli stores no searches and no viewing history.
+- **Privacy:** seekers can ask and browse without an account (calling or booking a da'i, joining a group, posting and booking an event seat need a free username-and-password account, with no phone number or real name), an anonymous visitor's questions are deleted after 24 hours (a signed-in seeker keeps saved chats), the referral card is shared only with consent, calls are not recorded, and every user can delete their data from **الخصوصية**. Videos and thumbnails load straight from IslamHouse's servers, search words are sent in a POST body, and Sabeeli stores no searches and no viewing history.

@@ -43,6 +43,8 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 | LangChain (`langchain`, `langchain-core`, `langchain-community`, `langchain-text-splitters`): retrievers, rank fusion, FAISS wrapper, text splitter. Optional (`requirements-embeddings.txt`) | MIT |
 | sentence-transformers, transformers | Apache-2.0 |
 | PyTorch | BSD-3-Clause |
+| NVIDIA CUDA libraries (installed with PyTorch's CUDA 12.8 build, only in the optional Docker GPU mode or a GPU setup without Docker; not shipped in the repo) | NVIDIA CUDA Toolkit EULA (redistributable components) |
+| Docker and Docker Compose, with the `node:20-slim` and `python:3.11-slim` base images, to run the app locally (`Dockerfile`, `compose.yaml`); optional | Docker Engine Apache-2.0; base images MIT (Node.js) / PSF (Python) and their Debian packages |
 | FAISS (`faiss-cpu`) | MIT |
 | PyMuPDF (`pip install pymupdf`), used only by `scripts/ingest_bayyinat.py` to read the Bayyinat PDF; not needed to run the app | AGPL-3.0 (or commercial). Not part of the app or its requirements |
 | Pillow, used only by `eval/make_photos.py` to blur, shrink and tilt two of the synthetic evaluation photos; not needed to run the app | MIT-CMU (HPND) |
