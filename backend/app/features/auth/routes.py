@@ -6,7 +6,7 @@ import secrets
 import time
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -15,7 +15,7 @@ from ...core.db import SESSION_MERGERS, SESSION_PURGERS, get_db, iso, utcnow
 from . import mailer
 from .deps import admin, daai, seeker, seeker_device
 from .models import Daai, SeekerAccount, SeekerSession
-from .security import hash_password, new_seeker_token, seeker_id, sign, verify_password
+from .security import hash_password, needs_refresh, new_seeker_token, seeker_id, sign, unsign, verify_password
 
 router = APIRouter(prefix="/api")
 
@@ -259,9 +259,19 @@ def recover(body: RecoverIn, device: SeekerSession = Depends(seeker_device), db:
         raise HTTPException(403, "wrong username or recovery code")
     code = _recovery_code()
     acc.password_hash, acc.recovery_hash = hash_password(body.new_password), hash_password(code)
+    _sign_out_others(db, acc, device)
     _join(db, device, acc)
     db.commit()
     return {"account": account_view(acc), "recovery_code": code}
+
+
+def _sign_out_others(db: Session, acc: SeekerAccount, keep: SeekerSession) -> None:
+    """Signs every other browser out of the account after its password changes, so someone who knew the old
+    password (or a forgotten shared device) loses access. Only the sign-in link is dropped: no session row and
+    no data is deleted. The account's home session keeps everything filed under it; if its browser was still
+    signed in, it now answers 401 like after a normal sign-out (see deps.signed_out_home) and starts afresh."""
+    db.execute(update(SeekerSession).where(SeekerSession.account_id == acc.id, SeekerSession.id != keep.id)
+               .values(account_id=None))
 
 
 def _signed_in(device: SeekerSession, db: Session) -> SeekerAccount:
@@ -368,6 +378,7 @@ def reset(body: ResetIn, device: SeekerSession = Depends(seeker_device), db: Ses
         raise HTTPException(403, "wrong or expired code")
     acc.password_hash = hash_password(body.new_password)
     acc.reset_hash, acc.reset_expires = "", None
+    _sign_out_others(db, acc, device)
     _join(db, device, acc)
     db.commit()
     return {"account": account_view(acc)}
@@ -380,16 +391,38 @@ class PasswordIn(BaseModel):
 
 @router.post("/account/password")
 def change_password(body: PasswordIn, device: SeekerSession = Depends(seeker_device), db: Session = Depends(get_db)):
+    """Changes the password and signs the account out on every other browser (this one stays signed in)."""
     acc = _signed_in(device, db)
     if not verify_password(body.password, acc.password_hash):
         raise HTTPException(403, "wrong password")
     acc.password_hash = hash_password(body.new_password)
+    _sign_out_others(db, acc, device)
     db.commit()
     return {"ok": True}
 
 
 class ConfirmPasswordIn(BaseModel):
     password: str = Field(max_length=200)
+
+
+@router.post("/account/recovery-code")
+def new_recovery_code(body: ConfirmPasswordIn, device: SeekerSession = Depends(seeker_device),
+                      db: Session = Depends(get_db)):
+    """Issues a new one-time recovery code and replaces the stored hash, so any earlier code stops working.
+
+    The web app no longer shows a code at sign-up, and email needs SMTP, so this is how a seeker makes sure a
+    forgotten password can still be reset. Only the hash is kept: the code is shown once, in this answer."""
+    acc = _signed_in(device, db)
+    key = _key(acc.username)
+    if _too_many(key):
+        raise HTTPException(429, "too many attempts")
+    if not verify_password(body.password, acc.password_hash):
+        _failed(key)
+        raise HTTPException(403, "wrong password")
+    code = _recovery_code()
+    acc.recovery_hash = hash_password(code)
+    db.commit()
+    return {"recovery_code": code}
 
 
 @router.post("/account/delete")
@@ -426,7 +459,7 @@ def login(body: LoginIn, db: Session = Depends(get_db)):
     if not user.active:
         raise HTTPException(403, "account disabled")
     _failures.pop(key, None)
-    return {"token": sign({"kind": "daai", "id": user.id, "v": user.token_version or 0}), "me": profile(user)}
+    return {"token": _daai_token(user), "me": profile(user)}
 
 
 def profile(user: Daai) -> dict:
@@ -437,8 +470,42 @@ def profile(user: Daai) -> dict:
 
 
 @router.get("/daai/me")
-def me(user: Daai = Depends(daai)):
-    return profile(user)
+def me(user: Daai = Depends(daai), authorization: str = Header(default="")):
+    """The da'i's profile. Once the token is past half its life the answer also carries a fresh `token`, so a
+    console that keeps checking in (it polls this every 30 s) never hits the hard 12-hour end mid-shift."""
+    out = profile(user)
+    body = unsign(authorization.removeprefix("Bearer ").strip()) or {}
+    if needs_refresh(body):
+        out["token"] = _daai_token(user)
+    return out
+
+
+def _daai_token(user: Daai) -> str:
+    return sign({"kind": "daai", "id": user.id, "v": user.token_version or 0})
+
+
+class DaaiPasswordIn(BaseModel):
+    password: str = Field(max_length=200)
+    new_password: str = Field(min_length=8, max_length=200)
+
+
+@router.post("/daai/password")
+def daai_password(body: DaaiPasswordIn, user: Daai = Depends(daai), db: Session = Depends(get_db)):
+    """A da'i changes their own password. Every other session is signed out (token_version goes up) and this
+    one gets a fresh token. The shared sample accounts can't be changed here, or one visitor could lock the
+    judges out of the reviewer and sample da'i logins."""
+    if user.is_demo:
+        raise HTTPException(403, "demo account")
+    key = "daai:" + user.username
+    if _too_many(key):
+        raise HTTPException(429, "too many attempts")
+    if not verify_password(body.password, user.password_hash):
+        _failed(key)
+        raise HTTPException(403, "wrong password")
+    user.password_hash = hash_password(body.new_password)
+    user.token_version = (user.token_version or 0) + 1
+    db.commit()
+    return {"token": _daai_token(user), "me": profile(user)}
 
 
 class AvailabilityIn(BaseModel):
