@@ -12,8 +12,8 @@
 
 | | Live site (https://sabeeli-self.vercel.app) | Local run (your machine) |
 |---|---|---|
-| **Seeker (user)** | No account needed to ask, watch videos or browse. To call or book a da'i, create one: «تسجيل الدخول» → «مستخدم» → «أنشئ حساباً», any username (3-24 letters or digits), a password of 8+ characters, sex and age range | The same |
-| **Da'i** | «تسجيل الدخول» → «داعية» (or `/#/daai`). Users `reviewer` (admin), `khalid`, `maryam`, `yusuf`. On the live site the password is a private random value set on the server, so it isn't in this public repo: **it is given in our submission form** | Same users. Password **`sabeeli-demo`** for all four (the `DEMO_PASSWORD` line in `.env`) |
+| **Seeker (user)** | There are no preset user accounts: **create your own** in a few seconds. No account is needed to ask, watch videos or browse; to call or book a da'i, create one: «تسجيل الدخول» → «مستخدم» → «أنشئ حساباً», any username (3-24 letters or digits), a password of 8+ characters, sex and age range | The same |
+| **Da'i** | «تسجيل الدخول» → «داعية» (or `/#/daai`). Users `reviewer` (admin), `khalid`, `maryam`, `yusuf`. Password **`123`** for all four | Same users. Password **`123`** for all four (the `DEMO_PASSWORD` line in `.env`) |
 
 The sample da'is are synthetic and created automatically on the first start. Details: [Run it yourself](#run-it-yourself).
 
@@ -96,7 +96,7 @@ python scripts/build_embeddings.py
 
 Then start the app again as above.
 
-**What works with no setup:** the repo includes a ready [`.env`](.env) settings file, and the app runs with it as is. Questions get answers built only from the approved sources, with every passage cited (sources-only mode), search uses BM25, and all sample accounts, groups and events are created on the first start. Sign in as a da'i with user `reviewer` and password `sabeeli-demo` (header «تسجيل الدخول», then «داعية», or go to `#/daai`).
+**What works with no setup:** the repo includes a ready [`.env`](.env) settings file, and the app runs with it as is. Questions get answers built only from the approved sources, with every passage cited (sources-only mode), search uses BM25, and all sample accounts, groups and events are created on the first start. Sign in as a da'i with user `reviewer` and password `123` (header «تسجيل الدخول», then «داعية», or go to `#/daai`).
 
 **AI answers and photo reading** need an OpenRouter key (https://openrouter.ai/keys). The key is the only setting you need to fill in:
 
@@ -112,10 +112,10 @@ Every other line in `.env` is explained there and can stay as it is. You might c
 
 | Username | Password | Who | What to try |
 |---|---|---|---|
-| `reviewer` | `sabeeli-demo` | Reviewer (admin), Arabic and English | Everything a da'i can do, plus the «حسابات الدعاة» tab (add, disable or reset da'is) and the referral comparison |
-| `khalid` | `sabeeli-demo` | Khalid, Arabic and English | Taking calls, leading groups, hosting events, setting a schedule for bookings |
-| `maryam` | `sabeeli-demo` | Maryam (da'iyah), Arabic and English | The same, as a da'iyah |
-| `yusuf` | `sabeeli-demo` | Yusuf, English only | The same, for an English-speaking seeker |
+| `reviewer` | `123` | Reviewer (admin), Arabic and English | Everything a da'i can do, plus the «حسابات الدعاة» tab (add, disable or reset da'is) and the referral comparison |
+| `khalid` | `123` | Khalid, Arabic and English | Taking calls, leading groups, hosting events, setting a schedule for bookings |
+| `maryam` | `123` | Maryam (da'iyah), Arabic and English | The same, as a da'iyah |
+| `yusuf` | `123` | Yusuf, English only | The same, for an English-speaking seeker |
 
 To sign in as a da'i: «تسجيل الدخول» in the header, then «داعية» (or go straight to http://localhost:8000/#/daai). The password is the `DEMO_PASSWORD` line in `.env`; change it there before putting the app online.
 

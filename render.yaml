@@ -12,7 +12,7 @@ services:
       - key: SEED_DEMO
         value: "1"
       - key: DEMO_PASSWORD
-        generateValue: true # random and private (read it in Render > Environment); the README's default would let anyone sign in as reviewer (admin)
+        value: "123"        # public on purpose for judging (mushari, 6 October 2026); sample accounts only
       - key: CORS_ORIGINS
         sync: false         # the Vercel site, e.g. https://sabeeli.vercel.app (no trailing slash)
       - key: SABEELI_OFFLINE
