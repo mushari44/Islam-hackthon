@@ -32,7 +32,11 @@ docker compose up --build
 
 Open http://localhost:8000. The first build takes a few minutes; later starts take seconds. Port 8000 busy? Run `SABEELI_PORT=8080 docker compose up` (PowerShell: `$env:SABEELI_PORT=8080; docker compose up`) and open port 8080. Stop with Ctrl+C, or `docker compose down`.
 
-**Full mode, exactly like the team's copy:** `docker compose --profile full up --build sabeeli-full`. It also builds «بينات» from the scholarly package's own link and the E5 semantic-search index on your machine. The first build downloads about 3 GB and embeds the corpus on the CPU, so it takes much longer; later starts take seconds. Add an OpenRouter key (below) for AI answers, which is the one thing the repo can't ship.
+**Full mode, with «بينات»:** `docker compose --profile full up --build sabeeli-full`. It also builds «بينات» from the scholarly package's own link on your machine (its rights are reserved, so the repo can't ship it). This adds a few minutes to the first build.
+
+**E5 mode, exactly like the team's copy:** `docker compose --profile e5 up --build sabeeli-e5` adds the E5 semantic-search index as well. It downloads about 3 GB and embeds about 15,000 passages, which takes **about 3 hours on a typical laptop CPU** (minutes on a GPU, without Docker). It is optional: without it, search uses BM25, as on the live site.
+
+We recommend the default command, or full mode, for judging. Add an OpenRouter key (below) for AI answers in any mode; it is the one thing the repo can't ship.
 
 **Option 2: without Docker (Python and Node).** Install [Python 3.11 or newer](https://www.python.org/downloads/) (on Windows, tick "Add python.exe to PATH") and [Node.js 18 or newer](https://nodejs.org/), then run these lines one at a time in a terminal.
 
@@ -67,11 +71,17 @@ If PowerShell refuses the `activate` line, run `Set-ExecutionPolicy -Scope Proce
 
 Open http://localhost:8000 and keep the terminal open while you use the app (Ctrl+C stops it). The first start takes about 15 seconds while the search index loads. To start it again later: open a terminal in the folder, activate the environment (the `activate` line above), then run the last line. Without Git, download the code as a ZIP from GitHub (green "Code" button) and start from the `cd` line. For frontend development, run `npm run dev` in `frontend/` and open http://localhost:5173; API calls are proxied to port 8000.
 
-**Full mode without Docker**, with the environment active (the E5 download is about 2.2 GB, and building the index takes a while on a CPU):
+**Full mode without Docker**, with the environment active. «بينات» takes a few minutes:
 
 ```bash
-pip install -r requirements-embeddings.txt pymupdf
+pip install pymupdf
 python scripts/ingest_bayyinat.py
+```
+
+E5 semantic search is optional. It downloads about 2.2 GB, and building the index takes about 3 hours on a CPU (minutes with an NVIDIA GPU and the CUDA build of PyTorch):
+
+```bash
+pip install -r requirements-embeddings.txt
 python scripts/build_embeddings.py
 ```
 
@@ -87,7 +97,7 @@ Then start the app again as above.
 
 Every other line in `.env` is explained there and can stay as it is. You might change `DEMO_PASSWORD` (the sample da'is' password), `SECRET_KEY` (keeps da'is signed in across restarts) or `SABEELI_PORT` (Docker's port). If you fork the repo, run `git update-index --skip-worktree .env` after adding a key so it is never committed.
 
-**Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search; full mode adds both. Password-reset emails need an SMTP server (the `SMTP_` lines in `.env`); trying the app doesn't need them.
+**Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search. Full mode adds «بينات», and E5 mode adds both. Password-reset emails need an SMTP server (the `SMTP_` lines in `.env`); trying the app doesn't need them.
 
 **Accounts to sign in with.** These sample accounts are created on the first start, like the sample groups and events. They are synthetic, and the site shows them without a "demo" tag. All four are da'i accounts and share one password:
 
