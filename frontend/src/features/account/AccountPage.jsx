@@ -129,6 +129,8 @@ export function SignInCard({ role: preset, onDaaiSignIn, next }) {
         </div>
       )}
       {!signup && <p className="auth-lead muted">{t(daai ? "acc.daai_lead" : "acc.signin_lead")}</p>}
+      {!signup && <SampleAccounts daai={daai} onPick={(u) => { setF({ ...f, username: u, password: SAMPLE_PASSWORD }); setError(""); }}
+        onSignup={() => switchMode("signup")} />}
       <form className="stack" onSubmit={submit} onChange={clearOnEdit}>
         <Field id="acc-user" label={t("acc.username")} hint={signup ? t("acc.username_hint") : null} {...USERNAME_PROPS}
           autoComplete="username" required minLength={daai ? 1 : 3} maxLength={daai ? 64 : 24} value={f.username} onChange={set("username")} />
@@ -169,6 +171,35 @@ export function SignInCard({ role: preset, onDaaiSignIn, next }) {
         </p>
       )}
     </section>
+  );
+}
+
+// The synthetic sample da'is (auth/seed.py) and their shared password, shown on the sign-in card so judges and visitors
+// can try the da'i side (mushari, 6 October 2026). Seekers have no sample accounts: they create their own.
+const SAMPLE_DAAIS = [["reviewer", "acc.sample_reviewer"], ["khalid"], ["maryam"], ["yusuf"]];
+const SAMPLE_PASSWORD = "123";
+
+function SampleAccounts({ daai, onPick, onSignup }) {
+  const { t } = useI18n();
+  if (!daai) {
+    return (
+      <div className="auth-sample">
+        <p>{t("acc.sample_user")}{" "}
+          <button type="button" className="link-btn" onClick={onSignup}>{t("acc.create_account")}</button></p>
+      </div>
+    );
+  }
+  return (
+    <div className="auth-sample">
+      <p><strong>{t("acc.sample_title")}</strong> {t("acc.sample_daai", { p: SAMPLE_PASSWORD })}</p>
+      <div className="auth-sample-list">
+        {SAMPLE_DAAIS.map(([u, k]) => (
+          <button key={u} type="button" className="chip" dir="ltr" onClick={() => onPick(u)}>
+            {u}{k ? ` (${t(k)})` : ""}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
