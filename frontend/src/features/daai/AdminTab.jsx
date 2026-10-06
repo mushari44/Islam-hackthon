@@ -3,7 +3,7 @@
 import "./daai.css";
 import { useEffect, useState } from "react";
 import { api } from "../../core/api.js";
-import { setDaaiToken } from "../account/public.js";
+import { PasswordInput, setDaaiToken } from "../account/public.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, Spinner, errorText, toast } from "../../core/ui.jsx";
 import { countryName } from "../community/public.js";
@@ -52,7 +52,7 @@ function AddForm({ onAdded }) {
         </div>
         <div className="field">
           <label htmlFor="na-pass">{t("da.first_password")}</label>
-          <input id="na-pass" className="input" type="password" autoComplete="new-password" required minLength={8} maxLength={200} value={f.password} onChange={set("password")} />
+          <PasswordInput id="na-pass" autoComplete="new-password" required minLength={8} maxLength={200} value={f.password} onChange={set("password")} />
           <span className="faint">{t("da.pass_hint")}</span>
         </div>
         <div className="field">
@@ -120,7 +120,7 @@ function Row({ d, me, onChange, onMe }) {
       </div>
       {pw !== null && (
         <form className="row admin-reset" onSubmit={reset}>
-          <input className="input" type="password" autoComplete="new-password" aria-label={t("da.new_password")} placeholder={t("da.new_password")}
+          <PasswordInput id={`da-pw-${d.id}`} autoComplete="new-password" aria-label={t("da.new_password")} placeholder={t("da.new_password")}
             required minLength={8} maxLength={200} value={pw} onChange={(e) => setPw(e.target.value)} />
           <button type="submit" className="btn btn-sm btn-primary" disabled={busy}><Icon name="check" />{t("dp.save")}</button>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setPw(null)}>{t("common.cancel")}</button>

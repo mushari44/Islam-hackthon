@@ -5,7 +5,7 @@ import "./calls.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, Notice, Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { Icon, Notice, Spinner, errorText, rovingKeys, toast, usePolling } from "../../core/ui.jsx";
 import { useAccount } from "../account/public.js";
 import { CalendarButtons, daaiName } from "./MyBookings.jsx";
 import { dayIso, localDay, nextDays, period, zoneName } from "./bookingUtils.js";
@@ -240,19 +240,19 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
       )}
       <h3>{t("talk.lang")}</h3>
       <div className="tabs tabs-fit" role="radiogroup" aria-label={t("talk.lang")}>
-        {LANGS.map((code) => <button key={code} type="button" role="radio" aria-checked={lang === code} onClick={() => setLang(code)}>{langName(code)}</button>)}
+        {LANGS.map((code) => <button key={code} type="button" role="radio" aria-checked={lang === code} tabIndex={lang === code ? 0 : -1} onKeyDown={rovingKeys} onClick={() => setLang(code)}>{langName(code)}</button>)}
       </div>
       <h3>{t("talk.gender")}</h3>
       <div className="tabs tabs-fit" role="radiogroup" aria-label={t("talk.gender")}>
         {[["", "talk.any"], ["m", "talk.male"], ["f", "talk.female"]].map(([v, k]) => (
-          <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} onClick={() => setGender(v)}>{t(k)}</button>
+          <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} tabIndex={gender === v ? 0 : -1} onKeyDown={rovingKeys} onClick={() => setGender(v)}>{t(k)}</button>
         ))}
       </div>
       <h3>{t("book.who")}</h3>
       <DaaiChoice lang={lang} gender={gender} value={daai} onChange={setDaai} />
       <h3>{t("book.length")}</h3>
       <div className="tabs tabs-fit" role="radiogroup" aria-label={t("book.length")}>
-        {[30, 60].map((m) => <button key={m} type="button" role="radio" aria-checked={minutes === m} onClick={() => setMinutes(m)}>{t("book.minutes", { n: fmtNum(m) })}</button>)}
+        {[30, 60].map((m) => <button key={m} type="button" role="radio" aria-checked={minutes === m} tabIndex={minutes === m ? 0 : -1} onKeyDown={rovingKeys} onClick={() => setMinutes(m)}>{t("book.minutes", { n: fmtNum(m) })}</button>)}
       </div>
       {minutes === 60 && <p className="small muted">{t("book.sixty_hint")}</p>}
 
@@ -268,7 +268,8 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
             {days.map((d, i) => {
               const n = (byDay[d] || []).length;
               return (
-                <button key={d} type="button" role="radio" className="day-chip" aria-checked={day === d} disabled={!n} onClick={() => { setDay(d); setSlot(null); }}>
+                <button key={d} type="button" role="radio" className="day-chip" aria-checked={day === d} disabled={!n}
+                  tabIndex={(byDay[day] || []).length ? (day === d ? 0 : -1) : (d === days.find((x) => (byDay[x] || []).length) ? 0 : -1)} onKeyDown={rovingKeys} onClick={() => { setDay(d); setSlot(null); }}>
                   <span className="day-chip-wd">{i === 0 ? t("book.today") : i === 1 ? t("book.tomorrow") : fmtDate(dayIso(d), { weekday: "short" })}</span>
                   <strong>{fmtDate(dayIso(d), { day: "numeric" })}</strong>
                   <span className="day-chip-mo">{fmtDate(dayIso(d), { month: "short" })}</span>
@@ -281,8 +282,9 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
             <div key={p} className="stack slot-group">
               <span className="small faint">{t(`book.${p}`)}</span>
               <div className="slot-grid" role="radiogroup" aria-label={t(`book.${p}`)}>
-                {list.map((s) => (
-                  <button key={s.starts_at} type="button" role="radio" className="slot-chip" aria-checked={slot === s.starts_at} onClick={() => setSlot(s.starts_at)}>
+                {list.map((s, i) => (
+                  <button key={s.starts_at} type="button" role="radio" className="slot-chip" aria-checked={slot === s.starts_at}
+                    tabIndex={(list.some((x) => x.starts_at === slot) ? slot === s.starts_at : i === 0) ? 0 : -1} onKeyDown={rovingKeys} onClick={() => setSlot(s.starts_at)}>
                     {fmtTime(s.starts_at)}
                     {moving && moving.starts_at === s.starts_at && <span className="slot-now">{t("book.current")}</span>}
                   </button>

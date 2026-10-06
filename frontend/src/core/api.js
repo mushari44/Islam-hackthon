@@ -1,5 +1,6 @@
 // HTTP client. Shared core.
-// Seekers get an anonymous session token (localStorage); da'is a signed token (sessionStorage).
+// Seekers get an anonymous session token; da'is a signed token. Both live in localStorage, so a new tab of the same
+// browser stays signed in; signing out removes the da'i token (features/account/store.js tells the other tabs).
 
 // Where the API lives. Empty (the default) = same origin, as when FastAPI serves the build or Vite proxies it.
 // A frontend hosted on its own (Vercel) sets VITE_API_URL at build time, e.g. https://sabeeli.onrender.com
@@ -10,10 +11,9 @@ export function apiUrl(path) { return API_BASE + path; }
 const SEEKER_KEY = "sabeeli.seeker";
 const DAAI_KEY = "sabeeli.daai";
 
-function store(kind) { return kind === "daai" ? sessionStorage : localStorage; }
-function read(kind, key) { try { return store(kind).getItem(key); } catch { return null; } }
-function write(kind, key, val) {
-  try { val == null ? store(kind).removeItem(key) : store(kind).setItem(key, val); } catch { /* private mode */ }
+function read(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function write(key, val) {
+  try { val == null ? localStorage.removeItem(key) : localStorage.setItem(key, val); } catch { /* private mode */ }
 }
 
 export class ApiError extends Error {
@@ -22,12 +22,12 @@ export class ApiError extends Error {
 
 let sessionPromise = null;
 export async function seekerToken() {
-  let tok = read("seeker", SEEKER_KEY);
+  let tok = read(SEEKER_KEY);
   if (tok) return tok;
   sessionPromise ||= fetch(apiUrl("/api/session"), { method: "POST" })
     .then((r) => { if (!r.ok) throw new ApiError(r.status, "session"); return r.json(); })
     .then((d) => {
-      write("seeker", SEEKER_KEY, d.token);
+      write(SEEKER_KEY, d.token);
       sessionPromise = null;
       return d.token;
     })
@@ -37,12 +37,16 @@ export async function seekerToken() {
     });
   return sessionPromise;
 }
-export function forgetSeeker() { write("seeker", SEEKER_KEY, null); }
+export function forgetSeeker() { write(SEEKER_KEY, null); }
 
+// The da'i token used to be kept in sessionStorage: a tab signed in before the move keeps working, and clearing
+// removes both copies.
+function oldDaai() { try { return sessionStorage.getItem(DAAI_KEY); } catch { return null; } }
+function dropOldDaai() { try { sessionStorage.removeItem(DAAI_KEY); } catch { /* private mode */ } }
 export const daaiAuth = {
-  get token() { return read("daai", DAAI_KEY); },
-  set(token) { write("daai", DAAI_KEY, token); },
-  clear() { write("daai", DAAI_KEY, null); },
+  get token() { return read(DAAI_KEY) || oldDaai(); },
+  set(token) { write(DAAI_KEY, token); dropOldDaai(); },
+  clear() { write(DAAI_KEY, null); dropOldDaai(); },
 };
 
 async function request(method, path, { body, form, as = "seeker", retry = true } = {}) {

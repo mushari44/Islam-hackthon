@@ -37,6 +37,13 @@ register({
     "talk.online": "متاح الآن", "talk.offline": "غير متاح الآن", "talk.before": "تحدثت معه من قبل",
     "talk.offline_note": "هذا الداعية غير متاح الآن. سيصله طلبك إن عاد خلال وقت الانتظار، أو اختر «أول داعية متاح».",
     "talk.waiting_named": "ننتظر أن يقبل الداعية الذي اخترته…", "talk.again_same": "اتصل بـ{name} مرة أخرى",
+    "talk.mic_checking": "نتحقق من الميكروفون…", "talk.mic_ready": "الميكروفون جاهز.",
+    "talk.mic_blocked": "المتصفح منع الوصول إلى الميكروفون. اسمح به من الرمز في شريط العنوان، ثم اضغط «حاول مرة أخرى».",
+    "talk.mic_missing": "لم نجد ميكروفونًا. وصّل ميكروفونًا ثم اضغط «حاول مرة أخرى»، أو تابع بالكتابة.",
+    "talk.mic_busy": "تطبيق آخر يستخدم الميكروفون. أغلقه ثم اضغط «حاول مرة أخرى».",
+    "talk.mic_retry": "حاول مرة أخرى", "talk.reconnecting": "جارٍ إعادة الاتصال…",
+    "talk.other_tab": "هذه المكالمة مفتوحة في نافذة أخرى.",
+    "talk.peer_gone": "لم يعد الطرف الآخر بعد. يمكنك إنهاء المكالمة.",
     },
   en: {
     "ref.title": "Before we connect you with a da'i",
@@ -73,6 +80,13 @@ register({
     "talk.online": "Available now", "talk.offline": "Not available now", "talk.before": "You talked before",
     "talk.offline_note": "This da'i isn't available right now. Your request reaches them if they come back while you wait, or choose \"First available da'i\".",
     "talk.waiting_named": "Waiting for the da'i you chose to accept…", "talk.again_same": "Call {name} again",
+    "talk.mic_checking": "Checking your microphone…", "talk.mic_ready": "Microphone ready.",
+    "talk.mic_blocked": "Your browser blocked the microphone. Allow it from the icon in the address bar, then press Try again.",
+    "talk.mic_missing": "No microphone found. Connect one and press Try again, or continue by text.",
+    "talk.mic_busy": "Another app is using your microphone. Close it and press Try again.",
+    "talk.mic_retry": "Try again", "talk.reconnecting": "Reconnecting…",
+    "talk.other_tab": "This call is open in another tab.",
+    "talk.peer_gone": "The other side hasn't come back. You can end the call.",
     },
 });
 
@@ -125,6 +139,7 @@ register({
     "err.you already have a booking then": "لديك موعد آخر في هذا الوقت.", "err.slot taken": "حُجز هذا الوقت للتو. اختر وقتًا آخر.",
     "err.not time yet": "لم يحن الوقت بعد.", "err.can't cancel now": "لا يمكن الإلغاء الآن.",
     "err.finish your current call first": "أنهِ مكالمتك الحالية أولاً.",
+    "err.seeker left": "غادر السائل قبل أن تقبل المكالمة.",
   },
   en: {
     "book.reschedule": "Change time", "book.moving": "You're changing your booking ({when}). Pick a new time; your current booking stays until you confirm the new one.",
@@ -173,5 +188,6 @@ register({
     "err.you already have a booking then": "You already have a booking at that time.", "err.slot taken": "That time was just taken. Please pick another.",
     "err.not time yet": "It isn't time yet.", "err.can't cancel now": "This can't be cancelled now.",
     "err.finish your current call first": "Finish your current call first.",
+    "err.seeker left": "The seeker left before you answered.",
   },
 });

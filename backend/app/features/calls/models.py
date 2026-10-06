@@ -51,6 +51,11 @@ class CallRequest(Base):
     card_accurate: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     daai_note: Mapped[str] = mapped_column(Text, default="")
     seeker_rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Last time the seeker's waiting screen polled this request. A request whose seeker closed the tab stops
+    # being refreshed, so the da'i's queue can drop it instead of offering a call nobody will answer.
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=utcnow)
+    # When the call room last became empty (signalling.py), so an accepted call both people left can be closed.
+    room_empty_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class CallMessage(Base):

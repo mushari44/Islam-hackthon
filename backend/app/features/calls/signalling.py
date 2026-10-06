@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import timedelta
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from ...core.db import SessionLocal, iso, utcnow
 from ..auth.public import daai_from_token, seeker_key
@@ -40,8 +43,11 @@ class Rooms:
             room = self.peers.get(cid, {})
             if room.get(role) is ws:
                 room.pop(role, None)
-            if not room:
+            emptied = not room
+            if emptied:
                 self.peers.pop(cid, None)
+        if emptied:
+            _mark_room_empty(cid)
 
     async def send_other(self, cid: int, role: str, msg: dict) -> bool:
         other = self.peers.get(cid, {}).get("daai" if role == "seeker" else "seeker")
@@ -58,6 +64,43 @@ class Rooms:
 
 
 rooms = Rooms()
+# An accepted call whose room has had nobody in it this long is over: both people closed the page without
+# pressing End. Left open, it would block the da'i's next booked call ("finish your current call first").
+ABANDONED_AFTER = timedelta(minutes=5)
+
+
+def _mark_room_empty(cid: int) -> None:
+    """Remembers in the database when the room emptied, so the check below survives a server restart."""
+    db = SessionLocal()
+    try:
+        call = db.get(CallRequest, cid)
+        if call and call.status == "accepted":
+            call.room_empty_at = utcnow()
+            db.commit()
+    finally:
+        db.close()
+
+
+def end_abandoned_calls(db: Session, daai_id: int) -> None:
+    """Ends this da'i's accepted calls that nobody has been connected to for ABANDONED_AFTER.
+
+    Checked lazily (when the da'i's queue is listed or a booked call is started) instead of with a timer,
+    so nothing runs in the background. A room with anyone in it is never touched. A call with no recorded
+    empty time (nobody joined, or the server restarted) counts from when it was accepted."""
+    cutoff = utcnow() - ABANDONED_AFTER
+    changed = False
+    for call in db.scalars(select(CallRequest).where(CallRequest.daai_id == daai_id,
+                                                     CallRequest.status == "accepted")).all():
+        if rooms.present(call.id):
+            continue
+        since = call.room_empty_at or call.accepted_at
+        if since and since < cutoff:
+            call.status, call.ended_at = "ended", since
+            changed = True
+    if changed:
+        db.commit()
+
+
 RELAY_TYPES = {"offer", "answer", "ice", "bye", "mute", "ready"}
 
 

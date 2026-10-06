@@ -6,12 +6,13 @@ import { useCallback, useEffect, useState } from "react";
 import { api, seekerToken } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
-import { Icon, Notice, Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { Icon, Notice, Spinner, errorText, rovingKeys, toast, usePolling } from "../../core/ui.jsx";
 import { useAccount } from "../account/public.js";
 import { NewMuslimPrompt } from "../community/public.js";
 import BookFlow from "./BookFlow.jsx";
-import CallPanel, { Clock, useClock } from "./CallPanel.jsx";
+import CallPanel, { Clock, MIC_PROBLEMS, useClock, useLeaveWarning } from "./CallPanel.jsx";
 import MyBookings, { BookingRoom } from "./MyBookings.jsx";
+import { requestMic } from "./room.js";
 
 const ACTIVE = "sabeeli.call";
 const LANGS = ["ar", "en"];   // the languages we support for now
@@ -76,7 +77,7 @@ function ModeTabs({ mode, query }) {
   return (
     <div className="tabs talk-modes" role="tablist" aria-label={t("talk.modes")}>
       {MODES.map(([key, label, icon]) => (
-        <button key={key} type="button" role="tab" aria-selected={mode === key} onClick={() => go(key)}>
+        <button key={key} type="button" role="tab" aria-selected={mode === key} tabIndex={mode === key ? 0 : -1} onKeyDown={rovingKeys} onClick={() => go(key)}>
           <Icon name={icon} />{t(label)}
         </button>
       ))}
@@ -143,7 +144,7 @@ function Choose({ query, initialDaai, initialLang, onRequested, onBook }) {
       <h3>{t("talk.gender")}</h3>
       <div className="tabs tabs-fit" role="radiogroup" aria-label={t("talk.gender")}>
         {[["", "talk.any"], ["m", "talk.male"], ["f", "talk.female"]].map(([v, k]) => (
-          <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} onClick={() => setGender(v)}>{t(k)}</button>
+          <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} tabIndex={gender === v ? 0 : -1} onKeyDown={rovingKeys} onClick={() => setGender(v)}>{t(k)}</button>
         ))}
       </div>
       <DaaiPicker lang={lang} gender={gender} value={daai} onChange={setDaai} onBook={onBook} />
@@ -165,12 +166,39 @@ function Choose({ query, initialDaai, initialLang, onRequested, onBook }) {
   );
 }
 
+/** Asks for the microphone while the seeker waits, so the browser's prompt (or a blocked mic) is dealt with
+ * before the da'i joins. The test stream is stopped at once; the call asks again and the browser remembers. */
+function MicCheck() {
+  const { t } = useI18n();
+  const [mic, setMic] = useState("checking");   // "checking" | "ready" | a key of MIC_PROBLEMS
+  const check = useCallback(async () => {
+    setMic("checking");
+    const res = await requestMic();
+    res.stream?.getTracks().forEach((track) => track.stop());
+    setMic(res.stream ? "ready" : res.problem);
+  }, []);
+  useEffect(() => { check(); }, [check]);
+  return (
+    <div role="status" className="small">
+      {mic === "checking" && <p className="mic-check muted">{t("talk.mic_checking")}</p>}
+      {mic === "ready" && <p className="mic-check muted"><Icon name="mic" size={16} />{t("talk.mic_ready")}</p>}
+      {MIC_PROBLEMS[mic] && (
+        <p className="mic-check">
+          <Icon name="micOff" size={16} /><span>{t(MIC_PROBLEMS[mic])}</span>
+          <button type="button" className="btn btn-sm" onClick={check}>{t("talk.mic_retry")}</button>
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Waiting({ id, onAccepted, onExpired, onCancelled }) {
   const { t, fmtNum } = useI18n();
   const [queue, setQueue] = useState(0);
   const [named, setNamed] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const sec = useClock(true);
+  useLeaveWarning(!cancelling);
   usePolling(async () => {
     if (cancelling) return;   // the cancel decides what comes next
     const st = await api.get(`/api/calls/${id}`);
@@ -195,6 +223,7 @@ function Waiting({ id, onAccepted, onExpired, onCancelled }) {
       <h3>{t(named ? "talk.waiting_named" : "talk.waiting")}</h3>
       {queue > 0 && <p className="muted">{t("talk.queue", { n: fmtNum(queue) })}</p>}
       <p className="faint"><Clock sec={sec} /></p>
+      <MicCheck />
       <div className="row" style={{ justifyContent: "center" }}><button type="button" className="btn btn-danger-soft" disabled={cancelling} onClick={cancel}>{t("talk.cancel")}</button></div>
     </div>
   );

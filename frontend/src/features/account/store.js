@@ -6,15 +6,28 @@ let state = { account: null, loaded: false };
 const listeners = new Set();
 let loading = null;
 
-export function setAccount(account) {
+// Other tabs of this browser learn about a sign-in, sign-out or account change through this key (and through the
+// seeker token key, which changes when a session ends), so a tab left open never keeps showing a signed-out account.
+const SEEKER_KEY = "sabeeli.seeker";     // keep in step with core/api.js
+const DAAI_KEY = "sabeeli.daai";         // keep in step with core/api.js
+const PING_KEY = "sabeeli.account_ping";
+
+function apply(account) {
   state = { account, loaded: true };
   listeners.forEach((fn) => fn(state));
 }
 
+/** Show this account (null: signed out) here and tell this browser's other tabs to reload theirs. */
+export function setAccount(account) {
+  apply(account);
+  try { localStorage.setItem(PING_KEY, String(Date.now())); } catch { /* private mode */ }
+}
+
 export function loadAccount() {
+  // apply, not setAccount: a reload caused by another tab must not ping the tabs back.
   loading ||= api.get("/api/account")
-    .then((d) => setAccount(d.account))
-    .catch(() => setAccount(null))
+    .then((d) => apply(d.account))
+    .catch(() => apply(null))
     .finally(() => { loading = null; });
   return loading;
 }
@@ -37,19 +50,23 @@ export function useAccount() {
   return s;
 }
 
-// Whether a da'i is signed in on this tab. The token itself lives in core/api.js; this only tells the top bar
+// Whether a da'i is signed in on this browser. The token itself lives in core/api.js; this only tells the top bar
 // and the da'i console when it changes, so the bar can show "Da'i console" instead of "Sign in".
 let daai = Boolean(daaiAuth.token);
 const daaiListeners = new Set();
 
-/** Keep (token) or drop (null) the da'i's sign-in, and tell every screen that shows it. */
-export function setDaaiToken(token) {
-  if (token) daaiAuth.set(token); else daaiAuth.clear();
-  daai = Boolean(token);
+function applyDaai(on) {
+  daai = on;
   daaiListeners.forEach((fn) => fn(daai));
 }
 
-/** True while a da'i is signed in on this tab. */
+/** Keep (token) or drop (null) the da'i's sign-in, and tell every screen that shows it. */
+export function setDaaiToken(token) {
+  if (token) daaiAuth.set(token); else daaiAuth.clear();
+  applyDaai(Boolean(token));
+}
+
+/** True while a da'i is signed in on this browser. */
 export function useDaaiSignedIn() {
   const [on, set] = useState(daai);
   useEffect(() => {
@@ -58,4 +75,12 @@ export function useDaaiSignedIn() {
     return () => daaiListeners.delete(set);
   }, []);
   return on;
+}
+
+// The storage event fires only in the other tabs, never in the one that wrote, so there is no echo.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === null || e.key === SEEKER_KEY || e.key === PING_KEY) { if (state.loaded) loadAccount(); }
+    if (e.key === null || e.key === DAAI_KEY) applyDaai(Boolean(daaiAuth.token));
+  });
 }

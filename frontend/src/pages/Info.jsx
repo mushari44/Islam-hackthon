@@ -3,7 +3,7 @@ import { useState } from "react";
 import { api, forgetSeeker } from "../core/api.js";
 import { register, useI18n } from "../core/i18n.jsx";
 import { Icon, Notice, errorText, toast } from "../core/ui.jsx";
-import { loadAccount, useAccount, useDaaiSignedIn } from "../features/account/public.js";
+import { PasswordInput, accError, loadAccount, useAccount, useDaaiSignedIn, useFormError } from "../features/account/public.js";
 
 register({
   ar: {
@@ -135,16 +135,28 @@ export function Privacy() {
   const { account } = useAccount();
   const [sure, setSure] = useState(false);   // deleting can't be undone, so it takes a second, explicit click
   const [busy, setBusy] = useState(false);
-  const wipe = async () => {
+  const [password, setPassword] = useState("");
+  const [errorBox, setError, clearOnEdit] = useFormError();
+  const wipe = async (e) => {
+    e?.preventDefault();
+    setError("");
     setBusy(true);
+    // A signed-in account is deleted only with its password, as on the account page; then this browser's own data.
+    if (account) {
+      try {
+        await api.post("/api/account/delete", { password });
+      } catch (err) {
+        setBusy(false); setError(accError(err, t)); return;
+      }
+    }
     try {
       await api.del("/api/me");
     } catch (err) {
       // Only "no such session" means there is nothing left to delete; anything else (offline, a server
       // error) must not be reported as deleted.
-      if (err.status !== 401 && err.status !== 404) { setBusy(false); toast(errorText(err, t), "error"); return; }
+      if (err.status !== 401 && err.status !== 404) { setBusy(false); setError(errorText(err, t)); return; }
     }
-    setBusy(false); setSure(false);
+    setBusy(false); setSure(false); setPassword("");
     forgetSeeker();
     try { sessionStorage.clear(); } catch { /* ignore */ }
     loadAccount();   // the account went with the data: the top bar must stop showing its name
@@ -158,15 +170,23 @@ export function Privacy() {
       </ul>
       <div className="section">
         {sure ? (
-          <div className="card stack danger-zone" role="alertdialog" aria-labelledby="priv-q">
+          <form className="card stack danger-zone" role="alertdialog" aria-labelledby="priv-q" onSubmit={wipe} onChange={clearOnEdit}>
             <p id="priv-q" style={{ margin: 0 }}>
               {t("priv.delete_q")}{account && <> <strong>{t("priv.delete_q_account", { u: account.username })}</strong></>}
             </p>
+            {account && (
+              <div className="field">
+                <label htmlFor="priv-pass">{t("acc.delete_confirm")}</label>
+                <PasswordInput id="priv-pass" autoComplete="current-password" required maxLength={200} value={password}
+                  onChange={(e) => setPassword(e.target.value)} />
+              </div>
+            )}
+            {errorBox}
             <div className="row">
-              <button type="button" className="btn btn-danger" disabled={busy} onClick={wipe}><Icon name="trash" />{t("priv.delete_yes")}</button>
-              <button type="button" className="btn btn-ghost" disabled={busy} autoFocus onClick={() => setSure(false)}>{t("common.cancel")}</button>
+              <button type="submit" className="btn btn-danger" disabled={busy}><Icon name="trash" />{t("priv.delete_yes")}</button>
+              <button type="button" className="btn btn-ghost" disabled={busy} autoFocus={!account} onClick={() => { setSure(false); setPassword(""); setError(""); }}>{t("common.cancel")}</button>
             </div>
-          </div>
+          </form>
         ) : <button type="button" className="btn btn-danger-soft" onClick={() => setSure(true)}><Icon name="trash" />{t("priv.delete")}</button>}
       </div>
     </>

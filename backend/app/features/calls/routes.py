@@ -23,11 +23,17 @@ from ..community.public import mark_new_muslim, new_muslim_calls, unmark_new_mus
 from ..rag.public import shared_conversation, source_card
 from . import booking
 from .models import CallMessage, CallRequest, Referral
+from .signalling import end_abandoned_calls
 
 router = APIRouter(prefix="/api")
 router.include_router(booking.router)   # booked calls (weekly hours, slots, bookings) live in booking.py
 
 ONLINE_WINDOW = timedelta(seconds=90)
+# The seeker's waiting screen polls its request every ~2 s. Closing the tab stops that: after SEEKER_AWAY the
+# request is hidden from the da'is (and can't be accepted), after SEEKER_GONE it expires. A reload within that
+# time resumes it, because the page remembers the request and polls it again.
+SEEKER_AWAY = timedelta(seconds=70)   # > 60 s too, so a waiting seeker in a background tab stays listed
+SEEKER_GONE = timedelta(seconds=90)   # > 60 s: Chrome slows a long-hidden tab's timers to one a minute
 LANGS = {"ar", "en"}   # the languages we support for now; add more when da'is and content cover them
 
 
@@ -85,10 +91,22 @@ class CallIn(BaseModel):
     daai_id: int | None = None   # ask for this da'i only
 
 
+def _unseen(call: CallRequest) -> timedelta:
+    """How long the seeker's waiting screen has been silent (rows from before last_seen_at count from creation)."""
+    return utcnow() - (call.last_seen_at or call.created_at)
+
+
 def _expire(db: Session, call: CallRequest) -> None:
-    if call.status == "waiting" and utcnow() - call.created_at > timedelta(seconds=settings.call_wait_seconds):
+    if call.status == "waiting" and (utcnow() - call.created_at > timedelta(seconds=settings.call_wait_seconds)
+                                     or _unseen(call) > SEEKER_GONE):
         call.status = "expired"
         db.commit()
+
+
+def _present_waiting():
+    """SQL filter for waiting requests whose seeker is still on the waiting screen."""
+    since = utcnow() - SEEKER_AWAY
+    return (CallRequest.status == "waiting") & (func.coalesce(CallRequest.last_seen_at, CallRequest.created_at) >= since)
 
 
 @router.post("/calls")
@@ -132,7 +150,7 @@ def _call_view(call: CallRequest, db: Session) -> dict:
         # doesn't count requests that only one other da'i can take.
         same_queue = (CallRequest.daai_pref == call.daai_pref) if call.daai_pref else CallRequest.daai_pref.is_(None)
         waiting_ahead = len(db.scalars(select(CallRequest.id).where(
-            CallRequest.status == "waiting", CallRequest.lang == call.lang, CallRequest.id < call.id, same_queue)).all())
+            _present_waiting(), CallRequest.lang == call.lang, CallRequest.id < call.id, same_queue)).all())
     return {"id": call.id, "status": call.status, "lang": call.lang,
             "daai": {"id": d.id, "name": d.display_name, "name_en": d.display_name_en, "gender": d.gender} if d else None,
             "daai_pref": call.daai_pref, "queue_position": waiting_ahead, "created_at": iso(call.created_at)}
@@ -163,6 +181,9 @@ def call_status(cid: int, me: SeekerSession = Depends(seeker), db: Session = Dep
     if not call or call.session_id != me.id:
         raise HTTPException(404, "not found")
     _expire(db, call)
+    if call.status == "waiting":
+        call.last_seen_at = utcnow()   # the waiting screen's poll is the heartbeat that keeps it in the queue
+        db.commit()
     return _call_view(call, db)
 
 
@@ -232,7 +253,7 @@ def daai_requests(me: Daai = Depends(daai), db: Session = Depends(get_db)):
     out = []
     for c in waiting:
         _expire(db, c)
-        if c.status != "waiting" or c.lang not in (me.languages or []):
+        if c.status != "waiting" or c.lang not in (me.languages or []) or _unseen(c) > SEEKER_AWAY:
             continue
         if c.gender_pref and c.gender_pref != me.gender:
             continue
@@ -243,6 +264,7 @@ def daai_requests(me: Daai = Depends(daai), db: Session = Depends(get_db)):
                     "has_card": bool(ref and ref.consented and ref.final), "has_chat": bool(ref and ref.share_chat),
                     "for_you": c.daai_pref == me.id})
     out.sort(key=lambda r: not r["for_you"])   # requests made for this da'i by name come first
+    end_abandoned_calls(db, me.id)
     booked = booking.booked_soon(db, me)
     if booked:
         # A booked call starts soon: keep the time free by holding back new requests from the general queue.
@@ -258,8 +280,11 @@ def accept_request(cid: int, me: Daai = Depends(daai), db: Session = Depends(get
     if not call or call.lang not in (me.languages or []) or (call.gender_pref and call.gender_pref != me.gender) \
             or (call.daai_pref and call.daai_pref != me.id):
         raise HTTPException(404, "not found")
-    # Atomic: only one da'i can take a waiting request.
-    res = db.execute(update(CallRequest).where(CallRequest.id == cid, CallRequest.status == "waiting")
+    _expire(db, call)
+    if call.status in ("waiting", "expired") and _unseen(call) > SEEKER_AWAY:
+        raise HTTPException(409, "seeker left")
+    # Atomic: only one da'i can take a waiting request, and only while its seeker is still there.
+    res = db.execute(update(CallRequest).where(CallRequest.id == cid, _present_waiting())
                      .values(status="accepted", daai_id=me.id, accepted_at=utcnow()))
     db.commit()
     if res.rowcount != 1:
@@ -440,4 +465,4 @@ def experiment_results(_: Daai = Depends(daai), db: Session = Depends(get_db)):
 
     return {"enabled": bool(row and row.value.get("enabled")),
             "arms": {k: summary(v) for k, v in arms.items()},
-            "waiting_now": db.scalar(select(func.count()).select_from(CallRequest).where(CallRequest.status == "waiting"))}
+            "waiting_now": db.scalar(select(func.count()).select_from(CallRequest).where(_present_waiting()))}

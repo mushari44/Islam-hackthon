@@ -53,3 +53,35 @@
 .account-pop svg { width: 18px; height: 18px; color: var(--text-muted); }
 .account-pop .account-pop-out { color: var(--danger); margin-block-start: 4px; border-block-start: 1px solid var(--border); border-radius: 0 0 10px 10px; }
 .account-pop .account-pop-out svg { color: currentColor; }
+
+/* Password box with a show/hide button inside it, at the end of the line in both directions. */
+.pw-wrap { position: relative; display: block; min-inline-size: 0; }
+.pw-wrap .input { padding-inline-end: 48px; }
+.pw-toggle {
+  position: absolute; inset-inline-end: 4px; inset-block: 0; margin-block: auto; width: 40px; height: 40px;
+  display: grid; place-items: center; border: 0; border-radius: 10px; background: none; color: var(--text-muted); cursor: pointer;
+}
+.pw-toggle:hover { color: var(--text); }
+.pw-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* Shown: the eye gets a slash, the usual "hide" sign. */
+.pw-toggle[aria-pressed="true"] { color: var(--accent-ink); }
+.pw-toggle[aria-pressed="true"]::after {
+  content: ""; position: absolute; inset: 0; margin: auto; width: 22px; height: 2px; border-radius: 2px; background: currentColor; transform: rotate(-45deg);
+}
+
+/* An error inside a form, above its button; it stays until a field changes. */
+.form-error {
+  display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface)); color: var(--danger); font-size: .92rem;
+}
+.form-error svg { flex: none; margin-block-start: 2px; }
+.form-error:focus { outline: 2px solid var(--danger); outline-offset: 2px; }
+.grid > .form-error { grid-column: 1 / -1; }
+
+/* "Forgot password?" under the sign-in button, and a recovery code shown once. */
+.auth-forgot { align-self: center; font-size: .92rem; }
+.account-recovery { border-block-start: 1px solid var(--border); padding-block-start: 12px; }
+.account-recovery p, .recovery-box p { margin: 0; }
+.recovery-box { padding: 12px 14px; border: 1px dashed var(--mint-400); border-radius: var(--radius-sm); }
+.recovery-row { align-items: center; }
+.recovery-code { font-size: 1.15rem; font-weight: 700; letter-spacing: .08em; user-select: all; }
