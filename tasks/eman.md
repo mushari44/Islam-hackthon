@@ -134,4 +134,6 @@ Mushari asked for seekers to book a call in a da'i's weekly schedule, next to "c
 - Da'i: `daai/ScheduleTab.jsx` (weekly hours, days off, pause, bookings list), "Booked calls coming up" with Start on the calls tab.
 - Tests: `tests/calls/test_booking.py`. Contract: "Booked calls" in `docs/API.md`.
 
+Also on 6 October (Mushari's ask "call req login"): **calling now needs a seeker account too.** `POST /api/calls` returns 403 `"sign in to call"` for an anonymous browser. On the Talk page a signed-out seeker sees a notice and a «سجّل الدخول لتتصل» button that returns them to the call with their language, da'i and referral card kept. Tests use the new `caller` fixture / `signed_in()` helper in `tests/conftest.py`.
+
 Follow-ups you may want: a sound/notification when a booked call is about to start in a background console tab; reminders by email once `SMTP_HOST` is set (today: on-site banner + calendar file).

@@ -1,6 +1,6 @@
 """A seeker can share one Ask chat with the da'i who takes their call: only with their OK, only that chat,
 only as it was when they agreed, and not after they delete it."""
-from tests.conftest import seeker_headers
+from tests.conftest import seeker_headers, signed_in
 
 
 def ask(client, h, question, conv=None):
@@ -22,8 +22,8 @@ def take(client, d, call_id):
     return item, client.post(f"/api/daai/requests/{call_id}/accept", headers=d).json()
 
 
-def test_shared_chat_reaches_the_daai(client, seeker, daai_login):
-    h = seeker_headers(seeker)
+def test_shared_chat_reaches_the_daai(client, caller, daai_login):
+    h = seeker_headers(caller)
     c1 = ask(client, h, "ما معنى التوحيد؟")["conversation_id"]
     ask(client, h, "وما أقسامه؟", c1)
     ask(client, h, "ما الزكاة؟")                                    # another chat: never shared
@@ -50,8 +50,8 @@ def test_shared_chat_reaches_the_daai(client, seeker, daai_login):
     assert client.get(f"/api/daai/calls/{call['id']}", headers=d).json()["chat"] is None
 
 
-def test_nothing_is_shared_without_the_seekers_ok(client, seeker, daai_login):
-    h = seeker_headers(seeker)
+def test_nothing_is_shared_without_the_seekers_ok(client, caller, daai_login):
+    h = seeker_headers(caller)
     c1 = ask(client, h, "ما معنى التوحيد؟")["conversation_id"]
     d = daai_login("khalid")
     client.post("/api/daai/availability", json={"available": True}, headers=d)
@@ -65,7 +65,7 @@ def test_nothing_is_shared_without_the_seekers_ok(client, seeker, daai_login):
     assert logged["has_chat"] is False
 
     # another seeker's chat id can't be shared
-    other = {"X-Seeker": client.post("/api/session").json()["token"]}
+    other = signed_in(client)
     draft, ok, call = request_call(client, other, c1, share_chat=True)
     assert draft["chat_turns"] == 0 and ok["share_chat"] is False
     _, view = take(client, d, call["id"])

@@ -2,8 +2,8 @@
 from tests.conftest import seeker_headers
 
 
-def test_referral_uses_the_chat_it_came_from(client, seeker, daai_login):
-    h = seeker_headers(seeker)
+def test_referral_uses_the_chat_it_came_from(client, caller, daai_login):
+    h = seeker_headers(caller)
     c1 = client.post("/api/ask", data={"question": "ما معنى التوحيد؟", "lang": "ar"}, headers=h).json()["conversation_id"]
     client.post("/api/ask", data={"question": "ما الزكاة؟", "lang": "ar"}, headers=h)   # a newer, different chat
 
