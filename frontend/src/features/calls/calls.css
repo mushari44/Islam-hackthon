@@ -32,6 +32,8 @@
 .call-state { font-weight: 600; color: var(--accent-ink); }
 .call-controls { justify-content: center; gap: 12px; margin-top: 8px; }
 .call-btn { min-width: 120px; }
+.call-notices { align-self: stretch; text-align: start; }
+.mic-check { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 0; }
 .call-chat { display: flex; flex-direction: column; gap: 10px; }
 .call-chat-log {
   min-height: 160px; max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;

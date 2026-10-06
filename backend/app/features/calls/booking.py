@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from ...core.db import get_db, iso, utcnow
 from ..auth.public import Daai, SeekerSession, daai, is_account, optional_seeker, seeker
 from .models import Booking, BookingBlock, CallRequest, DaaiSchedule, Referral
+from .signalling import end_abandoned_calls
 
 router = APIRouter()   # mounted under /api by routes.py
 
@@ -309,6 +310,7 @@ def start_booking(bid: int, me: Daai = Depends(daai), db: Session = Depends(get_
             return {"call_id": call.id}
     if not daai_view(db, b)["can_start"]:
         raise HTTPException(409, "not time yet")
+    end_abandoned_calls(db, me.id)   # a call both people left long ago doesn't count as "current"
     other = db.scalar(select(CallRequest.id).where(CallRequest.daai_id == me.id, CallRequest.status == "accepted"))
     if other:
         raise HTTPException(409, "finish your current call first")
