@@ -124,6 +124,15 @@ register({
     "nm.badge_shared": "أسلم وشارك البشرى مع مجموعاته", "nm.badge_shared_short": "شارك البشرى",
     "nm.undo": "تراجع", "nm.undo_late": "أجاب السائل بالفعل، فلا يمكن التراجع.",
     "nm.stat": "أسلموا في مكالماتك", "nm.col": "أسلم",
+    // Sliding session and the da'i's own password (Security card on "My profile")
+    "dai.relogin_after_call": "انتهى تسجيل دخولك. أكمل مكالمتك، ثم سجّل الدخول من جديد بعد انتهائها.",
+    "dp.security": "الأمان", "dp.current_password": "كلمة المرور الحالية", "dp.new_password": "كلمة المرور الجديدة",
+    "dp.password_hint": "٨ أحرف على الأقل.", "dp.change_password": "غيّر كلمة المرور", "dp.changing_password": "جارٍ التغيير…",
+    "dp.password_changed": "تغيّرت كلمة المرور، وخرجت من حسابك على الأجهزة الأخرى.",
+    "dp.password_short": "كلمة المرور الجديدة ٨ أحرف على الأقل.",
+    "dp.demo_password": "هذا حساب نموذجي مشترك، فلا تتغير كلمة مروره من هنا.",
+    "dp.err.wrong password": "كلمة المرور الحالية غير صحيحة.", "dp.err.too many attempts": "محاولات كثيرة. انتظر عشر دقائق ثم حاول.",
+    "dp.err.demo account": "هذا حساب نموذجي مشترك، فلا تتغير كلمة مروره من هنا.",
   },
   en: {
     "nm.button": "Embraced Islam in this call?", "nm.button_short": "Mark as Muslim", "nm.after_call": "Did the seeker embrace Islam in this call?",
@@ -246,6 +255,15 @@ register({
     "da.reset": "New password", "da.new_password": "New password", "da.reset_done": "Password changed.", "da.reset_self_done": "Your password changed. Sign in with the new one.",
     "da.invalid": "Check the username, the name and the password (at least 8 characters).",
     "da.err.username taken": "That username is taken.", "da.err.you can't disable your own account": "You can't disable your own account.",
+    // Sliding session and the da'i's own password (Security card on "My profile")
+    "dai.relogin_after_call": "Your sign-in has ended. Finish your call, then sign in again once it's over.",
+    "dp.security": "Security", "dp.current_password": "Current password", "dp.new_password": "New password",
+    "dp.password_hint": "At least 8 characters.", "dp.change_password": "Change password", "dp.changing_password": "Changing…",
+    "dp.password_changed": "Password changed. You were signed out on your other devices.",
+    "dp.password_short": "The new password needs at least 8 characters.",
+    "dp.demo_password": "This is a shared sample account, so its password can't be changed here.",
+    "dp.err.wrong password": "Your current password is wrong.", "dp.err.too many attempts": "Too many attempts. Wait ten minutes and try again.",
+    "dp.err.demo account": "This is a shared sample account, so its password can't be changed here.",
   },
 });
 
