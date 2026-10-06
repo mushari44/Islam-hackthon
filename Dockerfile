@@ -20,7 +20,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 ARG FULL=0
 ARG GPU=0
-# PyTorch's CUDA build: cu128 for RTX 20xx to 50xx; cu126 for older cards such as the GTX 10xx (SABEELI_TORCH_CUDA in .env).
+# PyTorch's CUDA build: cu128 for GTX 16xx and RTX 20xx to 50xx; cu126 for older cards such as the GTX 10xx (SABEELI_TORCH_CUDA in .env).
 ARG TORCH_CUDA=cu128
 ENV HF_HOME=/app/.hf
 COPY requirements-embeddings.txt ./
