@@ -21,7 +21,7 @@
 @media (max-width: 600px) { .meetup-card { flex-direction: column; } .meetup-date { flex-direction: row; gap: 8px; width: auto; justify-content: center; } }
 
 .group-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
-@media (max-width: 980px) { .group-layout { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .group-layout { grid-template-columns: minmax(0, 1fr); } }
 .group-main { display: flex; flex-direction: column; gap: 12px; }
 .group-side { position: sticky; top: 84px; }
 .group-feed { display: flex; flex-direction: column; gap: 10px; min-height: 40vh; }
@@ -33,7 +33,7 @@
 .g-who { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .88rem; }
 .g-msg.mine { align-self: flex-end; background: color-mix(in srgb, var(--navy-800) 8%, var(--surface)); }
 .g-msg.leader { border-color: color-mix(in srgb, var(--mint-500) 50%, var(--border)); background: color-mix(in srgb, var(--mint-400) 8%, var(--surface)); }
-.g-msg.system { align-self: center; max-width: 100%; text-align: center; border-color: color-mix(in srgb, var(--mint-500) 45%, var(--border)); background: color-mix(in srgb, var(--mint-400) 14%, var(--surface)); font-weight: 600; }
+.g-msg.system { align-self: center; max-width: 100%; overflow-wrap: anywhere; text-align: center; border-color: color-mix(in srgb, var(--mint-500) 45%, var(--border)); background: color-mix(in srgb, var(--mint-400) 14%, var(--surface)); font-weight: 600; }
 .g-msg.bot { border-color: color-mix(in srgb, var(--purple-500) 35%, var(--border)); max-width: 100%; }
 .sys-line { text-align: center; font-size: .82rem; color: var(--text-faint); }
 .mod-tools { gap: 4px; margin-top: 2px; }

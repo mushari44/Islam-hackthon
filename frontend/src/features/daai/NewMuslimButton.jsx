@@ -39,7 +39,11 @@ export default function NewMuslimButton({ callId, status: initial, compact = fal
   const confirm = () => openSheet({
     title: t("nm.confirm_title"),
     render: (close) => <Confirm close={close} onYes={async () => {
-      try { setStatus((await api.dPost(path, {})).new_muslim); toast(t("nm.done"), "success"); } catch (err) { toast(errorText(err, t), "error"); }
+      try {
+        const next = (await api.dPost(path, {})).new_muslim;
+        setStatus(next);
+        toast(t(next === "shared" ? "nm.already_shared" : "nm.done"), "success");
+      } catch (err) { toast(errorText(err, t), "error"); }
     }} />,
   });
   const undo = async () => {

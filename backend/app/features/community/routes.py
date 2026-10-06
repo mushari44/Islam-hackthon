@@ -331,6 +331,15 @@ def _new_muslim_view(db: Session, row: NewMuslim | None, ui: str) -> dict:
             "announced": len(row.announced or [])}
 
 
+@router.get("/community/stats")
+def community_stats(db: Session = Depends(get_db)):
+    """Public numbers for the home page. `new_muslims` counts only people who agreed to share that they
+    embraced Islam (not pending or declined confirmations), as one total with no names."""
+    expire_pending(db)
+    shared = db.scalar(select(func.count()).select_from(NewMuslim).where(NewMuslim.status == "shared"))
+    return {"new_muslims": int(shared or 0)}
+
+
 @router.get("/community/new-muslim")
 def my_new_muslim(ui: str = "ar", me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
     """Whether a da'i confirmed this seeker embraced Islam, and whether they shared it with their groups."""

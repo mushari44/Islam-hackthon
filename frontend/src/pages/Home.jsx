@@ -29,6 +29,10 @@ register({
     "home.members": "{n} عضو",
     "home.videos_t": "مرئيات من دار الإسلام", "home.videos_all": "كل المرئيات",
     "home.trust_t": "كل إجابة من مصادر معتمدة", "home.trust_d": "لا يظهر للمستخدم إلا ما له مصدر، ونصوص القرآن والحديث تُعرض كما هي في المصدر.",
+    "home.nm_title": "مسلمون جدد على سَبِيلي",
+    "home.nm_one": "شخص أسلم عبر سَبِيلي", "home.nm_two": "شخصان أسلما عبر سَبِيلي",
+    "home.nm_few": "أشخاص أسلموا عبر سَبِيلي", "home.nm_many": "شخصاً أسلموا عبر سَبِيلي",
+    "home.nm_note": "يُحتسب من أعلن إسلامه مع أحد دعاتنا واختار أن يشارك البشرى مع مجموعاته. رقم إجمالي بلا أسماء.",
     "home.stat_q": "آية بتفسيرها", "home.stat_h": "حديث مشروح", "home.stat_qa": "سؤال وجواب", "home.trust_more": "تعرّف على المصادر",
   },
   en: {
@@ -48,6 +52,10 @@ register({
     "home.members": "{n} members",
     "home.videos_t": "Videos from IslamHouse", "home.videos_all": "All videos",
     "home.trust_t": "Every answer comes from approved sources", "home.trust_d": "Only sourced text reaches you, and Quran and hadith text is shown exactly as in the source.",
+    "home.nm_title": "New Muslims on Sabeeli",
+    "home.nm_one": "person embraced Islam through Sabeeli", "home.nm_two": "people embraced Islam through Sabeeli",
+    "home.nm_few": "people embraced Islam through Sabeeli", "home.nm_many": "people embraced Islam through Sabeeli",
+    "home.nm_note": "We count people who embraced Islam with one of our da'is and chose to share the news with their groups. A total, with no names.",
     "home.stat_q": "verses with tafsir", "home.stat_h": "explained hadiths", "home.stat_qa": "questions and answers", "home.trust_more": "About the sources",
   },
 });
@@ -228,6 +236,26 @@ function Videos() {
   );
 }
 
+// Arabic counted nouns change with the number (1, 2, 3-10, 11+).
+const countForm = (n) => (n === 1 ? "one" : n === 2 ? "two" : n % 100 >= 3 && n % 100 <= 10 ? "few" : "many");
+
+/** How many people shared that they embraced Islam here: one total, no names. Hidden until there is one. */
+function NewMuslims({ stats }) {
+  const { t, fmtNum } = useI18n();
+  const n = stats?.new_muslims || 0;
+  if (!n) return null;
+  return (
+    <section className="home-nm fade-in" aria-labelledby="home-nm-title">
+      <span className="home-nm-icon" aria-hidden="true">🎉</span>
+      <div className="home-nm-text">
+        <h2 id="home-nm-title">{t("home.nm_title")}</h2>
+        <p className="home-nm-count"><strong>{fmtNum(n)}</strong> {t(`home.nm_${countForm(n)}`)}</p>
+        <p className="home-nm-note">{t("home.nm_note")}</p>
+      </div>
+    </section>
+  );
+}
+
 function Trust({ corpus }) {
   const { t, fmtNum } = useI18n();
   const stats = [["quran_verses", "stat_q"], ["hadiths", "stat_h"], ["qa", "stat_qa"]];
@@ -263,6 +291,7 @@ export default function Home() {
   const avail = useLive("/api/availability");
   const meetups = useLive(`/api/meetups?ui=${lang}&audience=${audience}`);
   const groups = useLive(`/api/groups?ui=${lang}&audience=${audience}`);
+  const community = useLive("/api/community/stats");
   return (
     <div className="home">
       <section className="home-hero">
@@ -282,6 +311,7 @@ export default function Home() {
       </section>
       <Journey corpus={corpus} avail={avail} meetups={meetups} groups={groups} />
       <Community meetups={meetups} groups={groups} />
+      <NewMuslims stats={community} />
       <Trust corpus={corpus} />
       <Videos />
     </div>

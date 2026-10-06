@@ -133,3 +133,16 @@ def test_an_unanswered_confirmation_is_deleted_after_a_week(client, seeker, daai
         db.commit()
     assert client.get("/api/community/new-muslim", headers=h).json()["status"] == "none"
     assert client.get(f"/api/daai/calls/{cid}", headers=d).json()["new_muslim"] is None
+
+
+def test_home_page_count_includes_only_people_who_shared(client, member, daai_login):
+    h, _, _ = member
+    d = daai_login("khalid")
+    before = client.get("/api/community/stats").json()["new_muslims"]
+    cid = _answered_call(client, h, d)
+    client.post(f"/api/daai/calls/{cid}/new-muslim", headers=d)
+    assert client.get("/api/community/stats").json()["new_muslims"] == before        # still pending
+    client.post("/api/community/new-muslim", json={"share": True}, headers=h)
+    assert client.get("/api/community/stats").json() == {"new_muslims": before + 1}
+    client.post("/api/community/new-muslim", json={"share": False}, headers=h)
+    assert client.get("/api/community/stats").json()["new_muslims"] == before
