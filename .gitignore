@@ -1,5 +1,4 @@
-# secrets and local data
-.env
+# secrets and local data (.env is tracked with every key empty; real keys stay local, see its header)
 .env.local
 .vercel
 data/sabeeli.db*

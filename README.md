@@ -18,33 +18,101 @@
 | تحدّث | Direct voice call (WebRTC) with an available da'i in the seeker's language, in-call text chat, and a referral card the seeker edits and approves before it is shared | Eman |
 | لوحة الداعية | Da'i sign-in, the calls queue, the call room with the shared card, and the screens to lead groups and host meetups | Eman |
 
-## Run it
+## Run it yourself
 
-Requirements: Python 3.11 and Node 18 or newer.
+The fastest way to try Sabeeli is the live link above. To run the code on your own machine:
+
+**Option 1: Docker (one command).** Needs Docker Desktop, or Docker with Compose 2.24 or newer.
 
 ```bash
+git clone https://github.com/mushari44/Islam-hackthon.git
+cd Islam-hackthon
+docker compose up --build
+```
+
+Open http://localhost:8000. The first build takes a few minutes; later starts take seconds. Port 8000 busy? Run `SABEELI_PORT=8080 docker compose up` (PowerShell: `$env:SABEELI_PORT=8080; docker compose up`) and open port 8080. Stop with Ctrl+C, or `docker compose down`.
+
+**Full mode, exactly like the team's copy:** `docker compose --profile full up --build sabeeli-full`. It also builds «بينات» from the scholarly package's own link and the E5 semantic-search index on your machine. The first build downloads about 3 GB and embeds the corpus on the CPU, so it takes much longer; later starts take seconds. Add an OpenRouter key (below) for AI answers, which is the one thing the repo can't ship.
+
+**Option 2: without Docker (Python and Node).** Install [Python 3.11 or newer](https://www.python.org/downloads/) (on Windows, tick "Add python.exe to PATH") and [Node.js 18 or newer](https://nodejs.org/), then run these lines one at a time in a terminal.
+
+Windows (PowerShell or Command Prompt):
+
+```bat
+git clone https://github.com/mushari44/Islam-hackthon.git
+cd Islam-hackthon
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env            # add OPENROUTER_API_KEY (Gemma 4 31B) for AI answers; without it the app runs in sources-only mode
+cd frontend
+npm install
+npm run build
+cd ..
+python -m uvicorn backend.app.main:app --port 8000
+```
+
+macOS / Linux:
+
+```bash
+git clone https://github.com/mushari44/Islam-hackthon.git
+cd Islam-hackthon
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 cd frontend && npm install && npm run build && cd ..
 python -m uvicorn backend.app.main:app --port 8000
 ```
 
-Open http://localhost:8000. For frontend development, run `npm run dev` in `frontend/` and open http://localhost:5173; API calls are proxied to port 8000.
+If PowerShell refuses the `activate` line, run `Set-ExecutionPolicy -Scope Process Bypass` first, or use Command Prompt.
 
-**Semantic search (optional):** `pip install -r requirements-embeddings.txt`, then `python scripts/build_embeddings.py` (downloads multilingual E5-large, about 2.2 GB; a few minutes on a GPU). The app picks the index up on its next start and fuses it with BM25; without it, search is BM25 alone.
+Open http://localhost:8000 and keep the terminal open while you use the app (Ctrl+C stops it). The first start takes about 15 seconds while the search index loads. To start it again later: open a terminal in the folder, activate the environment (the `activate` line above), then run the last line. Without Git, download the code as a ZIP from GitHub (green "Code" button) and start from the `cd` line. For frontend development, run `npm run dev` in `frontend/` and open http://localhost:5173; API calls are proxied to port 8000.
 
-**Demo accounts** (synthetic, created on first start, like the sample groups and events; the site shows them without a "demo" tag): da'i console at `#/daai` (or «تسجيل الدخول» in the header, then «داعية»), users `khalid`, `maryam`, `yusuf` and `reviewer` (reviewer can run the referral experiment). The password is the value of `DEMO_PASSWORD` in `.env` (`sabeeli-demo` by default). Change it before deploying.
+**Full mode without Docker**, with the environment active (the E5 download is about 2.2 GB, and building the index takes a while on a CPU):
+
+```bash
+pip install -r requirements-embeddings.txt pymupdf
+python scripts/ingest_bayyinat.py
+python scripts/build_embeddings.py
+```
+
+Then start the app again as above.
+
+**What works with no setup:** the repo includes a ready [`.env`](.env) settings file, and the app runs with it as is. Questions get answers built only from the approved sources, with every passage cited (sources-only mode), search uses BM25, and all sample accounts, groups and events are created on the first start. Sign in as a da'i with user `reviewer` and password `sabeeli-demo` (header «تسجيل الدخول», then «داعية», or go to `#/daai`).
+
+**AI answers and photo reading** need an OpenRouter key (https://openrouter.ai/keys). The key is the only setting you need to fill in:
+
+1. Open [`.env`](.env) in the project folder.
+2. Paste the key after `OPENROUTER_API_KEY=` (section 1 at the top, no quotes).
+3. Start the app again with the same command. http://localhost:8000/api/health then shows `"ai": true`.
+
+Every other line in `.env` is explained there and can stay as it is. You might change `DEMO_PASSWORD` (the sample da'is' password), `SECRET_KEY` (keeps da'is signed in across restarts) or `SABEELI_PORT` (Docker's port). If you fork the repo, run `git update-index --skip-worktree .env` after adding a key so it is never committed.
+
+**Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search; full mode adds both. Password-reset emails need an SMTP server (the `SMTP_` lines in `.env`); trying the app doesn't need them.
+
+**Accounts to sign in with.** These sample accounts are created on the first start, like the sample groups and events. They are synthetic, and the site shows them without a "demo" tag. All four are da'i accounts and share one password:
+
+| Username | Password | Who | What to try |
+|---|---|---|---|
+| `reviewer` | `sabeeli-demo` | Reviewer (admin), Arabic and English | Everything a da'i can do, plus the «حسابات الدعاة» tab (add, disable or reset da'is) and the referral comparison |
+| `khalid` | `sabeeli-demo` | Khalid, Arabic and English | Taking calls, leading groups, hosting events, setting a schedule for bookings |
+| `maryam` | `sabeeli-demo` | Maryam (da'iyah), Arabic and English | The same, as a da'iyah |
+| `yusuf` | `sabeeli-demo` | Yusuf, English only | The same, for an English-speaking seeker |
+
+To sign in as a da'i: «تسجيل الدخول» in the header, then «داعية» (or go straight to http://localhost:8000/#/daai). The password is the `DEMO_PASSWORD` line in `.env`; change it there before putting the app online.
+
+**Seeker (user) side:** no account is needed to ask questions, watch videos or browse groups and events. Calling or booking a da'i needs a seeker account (it also keeps your chats), which takes a few seconds: «تسجيل الدخول», then «مستخدم», then «أنشئ حساباً». Choose any username (3 to 24 letters or digits) and a password of at least 8 characters, and pick sex and age range.
 
 **Deploying:** the website goes on Vercel and the API on Render; see [docs/DEPLOY.md](docs/DEPLOY.md).
 
-To try a call locally, open the app in two browsers: in one, sign in as a da'i and switch on "Available"; in the other, create a user account (calling a da'i needs one) and go to **تحدّث**.
+**To try a call** on one computer, use two browsers, or a normal and a private window. In one, sign in as `khalid` and switch on «متاح لاستقبال المكالمات» (Available for calls). In the other, create a seeker account and go to **تحدّث**. Allow the microphone when the browser asks.
 
 The corpus is already in `data/corpus/`, except «بينات»: its publisher reserves the rights, so each copy builds it from the package's link with `pip install pymupdf` and `python scripts/ingest_bayyinat.py` (the app works without it). To refresh the rest from the official APIs, run `python scripts/ingest_quran.py`, `python scripts/ingest_hadith.py` and `python scripts/ingest_icadb.py`.
 
 ## Tests
 
 ```bash
-python -m pytest tests             # 229 tests; no API key needed (sources-only mode + mocked OpenRouter and Claude APIs)
+python -m pytest tests             # no API key needed (sources-only mode + mocked OpenRouter and Claude APIs)
+                                   # 222 tests with requirements.txt; 229 with requirements-embeddings.txt too
 ```
 
 ## How the code is organised
