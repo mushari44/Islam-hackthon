@@ -102,7 +102,7 @@ python -m pytest tests                         # everything, before any pull req
 Before opening a pull request, run the whole test suite and `npm run build` in `frontend/`.
 
 - **Don't run anything that spends API credits** (the full evaluation, bulk calls to the model) without your developer's explicit OK.
-- Never commit `.env`, API keys, the database, `data/raw/` or `HACKTHON/`.
+- Never commit API keys or other secrets, the database, `data/raw/` or `HACKTHON/`. `.env` is in the repo with every key empty (mushari's decision, 6 October 2026); keep your real keys out of it with `git update-index --skip-worktree .env`.
 
 ## 5. Style
 

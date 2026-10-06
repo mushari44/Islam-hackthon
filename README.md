@@ -46,15 +46,15 @@ python -m uvicorn backend.app.main:app --port 8000
 
 Open http://localhost:8000. For frontend development, run `npm run dev` in `frontend/` and open http://localhost:5173; API calls are proxied to port 8000.
 
-**What works with no setup:** both options start without a `.env` file. Questions get answers built only from the approved sources, with every passage cited (sources-only mode), search uses BM25, and all sample accounts, groups and events are created on the first start. Sign in as a da'i with user `reviewer` and password `sabeeli-demo` (header «تسجيل الدخول», then «داعية», or go to `#/daai`).
+**What works with no setup:** the repo includes a ready [`.env`](.env) settings file, and the app runs with it as is. Questions get answers built only from the approved sources, with every passage cited (sources-only mode), search uses BM25, and all sample accounts, groups and events are created on the first start. Sign in as a da'i with user `reviewer` and password `sabeeli-demo` (header «تسجيل الدخول», then «داعية», or go to `#/daai`).
 
-**AI answers and photo reading** need an OpenRouter key (https://openrouter.ai/keys). All settings live in [`.env.example`](.env.example), explained line by line; the key is the only one you need to fill in:
+**AI answers and photo reading** need an OpenRouter key (https://openrouter.ai/keys). The key is the only setting you need to fill in:
 
-1. Copy it to `.env` in the same folder: `cp .env.example .env` (Windows: `copy .env.example .env`).
-2. Open `.env` and paste the key after `OPENROUTER_API_KEY=` (section 1 at the top, no quotes).
+1. Open [`.env`](.env) in the project folder.
+2. Paste the key after `OPENROUTER_API_KEY=` (section 1 at the top, no quotes).
 3. Start the app again with the same command. http://localhost:8000/api/health then shows `"ai": true`.
 
-Everything else in `.env` can stay as it is. You might change `DEMO_PASSWORD` (the sample da'is' password), `SECRET_KEY` (keeps da'is signed in across restarts) or `SABEELI_PORT` (Docker's port); the file says how.
+Every other line in `.env` is explained there and can stay as it is. You might change `DEMO_PASSWORD` (the sample da'is' password), `SECRET_KEY` (keeps da'is signed in across restarts) or `SABEELI_PORT` (Docker's port). If you fork the repo, run `git update-index --skip-worktree .env` after adding a key so it is never committed.
 
 **Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search; full mode adds both. Password-reset emails need an SMTP server; without one, seekers use their recovery code.
 

@@ -1,6 +1,6 @@
 # One container for the whole app: the React build is served by FastAPI.
 # Easiest: docker compose up --build (compose.yaml). Or: docker build -t sabeeli . && docker run -p 8000:8000 sabeeli
-# (add --env-file .env for an API key and your own settings)
+# (add --env-file .env to use the settings in .env)
 # Full mode (FULL=1, `docker compose --profile full up --build sabeeli-full`) also builds «بينات» from the
 # package's link and the E5 semantic-search index, like the team's own copy. It downloads about 3 GB and
 # embeds the corpus on the CPU, so the first build takes much longer.
