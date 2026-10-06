@@ -21,9 +21,11 @@ from ...core.db import Setting, get_db, iso, utcnow
 from ..auth.public import Daai, SeekerSession, admin, daai, seeker
 from ..community.public import mark_new_muslim, new_muslim_calls, unmark_new_muslim
 from ..rag.public import shared_conversation, source_card
+from . import booking
 from .models import CallMessage, CallRequest, Referral
 
 router = APIRouter(prefix="/api")
+router.include_router(booking.router)   # booked calls (weekly hours, slots, bookings) live in booking.py
 
 ONLINE_WINDOW = timedelta(seconds=90)
 LANGS = {"ar", "en"}   # the languages we support for now; add more when da'is and content cover them
@@ -46,8 +48,9 @@ def availability(db: Session = Depends(get_db)):
     return {"languages": counts}
 
 
-def _directory_entry(d: Daai, lang: str, online: set[int]) -> dict:
-    return {**d.public(lang), "bio": d.bio if lang == "ar" else (d.bio_en or d.bio), "online": d.id in online}
+def _directory_entry(d: Daai, lang: str, online: set[int], bookable: bool = False) -> dict:
+    return {**d.public(lang), "bio": d.bio if lang == "ar" else (d.bio_en or d.bio), "online": d.id in online,
+            "bookable": bookable}
 
 
 def _callable(d: Daai | None) -> bool:
@@ -62,7 +65,7 @@ def daai_directory(lang: str = "", ui: str = "ar", db: Session = Depends(get_db)
     people = [d for d in db.scalars(select(Daai).order_by(Daai.id)).all()
               if _callable(d) and (not lang or lang in (d.languages or []))]
     people.sort(key=lambda d: d.id not in online)
-    return [_directory_entry(d, ui, online) for d in people]
+    return [_directory_entry(d, ui, online, booking.bookable(db, d)) for d in people]
 
 
 @router.get("/rtc-config")
@@ -236,8 +239,12 @@ def daai_requests(me: Daai = Depends(daai), db: Session = Depends(get_db)):
                     "has_card": bool(ref and ref.consented and ref.final), "has_chat": bool(ref and ref.share_chat),
                     "for_you": c.daai_pref == me.id})
     out.sort(key=lambda r: not r["for_you"])   # requests made for this da'i by name come first
+    booked = booking.booked_soon(db, me)
+    if booked:
+        # A booked call starts soon: keep the time free by holding back new requests from the general queue.
+        out = [r for r in out if r["for_you"]]
     mine = db.scalars(select(CallRequest).where(CallRequest.daai_id == me.id, CallRequest.status == "accepted")).all()
-    return {"waiting": out, "active": [{"id": c.id, "lang": c.lang} for c in mine]}
+    return {"waiting": out, "active": [{"id": c.id, "lang": c.lang} for c in mine], "booked": booked}
 
 
 @router.post("/daai/requests/{cid}/accept")

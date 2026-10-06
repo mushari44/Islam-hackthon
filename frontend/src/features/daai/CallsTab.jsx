@@ -26,8 +26,39 @@ function pct(x, lang) {
   return new Intl.NumberFormat(lang === "ar" ? "ar-SA-u-nu-arab" : "en-GB", { style: "percent", maximumFractionDigits: 0 }).format(x);
 }
 
+/** Booked calls that start within 15 minutes (or are running): Start opens the room 5 minutes before. */
+function BookedSoon({ items, onStarted }) {
+  const { t, langName, fmtTime, fmtNum } = useI18n();
+  const [starting, setStarting] = useState(null);
+  const start = async (id) => {
+    setStarting(id);
+    try { const r = await api.dPost(`/api/daai/bookings/${id}/start`, {}); await onStarted(r.call_id); } catch (err) { toast(errorText(err, t), "error"); }
+    setStarting(null);
+  };
+  return (
+    <section className="card stack booked-soon">
+      <h3><Icon name="calendar" /> {t("ds.soon_title")}</h3>
+      {items.map((b) => (
+        <div className="queue-item" key={b.id}>
+          <div className="stack" style={{ gap: 2 }}>
+            <strong>{fmtTime(b.starts_at)} – {fmtTime(b.ends_at)} · {langName(b.lang)}</strong>
+            <span className="small muted">{t("ds.minutes", { n: fmtNum(b.minutes) })}{b.note ? " · " : ""}{b.note && <span dir="auto">{b.note}</span>}</span>
+          </div>
+          {b.has_card && <span className="badge badge-mint">{t("dc.card")}</span>}
+          {b.seeker_waiting && <span className="badge badge-purple">{t("ds.seeker_waiting")}</span>}
+          {b.can_start
+            ? <button type="button" className="btn btn-primary btn-sm" disabled={starting !== null} onClick={() => start(b.id)}><Icon name="talk" />{t(starting === b.id ? "dc.accepting" : "ds.start")}</button>
+            : <span className="small faint">{t("ds.start_at", { time: fmtTime(new Date(new Date(b.starts_at).getTime() - 5 * 60000).toISOString()) })}</span>}
+        </div>
+      ))}
+      <p className="small muted">{t("ds.quiet")}</p>
+    </section>
+  );
+}
+
 function Queue({ me, onActive, onWaiting }) {
   const { t, fmtNum, langName } = useI18n();
+  const [booked, setBooked] = useState([]);
   const [waiting, setWaiting] = useState(null);   // null until the first answer
   const [failed, setFailed] = useState(null);
   const [accepting, setAccepting] = useState(null);
@@ -35,6 +66,7 @@ function Queue({ me, onActive, onWaiting }) {
     try {
       const data = await api.dGet("/api/daai/requests");
       setFailed(null);
+      setBooked(data.booked || []);
       if (data.active.length) onActive(data.active[0].id);
       else setWaiting(data.waiting);
     } catch (err) { setFailed(err); }
@@ -59,6 +91,8 @@ function Queue({ me, onActive, onWaiting }) {
   if (!waiting) body = failed ? <p className="muted">{errorText(failed, t)}</p> : <Spinner />;
   else if (!waiting.length) body = <p className="muted">{t(me.available ? "dc.queue_empty" : "dc.queue_off")}</p>;
   return (
+    <>
+    {booked.length > 0 && <BookedSoon items={booked} onStarted={onActive} />}
     <section className="card stack">
       <h3>{t("dc.queue")}</h3>
       {body || waiting.map((r) => (
@@ -73,6 +107,7 @@ function Queue({ me, onActive, onWaiting }) {
         </div>
       ))}
     </section>
+    </>
   );
 }
 

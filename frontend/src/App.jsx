@@ -4,7 +4,7 @@ import { LangProvider, useI18n } from "./core/i18n.jsx";
 import { match, useHashPath } from "./core/router.jsx";
 import { Icon, Logo, SheetHost, ToastHost } from "./core/ui.jsx";
 import { AccountButton, AccountPage, useDaaiSignedIn } from "./features/account/index.js"; // Eman
-import { TalkPage } from "./features/calls/index.js";                  // Eman
+import { BookingBanner, TalkPage } from "./features/calls/index.js";   // Eman
 import { CommunityPage, GroupPage } from "./features/community/index.js"; // Mushari
 import { AskPage } from "./features/rag/index.js";                      // Mushari
 import { VideosPage } from "./features/videos/index.js";               // Mushari
@@ -93,6 +93,7 @@ function Shell() {
           </div>
         </div>
       </header>
+      <BookingBanner />
       <main className="main" id="main" tabIndex={-1}>
         <Suspense fallback={<div className="skeleton" style={{ height: 160 }} />}>
           <Page key={path} params={params} query={query} theme={theme} setTheme={setTheme} />

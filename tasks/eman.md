@@ -120,3 +120,15 @@ For your information; nothing here needs action unless you disagree.
 
 - [ ] Book a call slot with a da'i for later (the deck mentions it as future work).
 - [ ] An audio level indicator in the call room, so people see the microphone works.
+
+## Built in your area by Mushari's agent: booked calls (6 October, Mushari's "Build here")
+
+Mushari asked for seekers to book a call in a da'i's weekly schedule, next to "call now", and approved building it in calls/auth/daai on his branch with you as reviewer. What changed in your folders:
+
+- `backend/app/features/calls/booking.py` (new) and three tables in `calls/models.py` (`daai_schedule`, `booking`, `booking_block`). `calls/routes.py` mounts it, adds `booked` to `GET /api/daai/requests` (general requests are held back 15 minutes before a booked call) and `bookable` to `GET /api/daais`.
+- `auth/public.py`: `is_account(db, sid)` (booking needs a seeker account).
+- Seeker: `calls/BookFlow.jsx`, `calls/MyBookings.jsx`, `calls/bookingUtils.js`, the "Call now / Book a time / My bookings" tabs in `TalkPage.jsx`, `BookingBanner` in `calls/public.jsx` (mounted in `App.jsx`), "My bookings" in the account menu.
+- Da'i: `daai/ScheduleTab.jsx` (weekly hours, days off, pause, bookings list), "Booked calls coming up" with Start on the calls tab.
+- Tests: `tests/calls/test_booking.py`. Contract: "Booked calls" in `docs/API.md`.
+
+Follow-ups you may want: a sound/notification when a booked call is about to start in a background console tab; reminders by email once `SMTP_HOST` is set (today: on-site banner + calendar file).

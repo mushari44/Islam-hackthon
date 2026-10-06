@@ -16,11 +16,16 @@ def account_session_ids() -> Select:
     return select(SeekerAccount.session_id)
 
 
+def is_account(db, sid: str) -> bool:
+    """True when this session id belongs to a seeker account (not an anonymous browser), e.g. to book a call."""
+    return db.scalar(select(SeekerAccount.id).where(SeekerAccount.session_id == sid).limit(1)) is not None
+
+
 def account_gender(db, sid: str) -> str:
     """The sex ("m" or "f") a seeker account gave, or "" for an anonymous session, so a message about them
     can use the right Arabic grammar."""
     return db.scalar(select(SeekerAccount.gender).where(SeekerAccount.session_id == sid)) or ""
 
 
-__all__ = ["Daai", "SeekerSession", "account_gender", "account_session_ids", "admin", "daai", "daai_from_token", "optional_daai",
+__all__ = ["Daai", "SeekerSession", "account_gender", "account_session_ids", "admin", "daai", "daai_from_token", "is_account", "optional_daai",
            "optional_seeker", "seeker", "seeker_id", "seeker_key"]

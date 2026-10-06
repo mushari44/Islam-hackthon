@@ -1,4 +1,4 @@
-// Da'i console: sign-in (through the shared card), availability and the tabs (calls, call log, groups, meetups, profile, and da'i accounts for the reviewer). Owner: Eman.
+// Da'i console: sign-in (through the shared card), availability and the tabs (calls, my schedule, call log, groups, meetups, profile, and da'i accounts for the reviewer). Owner: Eman.
 import "./strings.js";
 import "./daai.css";
 import { useEffect, useRef, useState } from "react";
@@ -13,10 +13,11 @@ import CallsTab, { callsTab } from "./CallsTab.jsx";
 import { groupsTab, meetupsTab } from "./CommunityTabs.jsx";
 import { profileTab, titledName } from "./ProfileTab.jsx";
 import { historyTab } from "./HistoryTab.jsx";
+import { scheduleTab } from "./ScheduleTab.jsx";
 import { adminTab } from "./AdminTab.jsx";
 
-const TABS = [callsTab, historyTab, groupsTab, meetupsTab, profileTab, adminTab];
-const tabsFor = (me) => TABS.filter((x) => !x.adminOnly || me?.role === "admin");
+const TABS = [callsTab, scheduleTab, historyTab, groupsTab, meetupsTab, profileTab, adminTab];
+const tabsFor = (me) => TABS.filter((x) => (!x.adminOnly || me?.role === "admin") && (!x.daaiOnly || me?.role === "daai"));
 // Only these mean the token is no longer good; anything else (offline, a server error) is worth a retry.
 const sessionGone = (err) => err && (err.status === 401 || err.status === 403);
 

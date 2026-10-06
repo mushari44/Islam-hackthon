@@ -1,4 +1,5 @@
-// Talk page (seeker): choose a language, request a call, wait, talk, rate. Owner: Eman (calls).
+// Talk page (seeker): call now (choose a language, request a call, wait) or book a time with a da'i, then talk
+// and rate. Owner: Eman (calls).
 import "./strings.js";
 import "./calls.css";
 import { useCallback, useEffect, useState } from "react";
@@ -7,7 +8,9 @@ import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
 import { Icon, Notice, Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
 import { NewMuslimPrompt } from "../community/public.js";
+import BookFlow from "./BookFlow.jsx";
 import CallPanel, { Clock, useClock } from "./CallPanel.jsx";
+import MyBookings, { BookingRoom } from "./MyBookings.jsx";
 
 const ACTIVE = "sabeeli.call";
 const LANGS = ["ar", "en"];   // the languages we support for now
@@ -47,6 +50,22 @@ function DaaiPicker({ lang, gender, value, onChange }) {
       </div>
       {value && !shown.find((p) => p.id === value)?.online && <p className="small muted">{t("talk.offline_note")}</p>}
     </>
+  );
+}
+
+const MODES = [["now", "talk.mode_now", "talk"], ["book", "talk.mode_book", "calendar"], ["bookings", "talk.mode_mine", "clock"]];
+
+/** "Call now", "Book a time" or "My bookings", kept in the URL so a link or the account menu can open one. */
+function ModeTabs({ mode }) {
+  const { t } = useI18n();
+  return (
+    <div className="tabs talk-modes" role="tablist" aria-label={t("talk.modes")}>
+      {MODES.map(([key, label, icon]) => (
+        <button key={key} type="button" role="tab" aria-selected={mode === key} onClick={() => navigate(key === "now" ? "/talk" : `/talk?mode=${key}`)}>
+          <Icon name={icon} />{t(label)}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -184,10 +203,40 @@ export default function TalkPage({ query }) {
   }, []);
 
   const ended = useCallback((id, daai) => { remember(null); setView({ name: "ended", id, daai }); }, []);
+  // A booking link (the reminder banner, the calendar entry, "Join") opens that booking's waiting room.
+  useEffect(() => {
+    if (query.booking && !recall()) setView({ name: "room", booking: Number(query.booking) });
+  }, [query.booking]);
+  const mode = MODES.some(([k]) => k === query.mode) ? query.mode : "now";
+  useEffect(() => { setView((v) => (v.name === "room" && !query.booking ? { name: "choose" } : v)); }, [query.booking]);
+  const joinBookedCall = async (cid) => {
+    try {
+      const st = await api.get(`/api/calls/${cid}`);
+      if (st.status !== "accepted") return;
+      remember(cid);
+      setView({ name: "call", id: cid, st });
+      navigate("/talk");
+    } catch { /* the next poll tries again */ }
+  };
+  const bookAgain = (daai, lang) => { setView({ name: "choose", daai, lang }); navigate("/talk?mode=book"); };
 
   let body = <Spinner />;   // checking for a call in progress, or waiting for the session the call needs
   if (view.name === "choose") {
-    body = <Choose query={query} initialDaai={view.daai} initialLang={view.lang} key={view.daai || "any"} onRequested={(id) => setView({ name: "waiting", id })} />;
+    let inner;
+    if (mode === "book") {
+      inner = <BookFlow query={query} initialDaai={view.daai} initialLang={view.lang} key={`b${view.daai || "any"}`} onMine={() => navigate("/talk?mode=bookings")} />;
+    } else if (mode === "bookings") {
+      inner = <MyBookings onJoin={(id) => navigate(`/talk?booking=${id}`)} onBook={() => navigate("/talk?mode=book")} onBookAgain={bookAgain} />;
+    } else {
+      inner = <Choose query={query} initialDaai={view.daai} initialLang={view.lang} key={view.daai || "any"} onRequested={(id) => setView({ name: "waiting", id })} />;
+    }
+    body = <><ModeTabs mode={mode} />{inner}</>;
+  }
+  if (view.name === "room") {
+    body = (
+      <BookingRoom id={view.booking} onCall={joinBookedCall} onLeave={() => navigate("/talk?mode=bookings")}
+        onCallNow={() => { setView({ name: "choose" }); navigate("/talk"); }} onBookAgain={bookAgain} />
+    );
   }
   if (view.name === "waiting") {
     body = (
