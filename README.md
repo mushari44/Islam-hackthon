@@ -63,6 +63,8 @@ cd frontend && npm install && npm run build && cd ..
 python -m uvicorn backend.app.main:app --port 8000
 ```
 
+If PowerShell refuses the `activate` line, run `Set-ExecutionPolicy -Scope Process Bypass` first, or use Command Prompt.
+
 Open http://localhost:8000 and keep the terminal open while you use the app (Ctrl+C stops it). The first start takes about 15 seconds while the search index loads. To start it again later: open a terminal in the folder, activate the environment (the `activate` line above), then run the last line. Without Git, download the code as a ZIP from GitHub (green "Code" button) and start from the `cd` line. For frontend development, run `npm run dev` in `frontend/` and open http://localhost:5173; API calls are proxied to port 8000.
 
 **Full mode without Docker**, with the environment active (the E5 download is about 2.2 GB, and building the index takes a while on a CPU):
