@@ -27,7 +27,7 @@ def test_unseen_request_leaves_the_queue_and_cannot_be_accepted(client, caller, 
     call = client.post("/api/calls", json={"lang": "ar"}, headers=h).json()
     assert call["id"] in _queue_ids(client, d)
 
-    _age(call["id"], last_seen_at=timedelta(seconds=30))   # the seeker closed the tab 30 s ago
+    _age(call["id"], last_seen_at=timedelta(seconds=80))   # the seeker closed the tab 80 s ago
     assert call["id"] not in _queue_ids(client, d)
     res = client.post(f"/api/daai/requests/{call['id']}/accept", headers=d)
     assert res.status_code == 409 and res.json()["detail"] == "seeker left"

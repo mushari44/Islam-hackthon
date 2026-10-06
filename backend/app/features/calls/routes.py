@@ -32,7 +32,7 @@ ONLINE_WINDOW = timedelta(seconds=90)
 # The seeker's waiting screen polls its request every ~2 s. Closing the tab stops that: after SEEKER_AWAY the
 # request is hidden from the da'is (and can't be accepted), after SEEKER_GONE it expires. A reload within that
 # time resumes it, because the page remembers the request and polls it again.
-SEEKER_AWAY = timedelta(seconds=20)
+SEEKER_AWAY = timedelta(seconds=70)   # > 60 s too, so a waiting seeker in a background tab stays listed
 SEEKER_GONE = timedelta(seconds=90)   # > 60 s: Chrome slows a long-hidden tab's timers to one a minute
 LANGS = {"ar", "en"}   # the languages we support for now; add more when da'is and content cover them
 
