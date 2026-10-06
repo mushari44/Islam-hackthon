@@ -43,7 +43,7 @@ function MeetupActions({ m, w, reload, account }) {
     const full = !open && m.spots_left <= 0;
     return (
       <button type="button" className={`btn btn-sm ${open ? "btn-accent" : "btn-primary"}`} disabled={full}
-        onClick={() => openRsvp(m, t, reload, account)}>
+        onClick={() => openRsvp(m, t, reload)}>
         <Icon name={full ? "x" : open ? "plus" : "edit"} />{full ? t("com.full") : t(open ? "com.join_event" : "com.register")}
       </button>
     );

@@ -6,6 +6,7 @@ import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
 import { Icon, errorText, toast, usePolling, useTitle } from "../../core/ui.jsx";
+import { useAccount } from "../account/public.js";
 import { Answer } from "../rag/public.js";
 import { NewMuslimPrompt } from "./NewMuslim.jsx";
 import { Rules, openJoin } from "./shared.jsx";
@@ -83,7 +84,7 @@ function MemberTools({ gid, m, mine, onDone }) {
 const TOUCH = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
 const MAX_LEN = 1000;
 
-export default function GroupPage({ params }) {
+export default function GroupPage({ params, query = {} }) {
   const { t, tn, lang, langName } = useI18n();
   const gid = Number(params.id);
   const [group, setGroup] = useState(null);
@@ -110,6 +111,14 @@ export default function GroupPage({ params }) {
   }, [gid]);
 
   useTitle(group?.title);
+  const { account, loaded: accountLoaded } = useAccount();
+  // Back from signing in to join (?join=1): open the join form straight away, once.
+  useEffect(() => {
+    if (query.join && group && !group.membership && accountLoaded && account) {
+      navigate(`/groups/${gid}`, { replace: true });
+      openJoin(group, t, load);
+    }
+  }, [query.join, group, accountLoaded, account]); // eslint-disable-line react-hooks/exhaustive-deps
   const load = () => api.get(`/api/groups/${gid}?ui=${lang}`).then(setGroup).catch(setError);
   useEffect(() => { load(); }, [gid, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -255,6 +264,12 @@ export default function GroupPage({ params }) {
                   <Icon name="arrow" className="icon-down" />{t("gr.new_msgs")}
                 </button>
               )}
+              {accountLoaded && !account ? (
+                <div className="card row spread">
+                  <span className="muted">{t("gr.signin_to_post")}</span>
+                  <a className="btn btn-primary btn-sm" href={`#/account?next=${encodeURIComponent(`/groups/${gid}`)}`}>{t("acc.signin_btn")}</a>
+                </div>
+              ) : (
               <form className="composer" onSubmit={post}>
                 <div className="composer-row">
                   <button type="button" className="btn btn-ghost btn-sm" disabled={member.muted} onClick={askBot}>
@@ -273,6 +288,7 @@ export default function GroupPage({ params }) {
                   {text.length > MAX_LEN * 0.8 ? t("gr.count", { n: text.length, max: MAX_LEN }) : ""}
                 </span>
               </form>
+              )}
             </>
           )}
         </section>

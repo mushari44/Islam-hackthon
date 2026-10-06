@@ -70,3 +70,16 @@ def test_long_event_stays_listed_while_it_runs_and_leaves_when_it_ends(client):
         ids = {running.id, ended.id}
     listed = {m["id"] for m in client.get("/api/meetups").json()} & ids
     assert listed == {running.id}
+    with SessionLocal() as db:   # don't leave a running event for later tests to try to book
+        db.query(Meetup).filter(Meetup.id.in_(ids)).update({Meetup.status: "cancelled"}, synchronize_session=False)
+        db.commit()
+
+
+def test_joining_posting_and_booking_need_an_account(client):
+    anon = {"X-Seeker": client.post("/api/session").json()["token"]}
+    g = client.get("/api/groups", headers=anon).json()[0]           # browsing stays open
+    m = next(x for x in client.get("/api/meetups", headers=anon).json() if x["audience"] == "all" and x["age_group"] == "all")
+    res = client.post(f"/api/groups/{g['id']}/join", json={"nickname": "زائر٣", "accept_rules": True}, headers=anon)
+    assert res.status_code == 403 and res.json()["detail"] == "sign in to take part"
+    assert client.post(f"/api/meetups/{m['id']}/rsvp", json={"nickname": "زائر٣"}, headers=anon).status_code == 403
+    assert client.post(f"/api/groups/{g['id']}/messages", json={"text": "مرحبا", "lang": "ar"}, headers=anon).status_code == 403

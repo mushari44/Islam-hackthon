@@ -1,5 +1,7 @@
 """Optional seeker accounts: sign up, sign in on another device, recover, delete. Owner: Eman."""
 
+from datetime import datetime, timezone
+
 ABOUT = {"gender": "f", "age_band": "25_34"}     # sex and age band are required at sign-up
 
 
@@ -11,12 +13,15 @@ def new_device(client):
 def test_account_follows_the_seeker_across_devices(client):
     phone, _ = new_device(client)
     meetup = next(m for m in client.get("/api/meetups").json() if m["registration"] == "required"
-                  and m["audience"] == "all" and m["age_group"] == "all")
-    client.post(f"/api/meetups/{meetup['id']}/rsvp", json={"nickname": "زائر"}, headers=phone)
+                  and m["audience"] == "all" and m["age_group"] == "all" and m["spots_left"] > 0
+                  and datetime.fromisoformat(m["starts_at"].replace("Z", "+00:00")) > datetime.now(timezone.utc))
+    # booking a spot needs an account
+    assert client.post(f"/api/meetups/{meetup['id']}/rsvp", json={"nickname": "زائر"}, headers=phone).status_code == 403
     assert client.get("/api/account", headers=phone).json()["account"] is None
 
     made = client.post("/api/account/signup", json={"username": "salam_1", "password": "long-pass-1", **ABOUT}, headers=phone)
     assert made.status_code == 200 and len(made.json()["recovery_code"]) == 14
+    assert client.post(f"/api/meetups/{meetup['id']}/rsvp", json={"nickname": "زائر"}, headers=phone).status_code == 200
     code = made.json()["recovery_code"]
     # the same name can't be taken twice, whatever the case
     other, _ = new_device(client)
