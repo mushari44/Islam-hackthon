@@ -48,7 +48,13 @@ Open http://localhost:8000. For frontend development, run `npm run dev` in `fron
 
 **What works with no setup:** both options start without a `.env` file. Questions get answers built only from the approved sources, with every passage cited (sources-only mode), search uses BM25, and all sample accounts, groups and events are created on the first start. Sign in as a da'i with user `reviewer` and password `sabeeli-demo` (header «تسجيل الدخول», then «داعية», or go to `#/daai`).
 
-**AI answers and photo reading** need a model key: `cp .env.example .env`, put an OpenRouter key in `OPENROUTER_API_KEY` (the app uses Gemma 4 31B), and start again with the same command. `/api/health` shows `"ai": true` when the model is on.
+**AI answers and photo reading** need an OpenRouter key (https://openrouter.ai/keys). All settings live in [`.env.example`](.env.example), explained line by line; the key is the only one you need to fill in:
+
+1. Copy it to `.env` in the same folder: `cp .env.example .env` (Windows: `copy .env.example .env`).
+2. Open `.env` and paste the key after `OPENROUTER_API_KEY=` (section 1 at the top, no quotes).
+3. Start the app again with the same command. http://localhost:8000/api/health then shows `"ai": true`.
+
+Everything else in `.env` can stay as it is. You might change `DEMO_PASSWORD` (the sample da'is' password), `SECRET_KEY` (keeps da'is signed in across restarts) or `SABEELI_PORT` (Docker's port); the file says how.
 
 **Not in the default run:** «بينات» (its publisher reserves the rights, so it is built on your machine, not shipped) and E5 semantic search; full mode adds both. Password-reset emails need an SMTP server; without one, seekers use their recovery code.
 
