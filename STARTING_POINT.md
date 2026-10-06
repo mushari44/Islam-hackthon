@@ -43,5 +43,9 @@ Every commit is dated, so the line between the two is in the history itself. Pul
 | 5 Oct | Site-wide pass on common website conventions: one sign-in card for users and da'is, header and footer, confirmations before destructive actions, loading and retry states, closable messages, Arabic plurals, phone layout (pull request #18) |
 | 6 Oct | Second site-wide review: fixes across Ask, videos (no off-topic suggestions), community, calls, sign-in and the da'i console (pull requests #21, #25, #26) |
 | 6 Oct | Submission documents: `LICENSE`, `docs/SOURCES.md` (sources and how they are verified), `docs/AI-DECK.md` and the AI deck, this corrected record, README with the live link |
+| 6 Oct | Booking a call from a da'i's weekly schedule: «اتصل الآن» or «احجز موعدًا» (pull requests #23, #24) |
+| 6 Oct | Home page count of people who embraced Islam through Sabeeli, as an anonymous number (#19); «ملفي الشخصي» tab (#22); community tab «لقاءات ودروس المجتمع المسلم» (#29) |
+| 6 Oct | Joining a group, posting in it and booking an event seat need an account (#27) |
+| 6 Oct | Run it yourself: `docker compose up --build`, a ready `.env` with every key empty, full mode with «بينات», sample da'i password `123` (#28, #30, #31); the sign-in card lists the sample da'i accounts (#32); an experimental Docker GPU mode for the hybrid search (#33) |
 
 The `git log --since` command above is the complete, authoritative list.

@@ -21,7 +21,7 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 |---|---|---|
 | OpenRouter (openrouter.ai), model `google/gemma-4-31b-it` (Gemma 4 31B, Google) — the default | Question analysis, photo transcription, cited answers, referral card drafts | Needs `OPENROUTER_API_KEY`. Requests go only to OpenRouter providers that don't store or train on prompts (`provider.data_collection = "deny"`; `SABEELI_OPENROUTER_PRIVATE`). Gemma is under the Gemma Terms of Use; OpenRouter under its own terms. Without a key the app runs in sources-only mode. Only synthetic data is sent in tests and evaluation |
 | Anthropic Claude API (`claude-opus-5-5`) — the alternative | The same jobs, when `SABEELI_LLM_PROVIDER=anthropic` | Needs `ANTHROPIC_API_KEY`. Uses Claude's search-result citations; with Gemma the model cites numbered sources instead |
-| Google public STUN server (`stun.l.google.com:19302`) | WebRTC connectivity for calls | Configurable with `STUN_URLS`. Add the TURN provider here when it is chosen |
+| Google public STUN server (`stun.l.google.com:19302`) | WebRTC connectivity for calls | Configurable with `STUN_URLS`. For strict networks, see the TURN row below |
 | YouTube embeds (`youtube-nocookie.com`, privacy-enhanced mode) | Playing IslamHouse videos that IslamHouse publishes only as a YouTube embed | Today every such item also has an MP4 on IslamHouse, which is preferred, so the embed is a fallback only |
 | Google Fonts: Readex Pro, Amiri Quran | Interface and verse typography | SIL Open Font License |
 | TURN relay (e.g. Metered Open Relay, free tier) | Relays call audio when two networks block a direct connection | Optional, set with `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`. Audio is relayed, never recorded |
@@ -43,7 +43,7 @@ The challenge terms require every tool, model and service to be disclosed. Add a
 | LangChain (`langchain`, `langchain-core`, `langchain-community`, `langchain-text-splitters`): retrievers, rank fusion, FAISS wrapper, text splitter. Optional (`requirements-embeddings.txt`) | MIT |
 | sentence-transformers, transformers | Apache-2.0 |
 | PyTorch | BSD-3-Clause |
-| NVIDIA CUDA libraries (installed with PyTorch's CUDA 12.8 build, only in the optional Docker GPU mode or a GPU setup without Docker; not shipped in the repo) | NVIDIA CUDA Toolkit EULA (redistributable components) |
+| NVIDIA CUDA libraries (installed with PyTorch's CUDA 12.8 build, or 12.6 for older cards, only in the optional Docker GPU mode or a GPU setup without Docker; not shipped in the repo) | NVIDIA CUDA Toolkit EULA (redistributable components) |
 | Docker and Docker Compose, with the `node:20-slim` and `python:3.11-slim` base images, to run the app locally (`Dockerfile`, `compose.yaml`); optional | Docker Engine Apache-2.0; base images MIT (Node.js) / PSF (Python) and their Debian packages |
 | FAISS (`faiss-cpu`) | MIT |
 | PyMuPDF (`pip install pymupdf`), used only by `scripts/ingest_bayyinat.py` to read the Bayyinat PDF; not needed to run the app | AGPL-3.0 (or commercial). Not part of the app or its requirements |
