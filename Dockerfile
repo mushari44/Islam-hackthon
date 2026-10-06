@@ -1,5 +1,9 @@
 # One container for the whole app: the React build is served by FastAPI.
-# Build:  docker build -t sabeeli .     Run:  docker run -p 8000:8000 --env-file .env sabeeli
+# Easiest: docker compose up --build (compose.yaml). Or: docker build -t sabeeli . && docker run -p 8000:8000 sabeeli
+# (add --env-file .env to use the settings in .env)
+# Full mode (FULL=1, `docker compose --profile full up --build sabeeli-full`) also builds «بينات» from the
+# package's link and the E5 semantic-search index, like the team's own copy. It downloads about 3 GB and
+# embeds the corpus on the CPU, so the first build takes much longer.
 
 FROM node:20-slim AS web
 WORKDIR /app/frontend
@@ -13,8 +17,23 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+ARG FULL=0
+ENV HF_HOME=/app/.hf
+COPY requirements-embeddings.txt ./
+RUN if [ "$FULL" = "1" ]; then \
+      pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+      pip install --no-cache-dir -r requirements-embeddings.txt pymupdf; \
+    fi
 COPY backend ./backend
 COPY data/corpus ./data/corpus
+COPY scripts ./scripts
+# «بينات» is built here from the package's own link (its rights are reserved, so it is never in the repo);
+# if the site can't be reached the app still runs without it. The E5 index is built after it, over the whole corpus.
+RUN if [ "$FULL" = "1" ]; then \
+      (python scripts/ingest_bayyinat.py || echo "WARNING: could not build Bayyinat; continuing without it") && \
+      python scripts/build_embeddings.py && \
+      rm -rf data/raw; \
+    fi
 COPY --from=web /app/frontend/dist ./frontend/dist
 EXPOSE 8000
 # Hosts such as Render set PORT; locally it falls back to 8000.
