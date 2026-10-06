@@ -60,6 +60,7 @@ docker compose up --build
 
 > **Read this first**
 > - **You need:** an NVIDIA GPU with **8 GB of VRAM or more**, and Docker able to use it. Windows: Docker Desktop with WSL2 and a recent NVIDIA driver. Linux: the NVIDIA Container Toolkit. It does **not** work on a Mac.
+> - **Which cards:** NVIDIA **RTX 20xx, 30xx, 40xx and 50xx** (for example an RTX 3060 12 GB) use the default build. **Older cards such as the GTX 10xx** (for example a GTX 1080) are not supported by that build: add `SABEELI_TORCH_CUDA=cu126` to `.env` before building to get PyTorch for CUDA 12.6, which still supports them (not tested by us). Cards with less than 8 GB of VRAM may run out of memory.
 > - **Downloads:** PyTorch for CUDA 12.8 (about 2.5 GB, while building) and the E5 model (about 2.2 GB, on the first start). The first start then builds the search index in a few minutes before the site opens. Later starts reuse both.
 > - **Status:** experimental. Tested and working on one machine: NVIDIA RTX 5070 (12 GB), Windows with Docker Desktop. There the first start took about **4 minutes** (model download and index build) and the log showed `semantic search on (intfloat/multilingual-e5-large, cuda, ...)`. Not yet confirmed on other GPUs, drivers or systems.
 > - **If it can't use your GPU,** the log says why and the site **still runs, with BM25 search**. Nothing breaks.
@@ -112,7 +113,7 @@ python scripts/ingest_bayyinat.py
 
 **Optional: hybrid search (BM25 + E5 embedding model).** It uses the free `intfloat/multilingual-e5-large` model from Hugging Face (about 2.2 GB, downloaded on first use, no key needed) to index about 15,000 passages.
 
-> - **With an NVIDIA GPU (8 GB VRAM or more):** first install the CUDA build of PyTorch from https://pytorch.org/get-started/locally/, then run the two lines below. The index builds in a few minutes; the GPU is picked up by itself (or set `SABEELI_EMBED_DEVICE=cuda` in `.env`).
+> - **With an NVIDIA GPU (8 GB VRAM or more):** first install the CUDA build of PyTorch from https://pytorch.org/get-started/locally/ (CUDA 12.8 for RTX 20xx to 50xx; CUDA 12.6 for older cards such as the GTX 10xx), then run the two lines below. The index builds in a few minutes; the GPU is picked up by itself (or set `SABEELI_EMBED_DEVICE=cuda` in `.env`).
 > - **Without one** (CPU only, Apple Silicon or AMD), the same lines work but take **about 3 hours**. Until the index exists the app uses BM25, so you can skip this part.
 
 ```bash

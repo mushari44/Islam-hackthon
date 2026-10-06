@@ -41,6 +41,7 @@ services:
       args:
         FULL: "1"
         GPU: "1"
+        TORCH_CUDA: ${SABEELI_TORCH_CUDA:-cu128}
     image: sabeeli-gpu
     command: ["sh", "scripts/docker-start.sh"]
     ports:

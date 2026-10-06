@@ -20,12 +20,14 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 ARG FULL=0
 ARG GPU=0
+# PyTorch's CUDA build: cu128 for RTX 20xx to 50xx; cu126 for older cards such as the GTX 10xx (SABEELI_TORCH_CUDA in .env).
+ARG TORCH_CUDA=cu128
 ENV HF_HOME=/app/.hf
 COPY requirements-embeddings.txt ./
 RUN if [ "$FULL" = "1" ]; then pip install --no-cache-dir pymupdf; fi
-# The CUDA 12.8 build of PyTorch (about 2.5 GB; 12.8 also covers RTX 50-series cards), then the E5 packages.
+# The CUDA build of PyTorch (about 2.5 GB), then the E5 packages.
 RUN if [ "$GPU" = "1" ]; then \
-      pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu128 && \
+      pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/${TORCH_CUDA} && \
       pip install --no-cache-dir -r requirements-embeddings.txt; \
     fi
 COPY backend ./backend
