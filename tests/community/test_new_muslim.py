@@ -23,9 +23,9 @@ _n = itertools.count(1)
 
 
 @pytest.fixture()
-def member(client, seeker):
+def member(client, caller):
     """A seeker in two groups (one Arabic, one English)."""
-    h = seeker_headers(seeker)
+    h = seeker_headers(caller)
     ar, en = _groups(client, "ar")[0], _groups(client, "en")[0]
     n = next(_n)
     for g, nick in ((ar, f"طالب_نور{n}"), (en, f"seeker_light{n}")):
@@ -94,8 +94,8 @@ def test_declining_keeps_nothing_about_the_seeker(client, member, daai_login):
         assert new_muslim_total(db) == before + 1           # only the anonymous count remains
 
 
-def test_only_the_calls_daai_can_confirm_and_undo(client, seeker, daai_login):
-    h = seeker_headers(seeker)
+def test_only_the_calls_daai_can_confirm_and_undo(client, caller, daai_login):
+    h = seeker_headers(caller)
     d = daai_login("khalid")
     cid = _answered_call(client, h, d)
     assert client.post(f"/api/daai/calls/{cid}/new-muslim", headers=daai_login("yusuf")).status_code == 404
@@ -109,21 +109,21 @@ def test_only_the_calls_daai_can_confirm_and_undo(client, seeker, daai_login):
     assert client.delete(f"/api/daai/calls/{cid}/new-muslim", headers=d).status_code == 409
 
 
-def test_a_waiting_call_cannot_be_marked(client, seeker, daai_login):
-    h = seeker_headers(seeker)
+def test_a_waiting_call_cannot_be_marked(client, caller, daai_login):
+    h = seeker_headers(caller)
     call = client.post("/api/calls", json={"lang": "ar"}, headers=h).json()
     assert client.post(f"/api/daai/calls/{call['id']}/new-muslim", headers=daai_login("khalid")).status_code == 404
     client.post(f"/api/calls/{call['id']}/cancel", headers=h)
     assert client.post("/api/community/new-muslim", json={"share": True}, headers=h).status_code == 404
 
 
-def test_an_unanswered_confirmation_is_deleted_after_a_week(client, seeker, daai_login):
+def test_an_unanswered_confirmation_is_deleted_after_a_week(client, caller, daai_login):
     from datetime import timedelta
 
     from backend.app.core.db import SessionLocal
     from backend.app.features.community.models import NewMuslim
 
-    h = seeker_headers(seeker)
+    h = seeker_headers(caller)
     d = daai_login("khalid")
     cid = _answered_call(client, h, d)
     client.post(f"/api/daai/calls/{cid}/new-muslim", headers=d)
@@ -133,3 +133,16 @@ def test_an_unanswered_confirmation_is_deleted_after_a_week(client, seeker, daai
         db.commit()
     assert client.get("/api/community/new-muslim", headers=h).json()["status"] == "none"
     assert client.get(f"/api/daai/calls/{cid}", headers=d).json()["new_muslim"] is None
+
+
+def test_home_page_count_includes_only_people_who_shared(client, member, daai_login):
+    h, _, _ = member
+    d = daai_login("khalid")
+    before = client.get("/api/community/stats").json()["new_muslims"]
+    cid = _answered_call(client, h, d)
+    client.post(f"/api/daai/calls/{cid}/new-muslim", headers=d)
+    assert client.get("/api/community/stats").json()["new_muslims"] == before        # still pending
+    client.post("/api/community/new-muslim", json={"share": True}, headers=h)
+    assert client.get("/api/community/stats").json() == {"new_muslims": before + 1}
+    client.post("/api/community/new-muslim", json={"share": False}, headers=h)
+    assert client.get("/api/community/stats").json()["new_muslims"] == before

@@ -19,7 +19,15 @@ export function NewMuslimPrompt({ poll = false, manage = false, onChange }) {
   const [sure, setSure] = useState(false);
   const load = () => api.get(`/api/community/new-muslim?ui=${lang}`).then(setInfo).catch(() => {});
   useEffect(() => { load(); }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
-  usePolling(load, 5000, [lang], poll && (!info || info.status === "none"));
+  // The da'i usually presses it during the call or within a minute or two of the end; then stop asking.
+  const [started] = useState(() => Date.now());
+  const [watching, setWatching] = useState(poll);
+  useEffect(() => {
+    if (!poll) return undefined;
+    const id = setTimeout(() => setWatching(false), 120000 - (Date.now() - started));
+    return () => clearTimeout(id);
+  }, [poll, started]);
+  usePolling(load, 5000, [lang], watching && (!info || info.status === "none"));
 
   const answer = async (share) => {
     setBusy(true);

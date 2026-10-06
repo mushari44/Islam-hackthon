@@ -106,7 +106,8 @@ def _group_view(db: Session, g: Group, lang: str, me: GroupMember | None = None,
 def _message_view(m: GroupMessage, new_muslims: set[int] = frozenset()) -> dict:
     return {"id": m.id, "author_type": m.author_type, "author": m.author_name, "member_id": m.member_id,
             "text": "" if m.deleted else m.text, "deleted": m.deleted, "payload": {} if m.deleted else m.payload,
-            "reply_to": m.reply_to, "needs_leader": m.needs_leader, "at": iso(m.created_at),
+            "reply_to": m.reply_to, "needs_leader": m.needs_leader, "reported": bool(m.reports) and not m.deleted,
+            "at": iso(m.created_at),
             "new_muslim": m.author_type == "seeker" and m.member_id in new_muslims}
 
 
@@ -272,7 +273,7 @@ def group_messages(gid: int, after: int = 0, me: SeekerSession | None = Depends(
 
 
 class PostIn(BaseModel):
-    text: str = Field(max_length=2000)
+    text: str = Field(max_length=moderation.MAX_LEN)
     lang: str = Field(default="ar", max_length=8)
 
 
@@ -307,6 +308,45 @@ def post_message(gid: int, body: PostIn, tasks: BackgroundTasks, me: SeekerSessi
     return {**_message_view(msg, _new_muslim_members(db, {member.id})), "redacted": verdict.redacted}
 
 
+def _member_message(db: Session, gid: int, mid: int, me: SeekerSession) -> tuple[GroupMember, GroupMessage]:
+    member = _membership(db, gid, me.id)
+    if not member:
+        raise HTTPException(403, "join the group first")
+    m = db.get(GroupMessage, mid)
+    if not m or m.group_id != gid:
+        raise HTTPException(404, "not found")
+    return member, m
+
+
+_reported: set[tuple[int, int]] = set()   # (member, message) pairs, so one member counts once per message
+
+
+@router.post("/groups/{gid}/messages/{mid}/report")
+def report_message(gid: int, mid: int, me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
+    """A member flags someone else's message for the leader, as on any group chat. Nothing changes for the
+    other members; the leader sees it in the da'i console and decides."""
+    member, m = _member_message(db, gid, mid, me)
+    if m.member_id == member.id and m.author_type == "seeker":
+        raise HTTPException(400, "you can't report your own message")
+    with _write_lock:
+        if (member.id, m.id) not in _reported:
+            _reported.add((member.id, m.id))
+            m.reports = (m.reports or 0) + 1
+            db.commit()
+    return {"ok": True}
+
+
+@router.post("/groups/{gid}/messages/{mid}/delete")
+def delete_own_message(gid: int, mid: int, me: SeekerSession = Depends(seeker), db: Session = Depends(get_db)):
+    """A member removes their own message (shown as "This message was removed", like the leader's delete)."""
+    member, m = _member_message(db, gid, mid, me)
+    if m.author_type != "seeker" or m.member_id != member.id:
+        raise HTTPException(403, "you can only delete your own messages")
+    m.deleted = True
+    db.commit()
+    return {"ok": True}
+
+
 # ---------------------------------------------------------------------------
 # "Became Muslim": the da'i confirms it in the call (features/calls), the seeker decides here whether their
 # groups hear the news. Nothing is announced and no badge shows without the seeker's own yes.
@@ -329,6 +369,15 @@ def _new_muslim_view(db: Session, row: NewMuslim | None, ui: str) -> dict:
                                Group.active.is_(True)).order_by(Group.id)).all()
     return {"status": row.status, "daai": d.public(_ui(ui))["name"] if d else "", "groups": list(groups),
             "announced": len(row.announced or [])}
+
+
+@router.get("/community/stats")
+def community_stats(db: Session = Depends(get_db)):
+    """Public numbers for the home page. `new_muslims` counts only people who agreed to share that they
+    embraced Islam (not pending or declined confirmations), as one total with no names."""
+    expire_pending(db)
+    shared = db.scalar(select(func.count()).select_from(NewMuslim).where(NewMuslim.status == "shared"))
+    return {"new_muslims": int(shared or 0)}
 
 
 @router.get("/community/new-muslim")
@@ -391,7 +440,8 @@ def my_groups(ui: str = "ar", lead: Daai = Depends(daai), db: Session = Depends(
     gids = [g.id for g in groups]
     counts = _member_counts(db, gids)
     flagged = dict(db.execute(select(GroupMessage.group_id, func.count()).where(
-        GroupMessage.group_id.in_(gids), GroupMessage.needs_leader.is_(True), GroupMessage.deleted.is_(False))
+        GroupMessage.group_id.in_(gids), or_(GroupMessage.needs_leader.is_(True), GroupMessage.reports > 0),
+        GroupMessage.deleted.is_(False))
         .group_by(GroupMessage.group_id)).all()) if gids else {}
     return [{**_group_view(db, g, ui, members=counts.get(g.id, 0)), "needs_leader": flagged.get(g.id, 0)}
             for g in groups]
@@ -448,7 +498,7 @@ def resolve_flag(gid: int, mid: int, lead: Daai = Depends(daai), db: Session = D
     _own_group(db, gid, lead)
     m = db.get(GroupMessage, mid)
     if m and m.group_id == gid:
-        m.needs_leader = False
+        m.needs_leader, m.reports = False, 0
         db.commit()
     return {"ok": True}
 
@@ -508,7 +558,8 @@ def _meetup_view(db: Session, m: Meetup, lang: str, sid: str | None = None, goin
 def list_meetups(country: str = "", city: str = "", lang: str = "", ui: str = "ar",
                  registration: str = "", age: str = "", series: str = "", audience: str = "", format: str = "",
                  me: SeekerSession | None = Depends(optional_seeker), db: Session = Depends(get_db)):
-    q = select(Meetup).where(Meetup.status == "open", Meetup.starts_at >= utcnow() - timedelta(hours=3))
+    # Events still running stay listed ("Happening now"); the longest allowed event is 8 hours.
+    q = select(Meetup).where(Meetup.status == "open", Meetup.starts_at >= utcnow() - timedelta(hours=8))
     if country:   # an online meetup can be joined from anywhere
         q = q.where(or_(Meetup.country == country, Meetup.format == "online"))
     if city:
@@ -525,7 +576,9 @@ def list_meetups(country: str = "", city: str = "", lang: str = "", ui: str = "a
         q = q.where(Meetup.audience.in_([audience, "all", "families"]))
     if series:
         q = q.where(Meetup.series == series)
-    meetups = db.scalars(q.order_by(Meetup.starts_at)).all()
+    now = utcnow()
+    meetups = [m for m in db.scalars(q.order_by(Meetup.starts_at)).all()
+               if m.starts_at + timedelta(minutes=m.duration_min or 0) > now]   # ended events leave the list
     mids = [m.id for m in meetups]
     going = _going_counts(db, mids)
     mine: dict[int, RSVP] = {}
@@ -533,6 +586,17 @@ def list_meetups(country: str = "", city: str = "", lang: str = "", ui: str = "a
         mine = {r.meetup_id: r for r in db.scalars(select(RSVP).where(
             RSVP.session_id == me.id, RSVP.cancelled.is_(False), RSVP.meetup_id.in_(mids))).all()}
     return [_meetup_view(db, m, ui, going=going.get(m.id, 0), rsvp=mine.get(m.id)) for m in meetups]
+
+
+@router.get("/meetups/{mid}")
+def get_meetup(mid: int, ui: str = "ar", me: SeekerSession | None = Depends(optional_seeker),
+               db: Session = Depends(get_db)):
+    """One event's own page, so it can be linked and shared like on any events site. Cancelled and past
+    events still open (they say so), as an old link should not just break."""
+    m = db.get(Meetup, mid)
+    if not m:
+        raise HTTPException(404, "not found")
+    return _meetup_view(db, m, ui, me.id if me else None)
 
 
 class RsvpIn(BaseModel):

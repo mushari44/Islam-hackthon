@@ -28,6 +28,7 @@ function Confirm({ close, onYes }) {
 export default function NewMuslimButton({ callId, status: initial, compact = false }) {
   const { t } = useI18n();
   const [status, setStatus] = useState(initial ?? null);
+  const [undoing, setUndoing] = useState(false);
   useEffect(() => {
     if (initial !== undefined) { setStatus(initial); return undefined; }
     let alive = true;
@@ -38,20 +39,26 @@ export default function NewMuslimButton({ callId, status: initial, compact = fal
   const confirm = () => openSheet({
     title: t("nm.confirm_title"),
     render: (close) => <Confirm close={close} onYes={async () => {
-      try { setStatus((await api.dPost(path, {})).new_muslim); toast(t("nm.done"), "success"); } catch (err) { toast(errorText(err, t), "error"); }
+      try {
+        const next = (await api.dPost(path, {})).new_muslim;
+        setStatus(next);
+        toast(t(next === "shared" ? "nm.already_shared" : "nm.done"), "success");
+      } catch (err) { toast(errorText(err, t), "error"); }
     }} />,
   });
   const undo = async () => {
+    setUndoing(true);
     try { await api.del(path, { as: "daai" }); setStatus(null); } catch (err) {
       toast(err.status === 409 ? t("nm.undo_late") : errorText(err, t), "error");
     }
+    setUndoing(false);
   };
   if (status === "shared") return <span className="badge badge-mint">🎉 {t(compact ? "nm.badge_shared_short" : "nm.badge_shared")}</span>;
   if (status === "pending") {
     return (
       <span className="row nm-row">
         <span className="badge badge-purple">{t(compact ? "nm.badge_pending_short" : "nm.badge_pending")}</span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={undo}>{t("nm.undo")}</button>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={undoing} onClick={undo}>{t("nm.undo")}</button>
       </span>
     );
   }

@@ -1,20 +1,23 @@
 /* Videos section. Owner: Mushari. Logical properties for rtl and ltr. */
 
-.vid-langbar { margin-block-end: 14px; gap: 10px; }
+.vid-tools { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-block-end: 18px; }
+.vid-langbar { gap: 10px; justify-content: center; }
 .vid-lang-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .vid-lang {
   min-height: 38px; padding-inline: 12px; border-radius: 999px; border: 1px solid var(--border-strong);
   background: var(--surface); color: var(--text); max-inline-size: 100%;
 }
 .vid-search {
-  display: flex; align-items: center; gap: 8px; max-inline-size: 560px; margin-block-end: 14px;
+  display: flex; align-items: center; gap: 8px; inline-size: 100%; max-inline-size: 640px;
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: 999px; padding-inline: 14px 6px;
   color: var(--text-faint);
 }
 .vid-search:focus-within { border-color: var(--accent-ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint-400) 25%, transparent); }
 .vid-search input { flex: 1; min-width: 0; min-height: 42px; border: 0; background: transparent; outline: none; color: var(--text); }
-.vid-search input::-webkit-search-cancel-button { display: none; }
-.vid-topics { margin-block-end: 18px; gap: 8px; }
+/* the browser's own clear (x) would sit next to ours: hide it */
+.vid-search input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+.vid-search input[type="search"]::-ms-clear { display: none; }
+.vid-topics { margin-block-end: 18px; gap: 8px; justify-content: center; }
 .vid-chip-n { font-size: .78rem; opacity: .7; font-variant-numeric: tabular-nums; }
 
 .vid-grid { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); }
@@ -68,3 +71,10 @@
 .vid-card-compact .vid-topic { display: none; }
 .vid-related .faint { margin: 8px 0 0; }
 .vid-related-none { display: flex; align-items: center; gap: 6px; margin-block-start: 12px; flex-wrap: wrap; }
+
+/* the player's credit line: plain text, since the button beside it is the one link to IslamHouse */
+.vid-credit { font-size: .8rem; color: var(--text-faint); }
+
+/* A new page, topic or search is loading: the current grid fades until the new one arrives. */
+.vid-grid { transition: opacity .2s var(--ease); }
+.vid-grid.is-loading { opacity: .45; pointer-events: none; }

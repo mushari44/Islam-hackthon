@@ -1,13 +1,15 @@
 // Da'i console, calls tab: incoming requests, the referral card, the call, feedback, experiment results.
 // Owner: Eman. Mounted by DaaiConsole.jsx.
 import "./strings.js";
-import { useEffect, useState } from "react";
+import "./daai.css";
+import { useEffect, useRef, useState } from "react";
 import { api, daaiAuth } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
+import { Icon, Notice, Spinner, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
 import { CallPanel } from "../calls/public.jsx";
 import { Answer, SourceCard } from "../rag/public.js";
 import NewMuslimButton from "./NewMuslimButton.jsx";
+import { useLeaveWarning } from "./bits.jsx";
 
 // Arabic counts change form with the number (1, 2, 3-10, 11+), so pick the right string.
 function callCount(n, t, fmtNum) {
@@ -19,38 +21,174 @@ function secs(n, fmtNum, t) {
   return n < 60 ? t("unit.s", { n: fmtNum(n) }) : t("unit.m", { n: fmtNum(Math.floor(n / 60)) });
 }
 
-function Queue({ onActive }) {
-  const { t, fmtNum, langName } = useI18n();
-  const [waiting, setWaiting] = useState([]);
-  usePolling(async () => {
-    const data = await api.dGet("/api/daai/requests");
-    if (data.active.length) onActive(data.active[0].id);
-    else setWaiting(data.waiting);
-  }, 3000, [], true, { background: true });
-  useEffect(() => {
-    // a da'i often waits in another tab: show waiting requests in the tab title
-    const base = document.title.replace(/^\(\d+\) /, "");
-    document.title = waiting.length ? `(${waiting.length}) ${base}` : base;
-    return () => { document.title = document.title.replace(/^\(\d+\) /, ""); };
-  }, [waiting.length]);
-  const accept = async (id) => {
-    try { await api.dPost(`/api/daai/requests/${id}/accept`, {}); onActive(id); } catch (err) {
-      toast(err.status === 409 ? t("dc.taken") : errorText(err, t), "error");
-    }
+// A share as a percentage in the UI language (Arabic digits and the Arabic percent sign in Arabic), with the same
+// locales as fmtNum in core/i18n.jsx.
+function pct(x, lang) {
+  return new Intl.NumberFormat(lang === "ar" ? "ar-SA-u-nu-arab" : "en-GB", { style: "percent", maximumFractionDigits: 0 }).format(x);
+}
+
+// Alerts for new requests while the console is in a background tab: opt-in, remembered in this browser only.
+const ALERT_KEY = "sabeeli.daai.alerts";
+const canNotify = () => typeof window !== "undefined" && "Notification" in window;
+let audio = null;   // made on the switch's click, since browsers only let a page start sound after a user gesture
+
+function readAlerts() {
+  try { return localStorage.getItem(ALERT_KEY) === "1" && canNotify() && Notification.permission === "granted"; } catch { return false; }
+}
+function saveAlerts(on) {
+  try { localStorage.setItem(ALERT_KEY, on ? "1" : "0"); } catch { /* private mode: the choice lasts this visit only */ }
+}
+function unlockAudio() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx && !audio) audio = new Ctx();
+    audio?.resume?.();
+  } catch { audio = null; }
+}
+
+/** A short, soft two-note chime made with the Web Audio API (no sound file). */
+function chime() {
+  try {
+    if (!audio) unlockAudio();
+    if (!audio) return;
+    const start = audio.currentTime;
+    [[660, 0], [880, 0.18]].forEach(([freq, at]) => {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, start + at);
+      gain.gain.exponentialRampToValueAtTime(0.12, start + at + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + at + 0.5);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(start + at);
+      osc.stop(start + at + 0.55);
+    });
+  } catch { /* no sound is fine */ }
+}
+
+/** The "alert me about new requests" switch. Turning it on asks for notification permission; it stays off without it. */
+function AlertSwitch({ on, onChange }) {
+  const { t } = useI18n();
+  if (!canNotify()) return null;
+  const toggle = async (e) => {
+    if (!e.target.checked) { saveAlerts(false); onChange(false); return; }
+    unlockAudio();
+    let perm = Notification.permission;
+    try { if (perm === "default") perm = await Notification.requestPermission(); } catch { perm = "denied"; }
+    if (perm !== "granted") { toast(t("dc.alert_blocked"), "error"); return; }
+    saveAlerts(true);
+    onChange(true);
   };
   return (
+    <label className="row small">
+      <span className="switch"><input type="checkbox" checked={on} onChange={toggle} /><span /></span>
+      <span>{t("dc.alert")}</span>
+    </label>
+  );
+}
+
+/** Booked calls that start within 15 minutes (or are running): Start opens the room 5 minutes before. */
+function BookedSoon({ items, onStarted }) {
+  const { t, langName, fmtTime, fmtNum } = useI18n();
+  const [starting, setStarting] = useState(null);
+  const start = async (id) => {
+    setStarting(id);
+    try { const r = await api.dPost(`/api/daai/bookings/${id}/start`, {}); await onStarted(r.call_id); } catch (err) { toast(errorText(err, t), "error"); }
+    setStarting(null);
+  };
+  return (
+    <section className="card stack booked-soon">
+      <h3><Icon name="calendar" /> {t("ds.soon_title")}</h3>
+      {items.map((b) => (
+        <div className="queue-item" key={b.id}>
+          <div className="stack" style={{ gap: 2 }}>
+            <strong>{fmtTime(b.starts_at)} – {fmtTime(b.ends_at)} · {langName(b.lang)}</strong>
+            <span className="small muted">{t("ds.minutes", { n: fmtNum(b.minutes) })}{b.note ? " · " : ""}{b.note && <span dir="auto">{b.note}</span>}</span>
+          </div>
+          {b.has_card && <span className="badge badge-mint">{t("dc.card")}</span>}
+          {b.seeker_waiting && <span className="badge badge-purple">{t("ds.seeker_waiting")}</span>}
+          {b.can_start
+            ? <button type="button" className="btn btn-primary btn-sm" disabled={starting !== null} onClick={() => start(b.id)}><Icon name="talk" />{t(starting === b.id ? "dc.accepting" : "ds.start")}</button>
+            : <span className="small faint">{t("ds.start_at", { time: fmtTime(new Date(new Date(b.starts_at).getTime() - 5 * 60000).toISOString()) })}</span>}
+        </div>
+      ))}
+      <p className="small muted">{t("ds.quiet")}</p>
+    </section>
+  );
+}
+
+function Queue({ me, onActive, onWaiting, onBookings }) {
+  const { t, tn, fmtNum, langName } = useI18n();
+  const [alerts, setAlerts] = useState(readAlerts);
+  const seen = useRef(0);   // the waiting count at the last poll, to notice new requests
+  const [booked, setBooked] = useState([]);
+  const [waiting, setWaiting] = useState(null);   // null until the first answer
+  const [failed, setFailed] = useState(null);
+  const [accepting, setAccepting] = useState(null);
+  usePolling(async () => {
+    try {
+      const data = await api.dGet("/api/daai/requests");
+      setFailed(null);
+      setBooked(data.booked || []);
+      onBookings?.(data.bookings_today || 0);
+      if (data.active.length) onActive(data.active[0].id);
+      else setWaiting(data.waiting);
+    } catch (err) { setFailed(err); }
+  }, 3000, [], true, { background: true });
+  const count = waiting ? waiting.length : 0;
+  useEffect(() => { onWaiting?.(count); }, [count]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => onWaiting?.(0), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // New requests while the da'i looks at another tab or window: a soft chime and a desktop notification.
+    const grew = count > seen.current;
+    seen.current = count;
+    if (!grew || !alerts || !document.hidden || !canNotify() || Notification.permission !== "granted") return;
+    chime();
+    try {
+      const note = new Notification(t("dc.alert_title"), { body: tn("dc.waiting_n", count), tag: "sabeeli-request", renotify: true });
+      note.onclick = () => { window.focus(); note.close(); };
+    } catch { /* some browsers only notify from a service worker: the chime and the title still tell */ }
+  }, [count]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // A da'i often waits in another browser tab: show waiting requests in its title. Set again after every poll,
+    // since the shell rewrites the title when the route changes (a console tab switch).
+    const base = document.title.replace(/^\(\d+\) /, "");
+    document.title = count ? `(${count}) ${base}` : base;
+    return () => { document.title = document.title.replace(/^\(\d+\) /, ""); };
+  }, [waiting]); // eslint-disable-line react-hooks/exhaustive-deps
+  const accept = async (id) => {
+    setAccepting(id);   // a second click would only meet our own acceptance and report "taken"
+    try { await api.dPost(`/api/daai/requests/${id}/accept`, {}); await onActive(id); } catch (err) {
+      toast(err.status === 409 ? t("dc.taken") : errorText(err, t), "error");
+    } finally { setAccepting(null); }
+  };
+  let body;
+  if (!waiting) body = failed ? <p className="muted">{errorText(failed, t)}</p> : <Spinner />;
+  else if (!waiting.length) body = <p className="muted">{t(me.available ? "dc.queue_empty" : "dc.queue_off")}</p>;
+  return (
+    <>
+    {booked.length > 0 && <BookedSoon items={booked} onStarted={onActive} />}
     <section className="card stack">
-      <h3>{t("dc.queue")}</h3>
-      {waiting.length === 0 ? <p className="muted">{t("dc.queue_empty")}</p> : waiting.map((r) => (
+      <div className="row spread">
+        <h3>{t("dc.queue")}</h3>
+        <AlertSwitch on={alerts} onChange={setAlerts} />
+      </div>
+      {/* After the first answer a failed poll would leave old requests up: say so until a poll succeeds. */}
+      {failed && waiting && <div role="status"><Notice kind="warn" icon="alert">{t("dc.reconnecting")}</Notice></div>}
+      {body || waiting.map((r) => (
         <div className="queue-item" key={r.id}>
           <div><strong>{langName(r.lang)}</strong> <span className="faint">{t("dc.waiting", { s: secs(r.waiting_seconds, fmtNum, t) })}</span></div>
           <span className={`badge ${r.has_card ? "badge-mint" : ""}`}>{r.has_card ? t("dc.card") : t("dc.no_card")}</span>
           {r.has_chat && <span className="badge badge-mint">{t("dc.chat_badge")}</span>}
           {r.for_you && <span className="badge badge-purple">{t("dc.for_you")}</span>}
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => accept(r.id)}><Icon name="talk" />{t("dc.accept")}</button>
+          <button type="button" className="btn btn-primary btn-sm" disabled={accepting !== null} onClick={() => accept(r.id)}>
+            <Icon name="talk" />{t(accepting === r.id ? "dc.accepting" : "dc.accept")}
+          </button>
         </div>
       ))}
     </section>
+    </>
   );
 }
 
@@ -98,9 +236,12 @@ function SharedChat({ turns }) {
 function CardView({ call }) {
   const { t, langName } = useI18n();
   const [understood, setUnderstood] = useState(call.understood);
+  const [marking, setMarking] = useState(false);
   const card = call.card;
   const mark = async () => {
+    setMarking(true);
     try { await api.dPost(`/api/daai/calls/${call.id}/understood`, {}); setUnderstood(true); } catch (err) { toast(errorText(err, t), "error"); }
+    setMarking(false);
   };
   return (
     <section className="card stack">
@@ -122,7 +263,7 @@ function CardView({ call }) {
       )}
       {call.chat && <SharedChat turns={call.chat} />}
       <div className="row">
-        <button type="button" className="btn btn-accent" disabled={understood} onClick={mark}>
+        <button type="button" className="btn btn-accent" disabled={understood || marking} onClick={mark}>
           <Icon name="check" />{understood ? t("dc.understood_done") : t("dc.understood")}
         </button>
         <NewMuslimButton callId={call.id} status={call.new_muslim ?? null} />
@@ -136,6 +277,7 @@ function Feedback({ id, hadCard, onDone }) {
   const [re, setRe] = useState(null);
   const [acc, setAcc] = useState(null);
   const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
   const pick = (name, value, set, withNa, label) => (
     <div className="row" role="radiogroup" aria-label={label}>
       {[["yes", "common.yes"], ["no", "common.no"], ...(withNa ? [["na", "dc.na"]] : [])].map(([v, k]) => (
@@ -146,50 +288,98 @@ function Feedback({ id, hadCard, onDone }) {
   const val = (v) => (v === "yes" ? true : v === "no" ? false : null);
   const submit = async (e) => {
     e.preventDefault();
-    await api.dPost(`/api/daai/calls/${id}/end`, { reexplain_needed: val(re), card_accurate: val(acc), note }).catch(() => {});
+    setBusy(true);
+    try {
+      await api.dPost(`/api/daai/calls/${id}/end`, { reexplain_needed: val(re), card_accurate: val(acc), note });
+    } catch (err) {
+      toast(errorText(err, t), "error");   // keep the form so the answers aren't lost
+      setBusy(false);
+      return;
+    }
+    toast(t("dc.saved"), "success");
     onDone();
   };
   return (
     <form className="card stack" onSubmit={submit}>
       <h3>{t("dc.feedback")}</h3>
-      <div className="field"><label>{t("dc.reexplain")}</label>{pick("re", re, setRe, false, t("dc.reexplain"))}</div>
-      {hadCard && <div className="field"><label>{t("dc.accurate")}</label>{pick("acc", acc, setAcc, true, t("dc.accurate"))}</div>}
+      <div className="field"><span className="field-label">{t("dc.reexplain")}</span>{pick("re", re, setRe, false, t("dc.reexplain"))}</div>
+      {hadCard && <div className="field"><span className="field-label">{t("dc.accurate")}</span>{pick("acc", acc, setAcc, true, t("dc.accurate"))}</div>}
       <div className="field"><label htmlFor="dc-note">{t("dc.note")}</label>
         <textarea id="dc-note" className="textarea" rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} /></div>
-      <div className="field"><label>{t("nm.after_call")}</label><div className="row"><NewMuslimButton callId={id} /></div></div>
-      <div className="row"><button type="submit" className="btn btn-primary">{t("dc.submit")}</button></div>
+      <div className="field"><span className="field-label">{t("nm.after_call")}</span><div className="row"><NewMuslimButton callId={id} /></div></div>
+      <div className="row"><button type="submit" className="btn btn-primary" disabled={busy}>{t("dc.submit")}</button></div>
     </form>
   );
 }
 
 function Experiment({ me }) {
-  const { t, fmtNum } = useI18n();
+  const { t, lang, fmtNum } = useI18n();
   const [data, setData] = useState(null);
+  const [switching, setSwitching] = useState(false);
   usePolling(async () => setData(await api.dGet("/api/daai/experiment")), 15000);
   if (!data) return null;
   const toggle = async (e) => {
-    await api.dPost("/api/daai/experiment", { enabled: e.target.checked }).catch(() => {});
-    setData(await api.dGet("/api/daai/experiment"));
+    setSwitching(true);
+    try {
+      await api.dPost("/api/daai/experiment", { enabled: e.target.checked });
+      setData(await api.dGet("/api/daai/experiment"));
+    } catch (err) { toast(errorText(err, t), "error"); }
+    setSwitching(false);
   };
   return (
     <section className="card stack">
       <h3>{t("dc.exp")}</h3>
       <p className="small muted">{data.enabled ? t("dc.exp_on") : t("dc.exp_off")}</p>
       {me.role === "admin" && (
-        <label className="row"><span className="switch"><input type="checkbox" checked={data.enabled} onChange={toggle} /><span /></span><span>{t("dc.exp_toggle")}</span></label>
+        <label className={`row${switching ? " daai-busy" : ""}`}>
+          <span className="switch"><input type="checkbox" checked={data.enabled} disabled={switching} onChange={toggle} /><span /></span><span>{t("dc.exp_toggle")}</span>
+        </label>
       )}
       <div className="exp-grid">
         {Object.entries(data.arms || {}).map(([arm, s]) => (
           <div className="exp-arm" key={arm}>
             <strong>{t(`dc.arm.${arm}`)}</strong>
             <div className="faint">{callCount(s.calls, t, fmtNum)}</div>
-            {s.no_reexplain_rate != null && <div>{fmtNum(Math.round(s.no_reexplain_rate * 100))}% {t("dc.no_reexplain")}</div>}
-            {s.card_accurate_rate != null && <div>{fmtNum(Math.round(s.card_accurate_rate * 100))}% {t("dc.accuracy")}</div>}
+            {s.no_reexplain_rate != null && <div>{pct(s.no_reexplain_rate, lang)} {t("dc.no_reexplain")}</div>}
+            {s.card_accurate_rate != null && <div>{pct(s.card_accurate_rate, lang)} {t("dc.accuracy")}</div>}
             {s.median_seconds_to_understand != null && <div>{secs(Math.round(s.median_seconds_to_understand), fmtNum, t)} {t("dc.median")}</div>}
           </div>
         ))}
       </div>
     </section>
+  );
+}
+
+/** On a booked call's screen: its time, whether the seeker has come, and "the seeker didn't come" after 10 minutes. */
+function BookedCallBar({ callId, initial, onNoShow }) {
+  const { t, fmtTime } = useI18n();
+  const [b, setB] = useState(initial);
+  const [now, setNow] = useState(Date.now());
+  const [busy, setBusy] = useState(false);
+  usePolling(async () => {
+    const call = await api.dGet(`/api/daai/calls/${callId}`);
+    if (call.booking) setB(call.booking);
+    setNow(Date.now());
+  }, 5000, [callId]);
+  const noShow = async () => {
+    setBusy(true);
+    try { await api.dPost(`/api/daai/bookings/${b.id}/no-show`, {}); toast(t("ds.no_show_done"), "success"); onNoShow(); } catch (err) { toast(errorText(err, t), "error"); }
+    setBusy(false);
+  };
+  const late = now >= new Date(b.no_show_from).getTime();
+  return (
+    <div className="notice notice-mint booked-bar">
+      <Icon name="calendar" size={20} />
+      <div className="row spread" style={{ flex: 1 }}>
+        <span>
+          <strong>{t("ds.booked_call", { from: fmtTime(b.starts_at), to: fmtTime(b.ends_at) })}</strong>
+          {" · "}{b.seeker_waiting ? t("ds.seeker_came") : t("ds.seeker_not_yet")}
+        </span>
+        {!b.seeker_waiting && late && (
+          <button type="button" className="btn btn-sm btn-danger-soft" disabled={busy} onClick={noShow}>{t("ds.no_show")}</button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -202,9 +392,14 @@ function EndWatcher({ id, onEnded }) {
   return null;
 }
 
-export default function CallsTab({ me }) {
+/** onCall(id | null): the call in progress, so the console can ask before signing out. onWaiting(n): requests waiting. */
+export default function CallsTab({ me, onCall, onWaiting, onBookings }) {
   const { t } = useI18n();
   const [view, setView] = useState({ name: "queue" });
+  const inCall = view.name === "call" ? view.call.id : null;
+  useEffect(() => { onCall?.(inCall); }, [inCall]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Closing or reloading the page would drop the call or the unsent after-call form: let the browser ask first.
+  useLeaveWarning(view.name === "call" || view.name === "feedback");
 
   const openCall = async (id) => {
     try { setView({ name: "call", call: await api.dGet(`/api/daai/calls/${id}`) }); } catch (err) { toast(errorText(err, t), "error"); }
@@ -215,6 +410,7 @@ export default function CallsTab({ me }) {
     return (
       <div className="stack">
         <EndWatcher id={call.id} onEnded={() => setView({ name: "feedback", id: call.id, hadCard: Boolean(call.card) })} />
+        {call.booking && <BookedCallBar callId={call.id} initial={call.booking} onNoShow={() => setView({ name: "queue" })} />}
         <CardView call={call} />
         <CallPanel callId={call.id} role="daai" token={daaiAuth.token} title={t("dc.active")}
           onEnded={() => setView({ name: "feedback", id: call.id, hadCard: Boolean(call.card) })} />
@@ -226,7 +422,7 @@ export default function CallsTab({ me }) {
   }
   return (
     <div className="stack">
-      <Queue onActive={openCall} />
+      <Queue me={me} onActive={openCall} onWaiting={onWaiting} onBookings={onBookings} />
       <Experiment me={me} />
     </div>
   );

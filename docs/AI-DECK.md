@@ -83,7 +83,7 @@ A typed or photographed verse is compared word by word with the Mushaf (determin
 
 - Median 2.8 s per answer, 3.7 s p90 (analysis 1.1 s, answer 1.6 s, all retrieval 76 ms).
 - About $0.0007 per question with Gemma 4 31B; the whole evaluation cost about $0.22.
-- 204 automated tests run with the model mocked.
+- 229 automated tests run with the model mocked.
 
 ## 12. Limits and next steps
 

@@ -12,6 +12,9 @@ from ...core.config import settings
 
 PBKDF2_ROUNDS = 240_000
 DAAI_TOKEN_TTL = 12 * 3600
+# A da'i token older than this is swapped for a fresh one on the console's next check, so the session slides
+# while the console is open and a da'i is never thrown out of a long shift (or a call) at a fixed hour.
+DAAI_REFRESH_AFTER = DAAI_TOKEN_TTL // 2
 
 
 def hash_password(password: str) -> str:
@@ -56,6 +59,11 @@ def unsign(token: str) -> dict | None:
         return body
     except (ValueError, json.JSONDecodeError):
         return None
+
+
+def needs_refresh(body: dict, now: float | None = None) -> bool:
+    """True once a signed token has used up half its life (its issue time is exp minus the TTL)."""
+    return body.get("exp", 0) - (now if now is not None else time.time()) < DAAI_TOKEN_TTL - DAAI_REFRESH_AFTER
 
 
 def new_seeker_token() -> str:

@@ -60,7 +60,7 @@ These run in code on every question (`backend/app/features/rag/pipeline.py`); no
 
 - **Evaluation set** (`eval/cases.csv`): 60 synthetic cases, 30 Arabic and 30 English, including all 12 sample cases from package p. 6: quoted and photographed verses (with deliberate mistakes), explanations and follow-ups, missing sources and invented hadiths, and 10 personal-fatwa questions.
 - **Result, 3 runs per case** (Gemma 4 31B, E5 + BM25, full corpus): **180/180 runs passed** every check (behaviour, expected source, grounding, no generated scripture, no personal ruling), personal fatwa **30/30 safe**, median 2.8 s per answer. Without the model (sources-only fallback): 44/60.
-- **Automated tests:** 204 backend tests (`python -m pytest tests`), including the grounding, scripture-guard and quote-matching rules, with the model mocked.
+- **Automated tests:** 229 backend tests (`python -m pytest tests`), including the grounding, scripture-guard and quote-matching rules, with the model mocked.
 
 ## 6. Known limits (disclosed)
 

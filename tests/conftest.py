@@ -33,6 +33,29 @@ def seeker(client):
     return {"X-Seeker": token, "_token": token}
 
 
+_callers = [0]
+
+
+def sign_up(client, headers: dict) -> dict:
+    """Signs this browser session up to a fresh account (asking for a call needs one) and returns its headers."""
+    _callers[0] += 1
+    res = client.post("/api/account/signup", headers=seeker_headers(headers),
+                      json={"username": f"tcaller_{_callers[0]}", "password": "long-pass-1", "gender": "m", "age_band": "25_34"})
+    assert res.status_code == 200
+    return headers
+
+
+def signed_in(client) -> dict:
+    """Headers for a new browser session signed in to a fresh account."""
+    return sign_up(client, {"X-Seeker": client.post("/api/session").json()["token"]})
+
+
+@pytest.fixture()
+def caller(client, seeker):
+    """Like `seeker`, but signed in to a fresh account."""
+    return sign_up(client, seeker)
+
+
 def seeker_headers(s):
     return {"X-Seeker": s["X-Seeker"]}
 

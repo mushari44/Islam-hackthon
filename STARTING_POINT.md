@@ -41,6 +41,7 @@ Every commit is dated, so the line between the two is in the history itself. Pul
 | 4 Oct | Deployment: website on Vercel, API on Render, the live link (`4c38ba2`, `278890c`) |
 | 4 Oct | "New Muslim": a da'i can record that a seeker embraced Islam in a call; the seeker alone decides whether their groups hear it, and an unanswered record is deleted after 7 days (`c478af3`, `49df046`) |
 | 5 Oct | Site-wide pass on common website conventions: one sign-in card for users and da'is, header and footer, confirmations before destructive actions, loading and retry states, closable messages, Arabic plurals, phone layout (pull request #18) |
+| 6 Oct | Second site-wide review: fixes across Ask, videos (no off-topic suggestions), community, calls, sign-in and the da'i console (pull requests #21, #25, #26) |
 | 6 Oct | Submission documents: `LICENSE`, `docs/SOURCES.md` (sources and how they are verified), `docs/AI-DECK.md` and the AI deck, this corrected record, README with the live link |
 
 The `git log --since` command above is the complete, authoritative list.

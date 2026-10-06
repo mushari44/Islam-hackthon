@@ -55,26 +55,83 @@ export function usePolling(fn, ms, deps = [], enabled = true, { background = fal
   }, [ms, enabled, background, ...deps]);
 }
 
+/**
+ * onKeyDown for a role="tab" or role="radio" button: the arrow keys move to the next or previous enabled item of its
+ * tablist / radiogroup (in right-to-left pages ArrowLeft means next), Home and End to the first and last. Radios are
+ * clicked so the choice follows focus, as for native radio buttons. Give the selected item tabIndex 0, the others -1.
+ */
+export function rovingKeys(e) {
+  const el = e.currentTarget;
+  const role = el.getAttribute("role");
+  const group = el.closest('[role="tablist"], [role="radiogroup"]') || el.parentElement;
+  const items = [...group.querySelectorAll(`[role="${role}"]`)].filter((x) => !x.disabled && x.getAttribute("aria-disabled") !== "true");
+  const at = items.indexOf(el);
+  if (at < 0 || !items.length) return;
+  const rtl = getComputedStyle(el).direction === "rtl";
+  const step = { ArrowDown: 1, ArrowUp: -1, ArrowRight: rtl ? -1 : 1, ArrowLeft: rtl ? 1 : -1 }[e.key];
+  let to;
+  if (step) to = (at + step + items.length) % items.length;
+  else if (e.key === "Home") to = 0;
+  else if (e.key === "End") to = items.length - 1;
+  else return;
+  e.preventDefault();
+  items[to].focus();
+  if (role === "radio") items[to].click();
+}
+
+// ---------------------------------------------------------------------------
+// Tab title. The shell names each route; a page whose title comes from data (a group's name, say)
+// calls useTitle(text) to replace that name while it is shown.
+
+let pageTitle = null;
+const titleListeners = new Set();
+const announceTitle = () => titleListeners.forEach((fn) => fn(pageTitle));
+
+/** Set the tab title to "<text> · <app name>" while the calling page is mounted. Empty text keeps the route's name. */
+export function useTitle(text) {
+  useEffect(() => {
+    if (!text) return undefined;
+    pageTitle = text;
+    announceTitle();
+    return () => { if (pageTitle === text) { pageTitle = null; announceTitle(); } };
+  }, [text]);
+}
+
+/** For the shell: the title a page set with useTitle, or null. */
+export function usePageTitle() {
+  const [title, setTitle] = useState(pageTitle);
+  useEffect(() => { titleListeners.add(setTitle); setTitle(pageTitle); return () => { titleListeners.delete(setTitle); }; }, []);
+  return title;
+}
+
 // ---------------------------------------------------------------------------
 // Toasts
 
 let pushToast = null;
-export function toast(message, kind = "info", ms = 3200) {
+// Errors stay longer (people need time to read what went wrong) and can be closed by hand, like other toasts.
+export function toast(message, kind = "info", ms = kind === "error" ? 6500 : 3200) {
   if (pushToast) pushToast({ id: Math.random(), message, kind, ms });
 }
 
 export function ToastHost() {
+  const { t } = useI18n();
   const [items, setItems] = useState([]);
+  const drop = (id) => setItems((list) => list.filter((x) => x.id !== id));
   useEffect(() => {
     pushToast = (item) => {
-      setItems((list) => [...list, item]);
-      setTimeout(() => setItems((list) => list.filter((x) => x.id !== item.id)), item.ms);
+      setItems((list) => [...list.slice(-2), item]);   // at most three at once: older ones make way
+      setTimeout(() => drop(item.id), item.ms);
     };
     return () => { pushToast = null; };
   }, []);
   return (
-    <div className="toasts" role="status" aria-live="polite">
-      {items.map((x) => <div key={x.id} className={`toast ${x.kind === "error" ? "error" : ""}`}>{x.message}</div>)}
+    <div className="toasts" aria-live="polite">
+      {items.map((x) => (
+        <div key={x.id} className={`toast ${x.kind === "error" ? "error" : ""}`} role={x.kind === "error" ? "alert" : "status"}>
+          <span>{x.message}</span>
+          <button type="button" className="toast-close" aria-label={t("common.close")} onClick={() => drop(x.id)}><Icon name="x" size={14} /></button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -101,16 +158,30 @@ export function SheetHost() {
   return sheets.map((s) => <Sheet key={s.id} title={s.title} wide={s.wide} onClose={s.close}>{s.render(s.close)}</Sheet>);
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+let openSheets = 0;   // the page behind stops scrolling while any sheet is open
+
 export function Sheet({ title, wide, onClose, children }) {
   const { t } = useI18n();
   const titleId = useId();
   const panel = useRef(null);
   useEffect(() => {
+    if (openSheets++ === 0) document.body.classList.add("sheet-open");
+    return () => { if (--openSheets === 0) document.body.classList.remove("sheet-open"); };
+  }, []);
+  useEffect(() => {
     const prev = document.activeElement;
     const onKey = (e) => {
-      if (e.key !== "Escape") return;
-      const open = document.querySelectorAll(".sheet");   // sheets stack: Escape closes only the top one
-      if (open[open.length - 1] === panel.current) onClose();
+      const open = document.querySelectorAll(".sheet");   // sheets stack: keys act on the top one only
+      if (open[open.length - 1] !== panel.current) return;
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      // Keep Tab inside the dialog, as a modal should.
+      const items = [...panel.current.querySelectorAll(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0]; const last = items[items.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     document.addEventListener("keydown", onKey);
     const focusable = panel.current?.querySelector("input, textarea, select, button:not(.icon-btn)");
@@ -122,7 +193,7 @@ export function Sheet({ title, wide, onClose, children }) {
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panel} tabIndex={-1}
         style={wide ? { width: "min(820px, 100%)" } : undefined}>
         <div className="sheet-head">
-          <h2 id={titleId}>{title}</h2>
+          <h2 id={titleId} dir="auto">{title}</h2>
           <button type="button" className="icon-btn" aria-label={t("common.close")} onClick={onClose}><Icon name="x" size={20} /></button>
         </div>
         {children}

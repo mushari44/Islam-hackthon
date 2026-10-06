@@ -8,10 +8,10 @@ html { scroll-behavior: smooth; }
 :root {
   --bar-bg: rgba(255, 255, 255, .74); --bar-border: rgba(22, 29, 72, .08); --bar-shadow: 0 12px 32px rgba(22, 29, 72, .08);
   --bar-fg: var(--navy-800); --bar-muted: var(--navy-500); --bar-hover: rgba(22, 29, 72, .06);
-  --bar-current-bg: var(--navy-800); --bar-current-fg: #FFFFFF; --logo-glow: 0 6px 18px rgba(22, 29, 72, .22);
+  --bar-current-bg: var(--mint-400); --bar-current-fg: var(--navy-900); --logo-glow: 0 6px 18px rgba(22, 29, 72, .22);
   --page-bg: #FFFFFF;
   --foot-fg: var(--navy-500); --foot-link: var(--navy-700);
-  --tabbar-bg: rgba(255, 255, 255, .9); --tabbar-shadow: 0 -10px 30px rgba(22, 29, 72, .08);
+  --tabbar-bg: rgba(255, 255, 255, .97); --tabbar-shadow: 0 -10px 30px rgba(22, 29, 72, .08);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -50,6 +50,9 @@ body .topbar .nav a:hover { background: var(--bar-hover); color: var(--bar-fg); 
 body .topbar .nav a[aria-current="page"] { background: var(--bar-current-bg); color: var(--bar-current-fg); }
 body .topbar .btn-ghost { --btn-fg: var(--bar-fg); }
 body .topbar .btn-ghost:hover { background: var(--bar-hover); box-shadow: none; }
+/* The sign-in button lights up on its own page, like the nav tabs. */
+body .topbar .top-actions .btn[aria-current="page"] { background: var(--bar-current-bg); --btn-fg: var(--bar-current-fg); }
+body .topbar .account-btn.is-signin:not([aria-current]) { --btn-bd: var(--border-strong); }
 body .topbar .icon-btn { color: var(--bar-muted); }
 body .topbar .icon-btn:hover { background: var(--bar-hover); color: var(--bar-fg); }
 
@@ -110,3 +113,19 @@ body article.card:hover { transform: translateY(-3px); box-shadow: var(--shadow)
   --verse-edge: color-mix(in srgb, var(--mint-500) 30%, var(--border));
 }
 .verse-card { border-color: var(--verse-edge); }
+
+/* Phone tab bar: the current tab gets a green pill behind its icon, like the top bar's current tab. */
+@media (max-width: 1024px) {
+  .tabbar a svg { box-sizing: content-box; padding: 3px 14px; border-radius: 999px; transition: background .25s var(--ease); }
+  .tabbar a[aria-current="page"] svg { background: color-mix(in srgb, var(--mint-400) 32%, transparent); }
+}
+
+/* The chosen tab or option in every tab row is green, like the current page in the top bar. */
+.tabs button[aria-selected="true"], .tabs button[aria-checked="true"] { background: var(--mint-400); color: var(--navy-900); box-shadow: var(--shadow-sm); }
+.tabs button:not([aria-selected="true"]):not([aria-checked="true"]):hover { color: var(--text); background: color-mix(in srgb, var(--mint-400) 14%, transparent); }
+
+/* Short choice rows (2-3 options) share the full width on phones and wrap their labels, instead of cutting the last one off. */
+@media (max-width: 600px) {
+  .tabs.tabs-fit { display: flex; width: 100%; border-radius: 18px; }
+  .tabs.tabs-fit button { flex: 1 1 0; min-width: 0; white-space: normal; line-height: 1.3; padding: 8px 6px; border-radius: 14px; }
+}

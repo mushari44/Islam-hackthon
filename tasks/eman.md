@@ -90,6 +90,29 @@ Full report: `docs/AUDIT-2026-10-04.md`. Nothing in your folders was changed. Al
 - [ ] Performance: `SeekerAccount.session_id` has no index but is queried on every seeker request (`deps.signed_out_home`); every seeker request also writes `last_seen`. Add the index and throttle the write.
 - [ ] Frontend: the da'i console stays "signed in" after the token expires (the `/me` poll swallows 401) and History spins forever if its first fetch fails; `TalkPage` `seekerToken()` and `CallPanel` `createRoom()` have no `.catch` (blank page / "connecting" forever); the experiment toggle's second fetch is unguarded; the queue poll repeats an error toast every 3 s while opening a call fails; the gender radiogroup (`TalkPage`) and the group post box (`CommunityTabs`) have no label.
 
+## Changed in your screens by PR #18 (5 October, UI polish, Mushari's request)
+
+For your information; nothing here needs action unless you disagree.
+- Seeker sign-in is one centred card with a "create one" link. The "forgot password" screen was removed from the web app until `SMTP_HOST` is set; the `/api/account/forgot`, `/reset` and `/recover` endpoints are unchanged (restore the screen from git history when email works).
+- The header ends with «تسجيل الدخول»; the da'i console link moved to the footer («دخول الدعاة») and the More page.
+- One sign-in card for both: a «مستخدم / داعية» switch at the top (`SignInCard` in `features/account/AccountPage.jsx`, exported from `account/public.js`). "Da'i" posts to `/api/daai/login`; sign-up is for seekers only. `#/daai` (and the footer link, and `#/account?as=daai`) open it with "da'i" picked, and the device remembers how it signed in last time (`sabeeli.signin_as`). `DaaiConsole` now shows this card instead of its own `Login`, and the unused `dai.*` login strings moved to `acc.*`.
+- The da'i token goes through `setDaaiToken()` (account store), so the header shows «لوحة الداعية» while a da'i is signed in.
+- Sign out, da'i log out, cancel meetup and cancel call request use the new red `btn-danger-soft` style.
+- A signed-in seeker's header button opens a small menu (حسابي, أنشطتي, محادثاتي, «تسجيل الخروج»); `signOutSeeker()` in the account store does the sign-out. Toasts can be closed, and errors stay longer.
+- Da'i console polish (Mushari's "make every interaction common use"):
+  - The tab is in the address (`#/daai?tab=history`), so reload and Back work.
+  - The calls tab stays mounted, so a call survives a look at another tab. It shows a waiting-count badge.
+  - Signing out during a call asks first, then ends the call and turns "available" off.
+  - The da'i's End button needs a second tap. The seeker still ends with one tap.
+  - These actions now ask first (`AskFirst` in the new `daai/bits.jsx`): cancelling an event, muting a member (now with Unmute), deleting a group message, and disabling an account.
+  - Buttons show a busy state while working, success toasts appear, lists show a spinner while loading and an error with Retry if loading fails, and past events are listed last with an "Ended" badge.
+  - Form limits match the API. The reviewer can still change their own password, and is then signed out.
+- Calls: chat text is kept if the socket isn't open, cancelling a request shows its error instead of leaving silently, and the end-screen buttons wrap on phones.
+- Wording: «تسجيل الخروج» everywhere, and «فعالية» / "event" and «حجز» / "booking" across the community and da'i screens.
+- 6 October (Mushari's request): the da'i console tab «ملفي» is now «ملفي الشخصي» (`dp.tab`; English stays "My profile").
+- 6 October (Mushari's request, "remove anything related to تجريبي"): the referral experiment card reads «مقارنة طرق الإحالة» / "Referral summary comparison" (`dc.exp*`), the History privacy note no longer says «التجربة» (`dl.privacy`), the seeker's no-summary note drops "In this trial" (`ref.none`), and the da'i sign-in card no longer lists the demo usernames (`acc.daai_demo` removed; they stay in the README). The seeded accounts and `DEMO_PASSWORD` are unchanged.
+- 6 October (Mushari's decision card): the sample da'is lost their «(حساب تجريبي)» / "(demo)" tag and "demo" bios (`auth/seed.py`). On start, an older database gets the new names and bios, but only where the value still equals the old seed. `tests/calls/test_choose_daai.py` now looks for "Maryam". The rule in `CLAUDE.md` changed to match.
+
 ## Day 3: 6 October (polish and publish)
 
 - [ ] Waiting screen: an estimated wait, and a clear message when no da'i speaks the chosen language right now (suggest groups instead).
@@ -100,3 +123,17 @@ Full report: `docs/AUDIT-2026-10-04.md`. Nothing in your folders was changed. Al
 
 - [ ] Book a call slot with a da'i for later (the deck mentions it as future work).
 - [ ] An audio level indicator in the call room, so people see the microphone works.
+
+## Built in your area by Mushari's agent: booked calls (6 October, Mushari's "Build here")
+
+Mushari asked for seekers to book a call in a da'i's weekly schedule, next to "call now", and approved building it in calls/auth/daai on his branch with you as reviewer. What changed in your folders:
+
+- `backend/app/features/calls/booking.py` (new) and three tables in `calls/models.py` (`daai_schedule`, `booking`, `booking_block`). `calls/routes.py` mounts it, adds `booked` to `GET /api/daai/requests` (general requests are held back 15 minutes before a booked call) and `bookable` to `GET /api/daais`.
+- `auth/public.py`: `is_account(db, sid)` (booking needs a seeker account).
+- Seeker: `calls/BookFlow.jsx`, `calls/MyBookings.jsx`, `calls/bookingUtils.js`, the "Call now / Book a time / My bookings" tabs in `TalkPage.jsx`, `BookingBanner` in `calls/public.jsx` (mounted in `App.jsx`), "My bookings" in the account menu.
+- Da'i: `daai/ScheduleTab.jsx` (weekly hours, days off, pause, bookings list), "Booked calls coming up" with Start on the calls tab.
+- Tests: `tests/calls/test_booking.py`. Contract: "Booked calls" in `docs/API.md`.
+
+Also on 6 October (Mushari's ask "call req login"): **calling now needs a seeker account too.** `POST /api/calls` returns 403 `"sign in to call"` for an anonymous browser. On the Talk page a signed-out seeker sees a notice and a «سجّل الدخول لتتصل» button that returns them to the call with their language, da'i and referral card kept. Tests use the new `caller` fixture / `signed_in()` helper in `tests/conftest.py`.
+
+Follow-ups you may want: a sound/notification when a booked call is about to start in a background console tab; reminders by email once `SMTP_HOST` is set (today: on-site banner + calendar file).

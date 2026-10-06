@@ -1,5 +1,5 @@
 """Seekers can see the da'i directory, ask for one da'i by name, and call the same da'i again. Owner: Eman."""
-from tests.conftest import seeker_headers
+from tests.conftest import seeker_headers, signed_in
 
 
 def test_directory_lists_callable_daais(client, daai_login):
@@ -7,15 +7,15 @@ def test_directory_lists_callable_daais(client, daai_login):
     client.post("/api/daai/availability", json={"available": True}, headers=d)
     people = client.get("/api/daais?lang=en&ui=en").json()
     names = {p["name"] for p in people}
-    assert "Maryam (demo)" in names and "Reviewer (demo)" not in names     # reviewers don't take calls
-    maryam = next(p for p in people if p["name"] == "Maryam (demo)")
+    assert "Maryam" in names and "Reviewer" not in names     # reviewers don't take calls
+    maryam = next(p for p in people if p["name"] == "Maryam")
     assert maryam["online"] is True and maryam["gender"] == "f" and "bio" in maryam
     assert all("en" in p["languages"] for p in people)
     assert people[0]["online"]                                              # online first
 
 
-def test_request_a_named_daai_and_call_again(client, seeker, daai_login):
-    h = seeker_headers(seeker)
+def test_request_a_named_daai_and_call_again(client, caller, daai_login):
+    h = seeker_headers(caller)
     khalid, maryam = daai_login("khalid"), daai_login("maryam")
     mid = client.get("/api/daai/me", headers=maryam).json()["id"]
 
@@ -39,8 +39,7 @@ def test_request_a_named_daai_and_call_again(client, seeker, daai_login):
 def test_named_requests_have_their_own_queue(client, daai_login):
     yusuf = daai_login("yusuf")
     yid = client.get("/api/daai/me", headers=yusuf).json()["id"]
-    a = {"X-Seeker": client.post("/api/session").json()["token"]}
-    b = {"X-Seeker": client.post("/api/session").json()["token"]}
+    a, b = signed_in(client), signed_in(client)
     named = client.post("/api/calls", json={"lang": "en", "daai_id": yid}, headers=a).json()
     general = client.post("/api/calls", json={"lang": "en"}, headers=b).json()
     assert client.get(f"/api/calls/{named['id']}", headers=a).json()["queue_position"] == 0
