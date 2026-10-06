@@ -110,6 +110,7 @@ For your information; nothing here needs action unless you disagree.
 - Calls: chat text is kept if the socket isn't open, cancelling a request shows its error instead of leaving silently, and the end-screen buttons wrap on phones.
 - Wording: «تسجيل الخروج» everywhere, and «فعالية» / "event" and «حجز» / "booking" across the community and da'i screens.
 - 6 October (Mushari's request): the da'i console tab «ملفي» is now «ملفي الشخصي» (`dp.tab`; English stays "My profile").
+- 6 October (Mushari's request, "remove anything related to تجريبي"): the referral experiment card reads «مقارنة طرق الإحالة» / "Referral summary comparison" (`dc.exp*`), the History privacy note no longer says «التجربة» (`dl.privacy`), the seeker's no-summary note drops "In this trial" (`ref.none`), and the da'i sign-in card no longer lists the demo usernames (`acc.daai_demo` removed; they stay in the README). The seeded accounts and `DEMO_PASSWORD` are unchanged.
 
 ## Day 3: 6 October (polish and publish)
 
