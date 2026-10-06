@@ -143,6 +143,8 @@ To sign in as a da'i: «تسجيل الدخول» in the header, then «داعي
 
 **To try a call** on one computer, use two browsers, or a normal and a private window. In one, sign in as `khalid` and switch on «متاح لاستقبال المكالمات» (Available for calls). In the other, create a seeker account and go to **تحدّث**. Allow the microphone when the browser asks.
 
+**A call between two people on different networks** (one judge as the seeker, another as the da'i) works on the live site: a local run is only reachable from the machine it runs on. The call request, accept and in-call text chat go through the server, so they work from any network. The voice goes straight between the two browsers: it works on most home and mobile networks with the default STUN setting; strict networks (some offices and mobile carriers) also need a TURN server, set with the `TURN_` lines in `.env` (or the host's environment).
+
 The corpus is already in `data/corpus/`, except «بينات»: its publisher reserves the rights, so each copy builds it from the package's link with `pip install pymupdf` and `python scripts/ingest_bayyinat.py` (the app works without it). To refresh the rest from the official APIs, run `python scripts/ingest_quran.py`, `python scripts/ingest_hadith.py` and `python scripts/ingest_icadb.py`.
 
 ## Tests
