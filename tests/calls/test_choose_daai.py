@@ -7,8 +7,8 @@ def test_directory_lists_callable_daais(client, daai_login):
     client.post("/api/daai/availability", json={"available": True}, headers=d)
     people = client.get("/api/daais?lang=en&ui=en").json()
     names = {p["name"] for p in people}
-    assert "Maryam (demo)" in names and "Reviewer (demo)" not in names     # reviewers don't take calls
-    maryam = next(p for p in people if p["name"] == "Maryam (demo)")
+    assert "Maryam" in names and "Reviewer" not in names     # reviewers don't take calls
+    maryam = next(p for p in people if p["name"] == "Maryam")
     assert maryam["online"] is True and maryam["gender"] == "f" and "bio" in maryam
     assert all("en" in p["languages"] for p in people)
     assert people[0]["online"]                                              # online first
