@@ -49,7 +49,11 @@ register({
     "ask.s3": "ما معنى التوحيد لشخص لم يسمع به من قبل؟",
     "ask.s4": "لماذا توجد أحكام مختلفة بين العلماء؟",
     "ask.s5": "ما أركان الإسلام؟",
-    "ask.s6": "قل هو الله واحد الله الصمد",
+    "ask.s6": "هل يتعارض الإسلام مع العلم؟",
+    "ask.try": "جرّب أن تسأل",
+    "ask.fb_why": "ما المشكلة؟", "ask.fb_incorrect": "غير صحيحة", "ask.fb_not_relevant": "لا تجيب عن سؤالي",
+    "ask.fb_missing_source": "ينقصها مصدر", "ask.fb_other": "سبب آخر",
+    "ask.copy": "انسخ الإجابة", "ask.copied": "تم النسخ", "ask.answer_ready": "الإجابة جاهزة",
   },
   en: {
     "src.verse": "Verse", "src.hadith": "Hadith", "src.term": "Term", "src.qa": "Q&A", "src.open": "View source",
@@ -99,5 +103,9 @@ register({
     "ask.s4": "Why do scholars sometimes give different rulings?",
     "ask.s5": "What are the pillars of Islam?",
     "ask.s6": "Is Islam against science?",
+    "ask.try": "Try asking",
+    "ask.fb_why": "What was wrong?", "ask.fb_incorrect": "Incorrect", "ask.fb_not_relevant": "Not relevant",
+    "ask.fb_missing_source": "Missing source", "ask.fb_other": "Other",
+    "ask.copy": "Copy answer", "ask.copied": "Copied", "ask.answer_ready": "Answer ready",
   },
 });

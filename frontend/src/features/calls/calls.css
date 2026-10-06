@@ -126,3 +126,4 @@
 .booking-banner.is-warn .icon-btn { color: inherit; }
 .slot-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; }
 .slot-now { font-size: .7rem; font-weight: 500; opacity: .8; }
+.btn.is-disabled { opacity: .5; pointer-events: none; }

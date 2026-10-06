@@ -149,7 +149,7 @@ function MeetupRow({ m }) {
   const w = useWhen(m);
   const where = m.format === "online" ? t("home.online") : [m.city, m.venue].filter(Boolean).join(" · ") || t("home.in_person");
   return (
-    <a className="home-row fade-in" href="#/community?tab=meetups">
+    <a className="home-row fade-in" href={`#/events/${m.id}`}>
       <span className="home-date" aria-hidden="true"><strong>{w.day}</strong><span>{w.month}</span></span>
       <span className="home-row-text">
         <strong dir="auto">{m.title}</strong>
@@ -304,6 +304,7 @@ export default function Home() {
           {verse ? (
             <figure className="src-card verse-card compact home-verse fade-in">
               <p className="verse-text" lang="ar" dir="rtl"><span className="orn">﴿</span>{verse.text_ar}<span className="orn">﴾</span></p>
+              {lang !== "ar" && verse.translation_en && <p className="verse-translation" lang="en" dir="ltr">{verse.translation_en}</p>}
               <figcaption>{t("home.verse_ref")}</figcaption>
             </figure>
           ) : verse === undefined ? <div className="skeleton home-verse-skel" /> : null}

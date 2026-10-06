@@ -14,7 +14,9 @@
 }
 .vid-search:focus-within { border-color: var(--accent-ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint-400) 25%, transparent); }
 .vid-search input { flex: 1; min-width: 0; min-height: 42px; border: 0; background: transparent; outline: none; color: var(--text); }
-.vid-search input::-webkit-search-cancel-button { display: none; }
+/* the browser's own clear (x) would sit next to ours: hide it */
+.vid-search input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+.vid-search input[type="search"]::-ms-clear { display: none; }
 .vid-topics { margin-block-end: 18px; gap: 8px; justify-content: center; }
 .vid-chip-n { font-size: .78rem; opacity: .7; font-variant-numeric: tabular-nums; }
 
