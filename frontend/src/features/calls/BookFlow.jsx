@@ -2,7 +2,7 @@
 // review, confirm. Times show in the viewer's own time zone. Owner: Eman (calls).
 import "./strings.js";
 import "./calls.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, Notice, Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
@@ -53,6 +53,7 @@ function Booked({ booking, moved, onMine, onAgain }) {
       <dl className="book-summary">
         <dt>{t("book.with")}</dt><dd>{daaiName(booking.daai, lang)}</dd>
         <dt>{t("book.when")}</dt><dd>{fmtDate(booking.starts_at)} · {fmtTime(booking.starts_at)} – {fmtTime(booking.ends_at)}</dd>
+        <dt>{t("book.zone")}</dt><dd>{zoneName(lang)}</dd>
         <dt>{t("book.length")}</dt><dd>{t("book.minutes", { n: fmtNum(booking.minutes) })}</dd>
       </dl>
       <p className="small muted">{t("book.done_hint")}</p>
@@ -70,12 +71,13 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
   const { account, loaded } = useAccount();
   const [lang, setLang] = useState(initialLang || query.lang || ui);
   const [gender, setGender] = useState("");
-  const [daai, setDaai] = useState(initialDaai || null);
-  const [minutes, setMinutes] = useState(30);
+  const [daai, setDaai] = useState(initialDaai || (query.daai ? Number(query.daai) : null));
+  const [minutes, setMinutes] = useState(query.minutes === "60" ? 60 : 30);
   const [slots, setSlots] = useState(null);
   const [failed, setFailed] = useState(null);
   const [day, setDay] = useState(null);
-  const [slot, setSlot] = useState(null);
+  const [slot, setSlot] = useState(query.slot || null);   // kept through sign-in (?slot=), like Calendly
+  const [stale, setStale] = useState(false);              // the booking to move can no longer be moved
   const [note, setNote] = useState("");
   const [step, setStep] = useState("pick");     // pick | review
   const [busy, setBusy] = useState(false);
@@ -87,7 +89,7 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
   useEffect(() => {
     if (!rescheduleId) return;
     api.get(`/api/bookings/${rescheduleId}`).then((b) => {
-      if (!b.can_cancel) { toast(t("err.can't cancel now"), "error"); return; }
+      if (!b.can_cancel) { setStale(true); return; }
       setMoving(b);
       setLang(b.lang);
       setDaai(b.daai?.id || null);
@@ -108,8 +110,14 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
       setFailed(null);
     } catch (err) { setFailed(err); }
   };
-  useEffect(() => { setSlots(null); setSlot(null); }, [lang, gender, daai, minutes, moving]);
-  usePolling(load, 60000, [lang, gender, daai, minutes, moving], step === "pick" && !booked && (!rescheduleId || Boolean(moving)));
+  // A new choice clears the picked time (the first run keeps a time brought back from sign-in).
+  const first = useRef(true);
+  useEffect(() => {
+    setSlots(null);
+    if (first.current) { first.current = false; return; }
+    setSlot(null);
+  }, [lang, gender, daai, minutes, moving]);
+  usePolling(load, 60000, [lang, gender, daai, minutes, moving], step === "pick" && !booked && !stale && (!rescheduleId || Boolean(moving)));
 
   const byDay = useMemo(() => {
     const out = {};
@@ -120,7 +128,8 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
   // Keep the chosen day if it still has times, else jump to the first day that has some.
   useEffect(() => {
     if (!slots) return;
-    if (!day || !byDay[day]) setDay(days.find((d) => byDay[d]) || null);
+    if (!day && slot && slots.some((s) => s.starts_at === slot)) setDay(localDay(slot));   // back from sign-in
+    else if (!day || !byDay[day]) setDay(days.find((d) => byDay[d]) || null);
     if (slot && !slots.some((s) => s.starts_at === slot)) setSlot(null);
   }, [slots]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -148,7 +157,26 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
   }
 
   const signedOut = loaded && !account;
-  const next = encodeURIComponent("/talk?mode=book");
+  // Signing in brings the seeker back to the same choices, the picked time and the referral card.
+  const signInHref = () => {
+    const q = new URLSearchParams({ mode: "book", lang });
+    if (daai) q.set("daai", String(daai));
+    if (minutes !== 30) q.set("minutes", String(minutes));
+    if (slot) q.set("slot", slot);
+    for (const k of ["ref", "card", "chat"]) if (query[k]) q.set(k, query[k]);
+    return `#/account?next=${encodeURIComponent(`/talk?${q}`)}`;
+  };
+
+  if (stale) {
+    return (
+      <div className="card stack talk-card">
+        <Notice kind="warn" icon="alert">{t("book.cant_move")}</Notice>
+        <div className="row">
+          <button type="button" className="btn btn-primary" onClick={onMine}><Icon name="calendar" />{t("book.my")}</button>
+        </div>
+      </div>
+    );
+  }
 
   if (step === "review") {
     const end = new Date(new Date(slot).getTime() + minutes * 60000).toISOString();
@@ -205,7 +233,7 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
           <div className="stack">
             <span>{t("book.need_account")}</span>
             <div className="row">
-              <a className="btn btn-primary btn-sm" href={`#/account?next=${next}`}>{t("acc.signin_btn")}</a>
+              <a className="btn btn-primary btn-sm" href={signInHref()}>{t("acc.signin_btn")}</a>
             </div>
           </div>
         </Notice>
@@ -265,9 +293,15 @@ export default function BookFlow({ query, initialDaai, initialLang, onMine }) {
         </>
       )}
       <div className="row">
-        <button type="button" className="btn btn-primary btn-lg" disabled={!slot || signedOut || full || sameAsNow} onClick={() => setStep("review")}>
-          <Icon name="calendar" />{t("common.continue")}
-        </button>
+        {signedOut ? (
+          <a className={`btn btn-primary btn-lg${slot ? "" : " is-disabled"}`} href={slot ? signInHref() : undefined} aria-disabled={!slot}>
+            <Icon name="lock" />{t("book.signin_continue")}
+          </a>
+        ) : (
+          <button type="button" className="btn btn-primary btn-lg" disabled={!slot || full || sameAsNow} onClick={() => setStep("review")}>
+            <Icon name="calendar" />{t("common.continue")}
+          </button>
+        )}
         {slot && <span className="small muted">{fmtDate(slot, { weekday: "long", day: "numeric", month: "long" })} · {fmtTime(slot)}</span>}
       </div>
       <p className="faint">{t("book.lead")}</p>
