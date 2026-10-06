@@ -3,6 +3,12 @@ import { register } from "../../core/i18n.jsx";
 
 register({
   ar: {
+    // Alerts for new requests, connection warning, day-off label (review fixes)
+    "dc.alert": "نبّهني بالطلبات الجديدة",
+    "dc.alert_blocked": "المتصفح يمنع الإشعارات. اسمح بها من إعدادات الموقع في المتصفح ثم أعد المحاولة.",
+    "dc.alert_title": "طلب اتصال جديد",
+    "dc.reconnecting": "انقطع الاتصال، نعيد المحاولة…",
+    "ds.remove_off": "إزالة يوم الإجازة {day}",
     "dai.title": "لوحة الداعية",
     "dai.user": "اسم المستخدم",
     "dai.available": "متاح لاستقبال المكالمات", "dai.logout": "تسجيل الخروج", "dai.langs": "لغاتك: {l}",
@@ -126,6 +132,12 @@ register({
     "nm.stat": "أسلموا في مكالماتك", "nm.col": "أسلم",
   },
   en: {
+    // Alerts for new requests, connection warning, day-off label (review fixes)
+    "dc.alert": "Alert me about new requests",
+    "dc.alert_blocked": "Your browser blocks notifications. Allow them in the browser's site settings, then try again.",
+    "dc.alert_title": "New call request",
+    "dc.reconnecting": "Connection lost, retrying…",
+    "ds.remove_off": "Remove day off {day}",
     "nm.button": "Embraced Islam in this call?", "nm.button_short": "Mark as Muslim", "nm.after_call": "Did the seeker embrace Islam in this call?",
     "nm.confirm_title": "Confirm the seeker embraced Islam", "nm.confirm_q": "Did the seeker say the shahada with you in this call?",
     "nm.confirm_note": "We'll first ask them whether they'd like the news shared in their groups. Nothing is announced and no \"new Muslim\" badge appears without their OK, and if they say no, this record is deleted.",

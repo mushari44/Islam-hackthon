@@ -55,6 +55,30 @@ export function usePolling(fn, ms, deps = [], enabled = true, { background = fal
   }, [ms, enabled, background, ...deps]);
 }
 
+/**
+ * onKeyDown for a role="tab" or role="radio" button: the arrow keys move to the next or previous enabled item of its
+ * tablist / radiogroup (in right-to-left pages ArrowLeft means next), Home and End to the first and last. Radios are
+ * clicked so the choice follows focus, as for native radio buttons. Give the selected item tabIndex 0, the others -1.
+ */
+export function rovingKeys(e) {
+  const el = e.currentTarget;
+  const role = el.getAttribute("role");
+  const group = el.closest('[role="tablist"], [role="radiogroup"]') || el.parentElement;
+  const items = [...group.querySelectorAll(`[role="${role}"]`)].filter((x) => !x.disabled && x.getAttribute("aria-disabled") !== "true");
+  const at = items.indexOf(el);
+  if (at < 0 || !items.length) return;
+  const rtl = getComputedStyle(el).direction === "rtl";
+  const step = { ArrowDown: 1, ArrowUp: -1, ArrowRight: rtl ? -1 : 1, ArrowLeft: rtl ? 1 : -1 }[e.key];
+  let to;
+  if (step) to = (at + step + items.length) % items.length;
+  else if (e.key === "Home") to = 0;
+  else if (e.key === "End") to = items.length - 1;
+  else return;
+  e.preventDefault();
+  items[to].focus();
+  if (role === "radio") items[to].click();
+}
+
 // ---------------------------------------------------------------------------
 // Toasts
 

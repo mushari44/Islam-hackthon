@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, seekerToken } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
-import { Icon, Notice, Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { Icon, Notice, Spinner, errorText, rovingKeys, toast, usePolling } from "../../core/ui.jsx";
 import { useAccount } from "../account/public.js";
 import { NewMuslimPrompt } from "../community/public.js";
 import BookFlow from "./BookFlow.jsx";
@@ -76,7 +76,7 @@ function ModeTabs({ mode, query }) {
   return (
     <div className="tabs talk-modes" role="tablist" aria-label={t("talk.modes")}>
       {MODES.map(([key, label, icon]) => (
-        <button key={key} type="button" role="tab" aria-selected={mode === key} onClick={() => go(key)}>
+        <button key={key} type="button" role="tab" aria-selected={mode === key} tabIndex={mode === key ? 0 : -1} onKeyDown={rovingKeys} onClick={() => go(key)}>
           <Icon name={icon} />{t(label)}
         </button>
       ))}
@@ -143,7 +143,7 @@ function Choose({ query, initialDaai, initialLang, onRequested, onBook }) {
       <h3>{t("talk.gender")}</h3>
       <div className="tabs tabs-fit" role="radiogroup" aria-label={t("talk.gender")}>
         {[["", "talk.any"], ["m", "talk.male"], ["f", "talk.female"]].map(([v, k]) => (
-          <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} onClick={() => setGender(v)}>{t(k)}</button>
+          <button key={v || "any"} type="button" role="radio" aria-checked={gender === v} tabIndex={gender === v ? 0 : -1} onKeyDown={rovingKeys} onClick={() => setGender(v)}>{t(k)}</button>
         ))}
       </div>
       <DaaiPicker lang={lang} gender={gender} value={daai} onChange={setDaai} onBook={onBook} />

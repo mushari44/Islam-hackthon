@@ -2,13 +2,14 @@
 // Owner: Eman. Mounted by DaaiConsole.jsx.
 import "./strings.js";
 import "./daai.css";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, daaiAuth } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
-import { Icon, Spinner, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
+import { Icon, Notice, Spinner, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
 import { CallPanel } from "../calls/public.jsx";
 import { Answer, SourceCard } from "../rag/public.js";
 import NewMuslimButton from "./NewMuslimButton.jsx";
+import { useLeaveWarning } from "./bits.jsx";
 
 // Arabic counts change form with the number (1, 2, 3-10, 11+), so pick the right string.
 function callCount(n, t, fmtNum) {
@@ -24,6 +25,67 @@ function secs(n, fmtNum, t) {
 // locales as fmtNum in core/i18n.jsx.
 function pct(x, lang) {
   return new Intl.NumberFormat(lang === "ar" ? "ar-SA-u-nu-arab" : "en-GB", { style: "percent", maximumFractionDigits: 0 }).format(x);
+}
+
+// Alerts for new requests while the console is in a background tab: opt-in, remembered in this browser only.
+const ALERT_KEY = "sabeeli.daai.alerts";
+const canNotify = () => typeof window !== "undefined" && "Notification" in window;
+let audio = null;   // made on the switch's click, since browsers only let a page start sound after a user gesture
+
+function readAlerts() {
+  try { return localStorage.getItem(ALERT_KEY) === "1" && canNotify() && Notification.permission === "granted"; } catch { return false; }
+}
+function saveAlerts(on) {
+  try { localStorage.setItem(ALERT_KEY, on ? "1" : "0"); } catch { /* private mode: the choice lasts this visit only */ }
+}
+function unlockAudio() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx && !audio) audio = new Ctx();
+    audio?.resume?.();
+  } catch { audio = null; }
+}
+
+/** A short, soft two-note chime made with the Web Audio API (no sound file). */
+function chime() {
+  try {
+    if (!audio) unlockAudio();
+    if (!audio) return;
+    const start = audio.currentTime;
+    [[660, 0], [880, 0.18]].forEach(([freq, at]) => {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, start + at);
+      gain.gain.exponentialRampToValueAtTime(0.12, start + at + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + at + 0.5);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(start + at);
+      osc.stop(start + at + 0.55);
+    });
+  } catch { /* no sound is fine */ }
+}
+
+/** The "alert me about new requests" switch. Turning it on asks for notification permission; it stays off without it. */
+function AlertSwitch({ on, onChange }) {
+  const { t } = useI18n();
+  if (!canNotify()) return null;
+  const toggle = async (e) => {
+    if (!e.target.checked) { saveAlerts(false); onChange(false); return; }
+    unlockAudio();
+    let perm = Notification.permission;
+    try { if (perm === "default") perm = await Notification.requestPermission(); } catch { perm = "denied"; }
+    if (perm !== "granted") { toast(t("dc.alert_blocked"), "error"); return; }
+    saveAlerts(true);
+    onChange(true);
+  };
+  return (
+    <label className="row small">
+      <span className="switch"><input type="checkbox" checked={on} onChange={toggle} /><span /></span>
+      <span>{t("dc.alert")}</span>
+    </label>
+  );
 }
 
 /** Booked calls that start within 15 minutes (or are running): Start opens the room 5 minutes before. */
@@ -57,7 +119,9 @@ function BookedSoon({ items, onStarted }) {
 }
 
 function Queue({ me, onActive, onWaiting, onBookings }) {
-  const { t, fmtNum, langName } = useI18n();
+  const { t, tn, fmtNum, langName } = useI18n();
+  const [alerts, setAlerts] = useState(readAlerts);
+  const seen = useRef(0);   // the waiting count at the last poll, to notice new requests
   const [booked, setBooked] = useState([]);
   const [waiting, setWaiting] = useState(null);   // null until the first answer
   const [failed, setFailed] = useState(null);
@@ -75,6 +139,17 @@ function Queue({ me, onActive, onWaiting, onBookings }) {
   const count = waiting ? waiting.length : 0;
   useEffect(() => { onWaiting?.(count); }, [count]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => onWaiting?.(0), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // New requests while the da'i looks at another tab or window: a soft chime and a desktop notification.
+    const grew = count > seen.current;
+    seen.current = count;
+    if (!grew || !alerts || !document.hidden || !canNotify() || Notification.permission !== "granted") return;
+    chime();
+    try {
+      const note = new Notification(t("dc.alert_title"), { body: tn("dc.waiting_n", count), tag: "sabeeli-request", renotify: true });
+      note.onclick = () => { window.focus(); note.close(); };
+    } catch { /* some browsers only notify from a service worker: the chime and the title still tell */ }
+  }, [count]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     // A da'i often waits in another browser tab: show waiting requests in its title. Set again after every poll,
     // since the shell rewrites the title when the route changes (a console tab switch).
@@ -95,7 +170,12 @@ function Queue({ me, onActive, onWaiting, onBookings }) {
     <>
     {booked.length > 0 && <BookedSoon items={booked} onStarted={onActive} />}
     <section className="card stack">
-      <h3>{t("dc.queue")}</h3>
+      <div className="row spread">
+        <h3>{t("dc.queue")}</h3>
+        <AlertSwitch on={alerts} onChange={setAlerts} />
+      </div>
+      {/* After the first answer a failed poll would leave old requests up: say so until a poll succeeds. */}
+      {failed && waiting && <div role="status"><Notice kind="warn" icon="alert">{t("dc.reconnecting")}</Notice></div>}
       {body || waiting.map((r) => (
         <div className="queue-item" key={r.id}>
           <div><strong>{langName(r.lang)}</strong> <span className="faint">{t("dc.waiting", { s: secs(r.waiting_seconds, fmtNum, t) })}</span></div>
@@ -318,6 +398,8 @@ export default function CallsTab({ me, onCall, onWaiting, onBookings }) {
   const [view, setView] = useState({ name: "queue" });
   const inCall = view.name === "call" ? view.call.id : null;
   useEffect(() => { onCall?.(inCall); }, [inCall]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Closing or reloading the page would drop the call or the unsent after-call form: let the browser ask first.
+  useLeaveWarning(view.name === "call" || view.name === "feedback");
 
   const openCall = async (id) => {
     try { setView({ name: "call", call: await api.dGet(`/api/daai/calls/${id}`) }); } catch (err) { toast(errorText(err, t), "error"); }

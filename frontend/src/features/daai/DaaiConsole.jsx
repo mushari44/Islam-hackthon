@@ -7,13 +7,13 @@ import { setDaaiToken } from "../account/public.js";
 import { SignInCard } from "../account/index.js";   // not in public.js: community imports that, and the card imports community
 import { useI18n } from "../../core/i18n.jsx";
 import { navigate } from "../../core/router.jsx";
-import { Spinner, errorText, toast, usePolling } from "../../core/ui.jsx";
+import { Spinner, errorText, rovingKeys, toast, usePolling } from "../../core/ui.jsx";
 import { AskFirst, LoadError } from "./bits.jsx";
 import CallsTab, { callsTab } from "./CallsTab.jsx";
 import { groupsTab, meetupsTab } from "./CommunityTabs.jsx";
 import { profileTab, titledName } from "./ProfileTab.jsx";
 import { historyTab } from "./HistoryTab.jsx";
-import { scheduleTab } from "./ScheduleTab.jsx";
+import ScheduleTab, { scheduleTab } from "./ScheduleTab.jsx";
 import { adminTab } from "./AdminTab.jsx";
 
 const TABS = [callsTab, scheduleTab, historyTab, groupsTab, meetupsTab, profileTab, adminTab];
@@ -90,7 +90,7 @@ export default function DaaiConsole({ query }) {
       <div className="tabs" role="tablist" ref={tabsRef}>
         {list.map((x) => (
           <button key={x.key} id={`daai-tab-${x.key}`} type="button" role="tab" aria-selected={x === shown} aria-controls={`daai-panel-${x.key}`}
-            onClick={() => navigate(`/daai?tab=${x.key}`)}>
+            tabIndex={x === shown ? 0 : -1} onKeyDown={rovingKeys} onClick={() => navigate(`/daai?tab=${x.key}`)}>
             {t(x.labelKey)}
             {x === callsTab && waiting > 0 && <>
               <span className="daai-tab-count" aria-hidden="true">{fmtNum(waiting)}</span>
@@ -108,7 +108,13 @@ export default function DaaiConsole({ query }) {
       <div className="section daai-panel" id="daai-panel-calls" role="tabpanel" aria-labelledby="daai-tab-calls" hidden={shown !== callsTab}>
         <CallsTab me={me} onCall={setCallId} onWaiting={setWaiting} onBookings={setBooked} />
       </div>
-      {shown !== callsTab && (
+      {/* "My schedule" stays mounted too, so unsaved edits to the weekly hours survive a tab switch. */}
+      {list.includes(scheduleTab) && (
+        <div className="section daai-panel" id="daai-panel-schedule" role="tabpanel" aria-labelledby="daai-tab-schedule" hidden={shown !== scheduleTab}>
+          <ScheduleTab />
+        </div>
+      )}
+      {shown !== callsTab && shown !== scheduleTab && (
         <div className="section daai-panel" id={`daai-panel-${shown.key}`} role="tabpanel" aria-labelledby={`daai-tab-${shown.key}`}>
           <Panel me={me} onMe={setMe} key={shown.key} />
         </div>

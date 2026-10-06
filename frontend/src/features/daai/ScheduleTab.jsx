@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, Notice, Spinner, errorText, openSheet, toast, usePolling } from "../../core/ui.jsx";
-import { LoadError } from "./bits.jsx";
+import { LoadError, useLeaveWarning } from "./bits.jsx";
 
 const WEEK = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];   // the week as it is laid out in the region
 const TIMES = Array.from({ length: 49 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
@@ -193,6 +193,7 @@ function ScheduleTab() {
   const [failed, setFailed] = useState(null);
   const [busy, setBusy] = useState(false);
   const [bookings, setBookings] = useState(null);
+  const [bookingsFailed, setBookingsFailed] = useState(null);
   const [offDay, setOffDay] = useState("");
 
   const load = async () => {
@@ -205,11 +206,14 @@ function ScheduleTab() {
     } catch (err) { setFailed(err); }
   };
   useEffect(() => { load(); }, []);
-  const loadBookings = async () => setBookings(await api.dGet("/api/daai/bookings"));
+  const loadBookings = async () => {
+    try { setBookings(await api.dGet("/api/daai/bookings")); setBookingsFailed(null); } catch (err) { setBookingsFailed(err); }
+  };
   usePolling(loadBookings, 30000);
+  const changed = Boolean(draft) && JSON.stringify(draft) !== JSON.stringify({ tz: saved.tz, weekly: saved.weekly, days_off: saved.days_off, paused: saved.paused });
+  useLeaveWarning(changed);
 
   if (!draft) return failed ? <LoadError err={failed} onRetry={load} /> : <Spinner />;
-  const changed = JSON.stringify(draft) !== JSON.stringify({ tz: saved.tz, weekly: saved.weekly, days_off: saved.days_off, paused: saved.paused });
   const problem = weekProblem(draft.weekly);
   const hasHours = WEEK.some((d) => (draft.weekly[d] || []).length);
 
@@ -235,7 +239,8 @@ function ScheduleTab() {
     const s = new Date(b.starts_at);
     return d === `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, "0")}-${String(s.getDate()).padStart(2, "0")}`;
   }));
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();   // the local date: the UTC one is still yesterday in the early morning east of Greenwich
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const dayIso = (d) => new Date(`${d}T12:00:00`).toISOString();
 
   return (
@@ -274,7 +279,7 @@ function ScheduleTab() {
             {draft.days_off.map((d) => (
               <span className="chip" key={d}>
                 {fmtDate(dayIso(d), { weekday: "short", day: "numeric", month: "short" })}
-                <button type="button" className="icon-btn" aria-label={t("ds.remove")} onClick={() => setDraft({ ...draft, days_off: draft.days_off.filter((x) => x !== d) })}><Icon name="x" size={14} /></button>
+                <button type="button" className="icon-btn" aria-label={t("ds.remove_off", { day: fmtDate(dayIso(d), { weekday: "long", day: "numeric", month: "long" }) })} onClick={() => setDraft({ ...draft, days_off: draft.days_off.filter((x) => x !== d) })}><Icon name="x" size={14} /></button>
               </span>
             ))}
           </div>
@@ -288,9 +293,10 @@ function ScheduleTab() {
           {!hasHours && <span className="small faint">{t("ds.no_hours")}</span>}
         </div>
       </section>
-      {bookings ? <Bookings data={bookings} onChanged={loadBookings} /> : <Spinner />}
+      {bookings ? <Bookings data={bookings} onChanged={loadBookings} /> : bookingsFailed ? <LoadError err={bookingsFailed} onRetry={loadBookings} /> : <Spinner />}
     </div>
   );
 }
 
+export default ScheduleTab;
 export const scheduleTab = { key: "schedule", labelKey: "ds.tab", component: ScheduleTab, daaiOnly: true };   // reviewers take no bookings
