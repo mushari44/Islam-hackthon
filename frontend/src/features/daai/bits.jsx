@@ -2,7 +2,7 @@
 // "couldn't load" notice with a retry. Owner: Eman.
 import "./strings.js";
 import "./daai.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, Notice, errorText } from "../../core/ui.jsx";
 
@@ -32,6 +32,16 @@ export function AskFirst({ label, icon, question, yes, no, onYes, ask = true, cl
       <button type="button" className="btn btn-sm btn-ghost" autoFocus disabled={busy} onClick={() => setAsking(false)}>{no || t("common.cancel")}</button>
     </span>
   );
+}
+
+/** While `on`, the browser asks "Leave site?" before a reload or close would lose what is on screen. */
+export function useLeaveWarning(on) {
+  useEffect(() => {
+    if (!on) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [on]);
 }
 
 /** Shown in place of a list that failed to load. */

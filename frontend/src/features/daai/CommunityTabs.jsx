@@ -106,7 +106,7 @@ function ManageGroup({ group, back }) {
       toast(t(on ? "dg.muted_ok" : "dg.unmuted_ok"), "success");
     } catch (err) { fail(err); }
   };
-  const resolve = (m) => api.dPost(`/api/daai/groups/${group.id}/messages/${m.id}/resolve`, {}).then(() => patch(m.id, { needs_leader: false })).catch(fail);
+  const resolve = (m) => api.dPost(`/api/daai/groups/${group.id}/messages/${m.id}/resolve`, {}).then(() => patch(m.id, { needs_leader: false, reported: false })).catch(fail);
   const tools = (m) => (
     <div className="row mod-tools">
       {!m.deleted && (
@@ -118,7 +118,7 @@ function ManageGroup({ group, back }) {
       </> : (
         <AskFirst label={t("dg.mute")} icon="micOff" className="btn btn-ghost btn-sm" question={t("dg.mute_q")} onYes={() => mute(m.member_id, true)} />
       ))}
-      {m.needs_leader && !m.deleted && (
+      {(m.needs_leader || m.reported) && !m.deleted && (
         <button type="button" className="btn btn-accent btn-sm" onClick={() => resolve(m)}><Icon name="check" />{t("dg.resolve")}</button>
       )}
     </div>
