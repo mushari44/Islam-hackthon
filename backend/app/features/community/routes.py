@@ -21,7 +21,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ...core.db import SessionLocal, get_db, iso, utcnow
-from ..auth.public import Daai, SeekerSession, account_gender, daai, optional_daai, optional_seeker, seeker
+from ..auth.public import Daai, SeekerSession, account_gender, daai, is_account, optional_daai, optional_seeker, seeker
 from ..rag.public import answer_in_group
 from . import moderation
 from .models import RSVP, Group, GroupMember, GroupMessage, Meetup, NewMuslim
@@ -79,6 +79,14 @@ def booking_code() -> str:
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
+
+def _need_account(db: Session, me: SeekerSession) -> None:
+    """Joining a group, posting and booking a seat need a free account, as on common community and events sites
+    (mushari, 6 Oct). Browsing stays open. It also stops a muted member or a seat-hogger from coming back through
+    a fresh private window."""
+    if not is_account(db, me.id):
+        raise HTTPException(403, "sign in to take part")   # not 401: that would reset the browser session
+
 
 def _member_count(db: Session, gid: int) -> int:
     return db.scalar(select(func.count()).select_from(GroupMember)
@@ -224,6 +232,7 @@ def join_group(gid: int, body: JoinIn, ui: str = "ar", me: SeekerSession = Depen
     g = db.get(Group, gid)
     if not g or not g.active:
         raise HTTPException(404, "not found")
+    _need_account(db, me)
     if not body.accept_rules:
         raise HTTPException(400, "please accept the group rules")
     if g.audience in ("women", "men") and not body.confirm_audience:
@@ -281,6 +290,7 @@ class PostIn(BaseModel):
 def post_message(gid: int, body: PostIn, tasks: BackgroundTasks, me: SeekerSession = Depends(seeker),
                  db: Session = Depends(get_db)):
     g = db.get(Group, gid)
+    _need_account(db, me)
     with _write_lock:   # so simultaneous posts can't all slip past the rate limit (each @سبيلي is a model call)
         member = _membership(db, gid, me.id)
         if not g or not g.active or not member:
@@ -610,6 +620,7 @@ def rsvp(mid: int, body: RsvpIn, ui: str = "ar", me: SeekerSession = Depends(see
     m = db.get(Meetup, mid)
     if not m or m.status != "open":
         raise HTTPException(404, "not found")
+    _need_account(db, me)
     if (m.audience in ("women", "men") or m.age_group == "kids") and not body.confirm_audience:
         raise HTTPException(400, "please confirm the audience of this meetup")
     nick = moderation.clean_nickname(body.nickname)

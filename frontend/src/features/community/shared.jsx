@@ -210,8 +210,32 @@ function JoinForm({ group, close, onJoined }) {
   );
 }
 
+/**
+ * Joining, posting and booking a seat need a free account (as on common community sites). A signed-out seeker
+ * sees this instead of the form; signing in brings them back to `next`, which reopens the form.
+ */
+function SignInFirst({ next, what }) {
+  const { t } = useI18n();
+  return (
+    <div className="stack">
+      <p className="muted">{t(what === "join" ? "com.need_account_join" : "com.need_account_rsvp")}</p>
+      <div className="row">
+        <a className="btn btn-primary" href={`#/account?next=${encodeURIComponent(next)}`}><Icon name="lock" />{t("com.signin_or_create")}</a>
+      </div>
+    </div>
+  );
+}
+
+/** The join form, or the sign-in step for a signed-out seeker. */
+function JoinGate({ group, close, onJoined }) {
+  const { account, loaded } = useAccount();
+  if (!loaded) return null;
+  if (!account) return <SignInFirst what="join" next={`/groups/${group.id}?join=1`} />;
+  return <JoinForm group={group} close={close} onJoined={onJoined} />;
+}
+
 export function openJoin(group, t, onJoined) {
-  openSheet({ title: t("com.join_title", { title: group.title }), render: (close) => <JoinForm group={group} close={close} onJoined={onJoined} /> });
+  openSheet({ title: t("com.join_title", { title: group.title }), render: (close) => <JoinGate group={group} close={close} onJoined={onJoined} /> });
 }
 
 function RsvpForm({ meetup, onDone, account, close }) {
@@ -280,7 +304,14 @@ function Booked({ m, close }) {
   );
 }
 
-export function openRsvp(meetup, t, onDone, account = null) {
+function RsvpGate({ meetup, onDone, close }) {
+  const { account, loaded } = useAccount();
+  if (!loaded) return null;
+  if (!account) return <SignInFirst what="rsvp" next={`/events/${meetup.id}?rsvp=1`} />;
+  return <RsvpForm meetup={meetup} onDone={onDone} account={account} close={close} />;
+}
+
+export function openRsvp(meetup, t, onDone) {
   const title = t(meetup.registration === "open" ? "com.join_title_event" : "com.rsvp_title", { title: meetup.title });
-  openSheet({ title, render: (close) => <RsvpForm meetup={meetup} onDone={onDone} account={account} close={close} /> });
+  openSheet({ title, render: (close) => <RsvpGate meetup={meetup} onDone={onDone} close={close} /> });
 }

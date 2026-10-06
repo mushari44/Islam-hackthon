@@ -6,15 +6,24 @@ import { api } from "../../core/api.js";
 import { useI18n } from "../../core/i18n.jsx";
 import { Icon, errorText, useTitle } from "../../core/ui.jsx";
 import { useAccount } from "../account/public.js";
+import { navigate } from "../../core/router.jsx";
 import { MeetupCard } from "./cards.jsx";
+import { openRsvp } from "./shared.jsx";
 
-export default function MeetupPage({ params }) {
+export default function MeetupPage({ params, query = {} }) {
   const { t, lang } = useI18n();
-  const { account } = useAccount();
+  const { account, loaded } = useAccount();
   const mid = Number(params.id);
   const [m, setM] = useState(null);
   const [error, setError] = useState(null);
   useTitle(m?.title);
+  // Back from signing in to book (?rsvp=1): open the booking form straight away, once.
+  useEffect(() => {
+    if (query.rsvp && m && !m.my_rsvp && m.status === "open" && loaded && account) {
+      navigate(`/events/${mid}`, { replace: true });
+      openRsvp(m, t, load);
+    }
+  }, [query.rsvp, m, loaded, account]); // eslint-disable-line react-hooks/exhaustive-deps
   const load = () => { setError(null); return api.get(`/api/meetups/${mid}?ui=${lang}`).then(setM).catch(setError); };
   useEffect(() => { load(); }, [mid, lang, account]); // eslint-disable-line react-hooks/exhaustive-deps
   const back = (

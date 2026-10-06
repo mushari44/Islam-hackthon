@@ -7,12 +7,14 @@ from sqlalchemy import select
 from backend.app.core.db import SessionLocal, utcnow
 from backend.app.features.community import seed as community_seed
 from backend.app.features.community.models import RSVP, Meetup
+from tests.conftest import seeker_headers, signed_in
 
 LINK = "https://meet.example.com/test-circle"
 
 
 def new_device(client):
-    return {"X-Seeker": client.post("/api/session").json()["token"]}
+    """A new browser signed in to a fresh account (joining, posting and booking need one)."""
+    return seeker_headers(signed_in(client))
 
 
 def online_meetup(client, lead, **extra):
