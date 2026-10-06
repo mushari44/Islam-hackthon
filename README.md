@@ -51,7 +51,13 @@ Open http://localhost:8000. The first build takes a few minutes; later starts ta
 
 **Full mode, with «بينات»:** `docker compose --profile full up --build sabeeli-full`. It also builds «بينات» from the scholarly package's own link on your machine (its rights are reserved, so the repo can't ship it). This adds a few minutes to the first build.
 
-**GPU mode, with hybrid search:** `docker compose --profile gpu up --build sabeeli-gpu`. It adds «بينات» and the hybrid search (BM25 + the E5 embedding model). It needs an NVIDIA GPU with **8 GB of VRAM or more** that Docker can use: on Windows, Docker Desktop with WSL2 and a recent NVIDIA driver; on Linux, the NVIDIA Container Toolkit; it doesn't work on a Mac. The image is large (the CUDA build of PyTorch, about 2.5 GB). On the first start the container downloads the E5 model (about 2.2 GB) and builds the index in a few minutes, then opens the site; later starts reuse both. If Docker can't see a GPU, it says so in the log and runs with BM25.
+**GPU mode, with hybrid search (CUDA):** `docker compose --profile gpu up --build sabeeli-gpu`. It adds «بينات» and the hybrid search (BM25 + the E5 embedding model). It needs an NVIDIA GPU with **8 GB of VRAM or more** that Docker can use: on Windows, Docker Desktop with WSL2 and a recent NVIDIA driver; on Linux, the NVIDIA Container Toolkit; it doesn't work on a Mac. The image is large (PyTorch for CUDA 12.8, about 2.5 GB). On the first start the container downloads the E5 model (about 2.2 GB) and builds the index, then opens the site; later starts reuse both.
+
+> **Before you choose GPU mode**
+> - **Status:** experimental. It is being tested on one machine (NVIDIA RTX 5070, 12 GB, Windows with Docker Desktop); it has not been confirmed on other GPUs, drivers or systems.
+> - **It may not use your GPU.** If Docker can't see the GPU (no NVIDIA Container Toolkit, an old driver, WSL2 not set up), or PyTorch doesn't support the card, the container says so in its log and **still runs, with BM25 search**. Nothing breaks; you just don't get the hybrid search.
+> - **On a CPU it is slow.** To build the index without a GPU anyway, add `SABEELI_INDEX_ON_CPU=1` to `.env`: the first start then takes **about 3 hours** before the site opens. We don't recommend it for judging.
+> - Watch progress with `docker compose --profile gpu logs -f sabeeli-gpu`. The line `semantic search on (intfloat/multilingual-e5-large, cuda, ...)` means the hybrid search is running on the GPU.
 
 We recommend the default command, or full mode, for judging. Add an OpenRouter key (below) for AI answers in any mode; it is the one thing the repo can't ship.
 
