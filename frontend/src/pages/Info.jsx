@@ -80,7 +80,7 @@ register({
 
 // The team's real contact numbers, shown on the About page (a member without a number shows none).
 const TEAM = [
-  { name: "Mushari Alothman", role: "about.m", phone: "" },
+  { name: "Mushari Alothman", role: "about.m", phone: "+966567614044" },
   { name: "Eman Saheli", role: "about.e", phone: "+966599063525" },
 ];
 
