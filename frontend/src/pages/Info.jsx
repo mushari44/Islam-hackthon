@@ -15,7 +15,7 @@ register({
     "about.how3": "كتابة الإجابة مع الإسناد لكل عبارة، وعرض الآيات والأحاديث من المرجع حرفياً لا من النموذج.",
     "about.how4": "التحقق بعد الكتابة: حذف أي نص قرآني يكتبه النموذج من ذاكرته، وإضافة تنبيه الفتوى عند الحالات الشخصية.",
     "about.calls_t": "الاتصال مستقل عن النموذج", "about.calls": "يمكن طلب داعية مباشرة دون سؤال المساعد، ويبقى الاتصال متاحاً إن تعطل النموذج.",
-    "about.team_t": "الفريق", "about.m": "مهندس ذكاء اصطناعي: قراءة النص والمطابقة والاسترجاع والتقييم، والمجتمع.",
+    "about.team_t": "الفريق والتواصل", "about.phone": "اتصل بـ{name}", "about.m": "مهندس ذكاء اصطناعي: قراءة النص والمطابقة والاسترجاع والتقييم، والمجتمع.",
     "about.e": "مهندسة ذكاء اصطناعي: الاتصال بالداعية وملخص الإحالة.",
     "src.title": "المصادر", "src.lead": "يجيب سَبِيلي من نصوص الحزمة العلمية المعتمدة في التحدي فقط، ويعرض المصدر مع كل إجابة.",
     "src.q": "نص المصحف (مجمع الملك فهد) والتفسير الميسر، عبر موسوعة القرآن الكريم QuranEnc (arabic_moyassar).",
@@ -50,7 +50,7 @@ register({
     "about.how3": "Write the answer with a source for each statement; verses and hadiths are shown from the reference, never from the model.",
     "about.how4": "Check after writing: remove any Quran text the model typed from memory, and add the fatwa notice for personal cases.",
     "about.calls_t": "Calls don't depend on the model", "about.calls": "You can ask for a da'i directly without asking the assistant, and calls keep working if the model is down.",
-    "about.team_t": "Team", "about.m": "AI engineer: text reading, matching, retrieval and evaluation, and the community.",
+    "about.team_t": "Team and contact", "about.phone": "Call {name}", "about.m": "AI engineer: text reading, matching, retrieval and evaluation, and the community.",
     "about.e": "AI engineer: calls with a da'i and the referral summary.",
     "src.title": "Sources", "src.lead": "Sabeeli answers only from the challenge's approved scholarly package and shows the source with every answer.",
     "src.q": "The Mushaf text (King Fahd Complex) and At-Tafsir Al-Muyassar, via the Quran encyclopedia QuranEnc (arabic_moyassar).",
@@ -78,6 +78,12 @@ register({
   },
 });
 
+// The team's real contact numbers, shown on the About page (a member without a number shows none).
+const TEAM = [
+  { name: "Mushari Alothman", role: "about.m", phone: "+966567614044" },
+  { name: "Eman Saheli", role: "about.e", phone: "+966599063525" },
+];
+
 export function About() {
   const { t, fmtNum } = useI18n();
   return (
@@ -96,8 +102,13 @@ export function About() {
       <section className="section card stack">
         <h3>{t("about.team_t")}</h3>
         <div className="grid grid-2">
-          <div><strong>Mushari Alothman</strong><p className="muted small">{t("about.m")}</p></div>
-          <div><strong>Eman Saheli</strong><p className="muted small">{t("about.e")}</p></div>
+          {TEAM.map((m) => (
+            <div key={m.name}>
+              <strong>{m.name}</strong>
+              <p className="muted small">{t(m.role)}</p>
+              {m.phone && <a className="small" href={`tel:${m.phone}`} dir="ltr" aria-label={t("about.phone", { name: m.name })}><Icon name="talk" /> {m.phone}</a>}
+            </div>
+          ))}
         </div>
       </section>
     </>

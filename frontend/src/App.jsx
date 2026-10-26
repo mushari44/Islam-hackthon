@@ -112,6 +112,7 @@ function Shell() {
             <a href="#/about">{t("nav.about")}</a>
             <a href="#/sources">{t("nav.sources")}</a>
             <a href="#/privacy">{t("nav.privacy")}</a>
+            <a href="#/about">{t("footer.contact")}</a>
             <a href="#/daai">{t(daai ? "nav.daai" : "footer.daai")}</a>
           </nav>
           <p className="footer-note">{t("footer.ai")}</p>

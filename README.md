@@ -189,6 +189,13 @@ scripts/              corpus ingestion, the E5 index build, the Docker GPU-mode 
 
 Each person works only in their own folders. Shared code changes only by agreement. The rules for people and AI agents are in **`CLAUDE.md`** (same as `AGENTS.md`), the task lists are in **`tasks/mushari.md`** and **`tasks/eman.md`**, and the API contract between frontend and backend is in **`docs/API.md`**.
 
+## Contact
+
+| Name | Phone |
+|---|---|
+| Mushari Alothman | [+966567614044](tel:+966567614044) |
+| Eman Saheli | [+966599063525](tel:+966599063525) |
+
 ## Challenge documents
 
 - **[`docs/SOURCES.md`](docs/SOURCES.md):** the Islamic sources (with their page in the scholarly package) and how every source and every answer is verified.
