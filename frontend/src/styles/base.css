@@ -171,6 +171,7 @@ p { margin: 0 0 .8em; }
 .center { text-align: center; }
 .page-head { margin: 8px 0 22px; }
 .page-head p { color: var(--text-muted); max-width: 70ch; }
+.contact-phone { font-size: 1.25rem; font-weight: 700; text-align: start; }
 .section { margin-block: 36px; }
 
 /* ---------- chips, badges ---------- */
