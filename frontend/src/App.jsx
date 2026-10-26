@@ -9,7 +9,7 @@ import { CommunityPage, GroupPage, MeetupPage } from "./features/community/index
 import { AskPage } from "./features/rag/index.js";                      // Mushari
 import { VideosPage } from "./features/videos/index.js";               // Mushari
 import Home from "./pages/Home.jsx";
-import { About, More, NotFound, Privacy, Sources } from "./pages/Info.jsx";
+import { About, Contact, More, NotFound, Privacy, Sources } from "./pages/Info.jsx";
 
 // `title` names the page in the browser tab (a page with a data title, like a group, refines it with useTitle).
 // Only da'is open the console: it loads on first visit instead of in every seeker's bundle.
@@ -26,6 +26,7 @@ const ROUTES = [
   { path: "/account", nav: "more", page: AccountPage, title: "nav.account" },
   { path: "/daai", nav: "more", page: DaaiConsole, title: "nav.daai" },
   { path: "/about", nav: "more", page: About, title: "nav.about" },
+  { path: "/contact", nav: "contact", page: Contact, title: "nav.contact" },
   { path: "/sources", nav: "more", page: Sources, title: "nav.sources" },
   { path: "/privacy", nav: "more", page: Privacy, title: "nav.privacy" },
   { path: "/more", nav: "more", page: More, title: "nav.more" },
@@ -96,6 +97,9 @@ function Shell() {
             <button type="button" className="icon-btn" aria-label={t(isDark ? "common.theme_light" : "common.theme_dark")} title={t(isDark ? "common.theme_light" : "common.theme_dark")} onClick={() => setTheme(isDark ? "light" : "dark")}>
               <Icon name={isDark ? "sun" : "moon"} size={20} />
             </button>
+            <a className="btn btn-ghost btn-sm" href="#/contact" aria-current={current === "contact" ? "page" : undefined} aria-label={t("nav.contact")} title={t("nav.contact")}>
+              <Icon name="chat" /><span className="btn-label">{t("nav.contact")}</span>
+            </a>
             <AccountButton />
           </div>
         </div>
@@ -112,7 +116,7 @@ function Shell() {
             <a href="#/about">{t("nav.about")}</a>
             <a href="#/sources">{t("nav.sources")}</a>
             <a href="#/privacy">{t("nav.privacy")}</a>
-            <a href="#/about">{t("footer.contact")}</a>
+            <a href="#/contact">{t("nav.contact")}</a>
             <a href="#/daai">{t(daai ? "nav.daai" : "footer.daai")}</a>
           </nav>
           <p className="footer-note">{t("footer.ai")}</p>

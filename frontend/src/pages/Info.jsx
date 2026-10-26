@@ -1,4 +1,4 @@
-// About, Sources, Privacy, More and Not-found pages. Shared.
+// About, Contact, Sources, Privacy, More and Not-found pages. Shared.
 import { useState } from "react";
 import { api, forgetSeeker } from "../core/api.js";
 import { register, useI18n } from "../core/i18n.jsx";
@@ -15,7 +15,9 @@ register({
     "about.how3": "كتابة الإجابة مع الإسناد لكل عبارة، وعرض الآيات والأحاديث من المرجع حرفياً لا من النموذج.",
     "about.how4": "التحقق بعد الكتابة: حذف أي نص قرآني يكتبه النموذج من ذاكرته، وإضافة تنبيه الفتوى عند الحالات الشخصية.",
     "about.calls_t": "الاتصال مستقل عن النموذج", "about.calls": "يمكن طلب داعية مباشرة دون سؤال المساعد، ويبقى الاتصال متاحاً إن تعطل النموذج.",
-    "about.team_t": "الفريق والتواصل", "about.phone": "اتصل بـ{name}", "about.m": "مهندس ذكاء اصطناعي: قراءة النص والمطابقة والاسترجاع والتقييم، والمجتمع.",
+    "about.team_t": "الفريق والتواصل", "about.phone": "اتصل بـ{name}",
+    "contact.title": "تواصل معنا", "contact.lead": "لأي سؤال عن سَبِيلي أو ملاحظة أو شراكة، تواصل مع الفريق مباشرة.", "contact.call": "اتصال",
+"about.m": "مهندس ذكاء اصطناعي: قراءة النص والمطابقة والاسترجاع والتقييم، والمجتمع.",
     "about.e": "مهندسة ذكاء اصطناعي: الاتصال بالداعية وملخص الإحالة.",
     "src.title": "المصادر", "src.lead": "يجيب سَبِيلي من نصوص الحزمة العلمية المعتمدة في التحدي فقط، ويعرض المصدر مع كل إجابة.",
     "src.q": "نص المصحف (مجمع الملك فهد) والتفسير الميسر، عبر موسوعة القرآن الكريم QuranEnc (arabic_moyassar).",
@@ -50,7 +52,9 @@ register({
     "about.how3": "Write the answer with a source for each statement; verses and hadiths are shown from the reference, never from the model.",
     "about.how4": "Check after writing: remove any Quran text the model typed from memory, and add the fatwa notice for personal cases.",
     "about.calls_t": "Calls don't depend on the model", "about.calls": "You can ask for a da'i directly without asking the assistant, and calls keep working if the model is down.",
-    "about.team_t": "Team and contact", "about.phone": "Call {name}", "about.m": "AI engineer: text reading, matching, retrieval and evaluation, and the community.",
+    "about.team_t": "Team and contact", "about.phone": "Call {name}",
+    "contact.title": "Contact us", "contact.lead": "For any question about Sabeeli, feedback or partnership, reach the team directly.", "contact.call": "Call",
+"about.m": "AI engineer: text reading, matching, retrieval and evaluation, and the community.",
     "about.e": "AI engineer: calls with a da'i and the referral summary.",
     "src.title": "Sources", "src.lead": "Sabeeli answers only from the challenge's approved scholarly package and shows the source with every answer.",
     "src.q": "The Mushaf text (King Fahd Complex) and At-Tafsir Al-Muyassar, via the Quran encyclopedia QuranEnc (arabic_moyassar).",
@@ -121,6 +125,24 @@ const SOURCES = [
   ["src.bayyinat_note", "https://dawa.center/file/7937"], ["src.t", ""], ["src.names", "https://www.mp3quran.net/api"],
   ["src.v", "https://islamhouse.com/"],
 ];
+
+export function Contact() {
+  const { t } = useI18n();
+  return (
+    <>
+      <div className="page-head"><h1>{t("contact.title")}</h1><p>{t("contact.lead")}</p></div>
+      <div className="grid grid-2">
+        {TEAM.filter((m) => m.phone).map((m) => (
+          <div className="card stack" key={m.name}>
+            <div><strong>{m.name}</strong><p className="muted small">{t(m.role)}</p></div>
+            <p dir="ltr" className="contact-phone">{m.phone}</p>
+            <a className="btn btn-primary" href={`tel:${m.phone}`} aria-label={t("about.phone", { name: m.name })}><Icon name="talk" />{t("contact.call")}</a>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
 
 export function Sources() {
   const { t } = useI18n();
@@ -216,6 +238,7 @@ export function More({ theme, setTheme }) {
         {/* Signing in is offered only to someone who isn't signed in; once signed in, the top bar holds the account. */}
         {loaded && !account && !daai && link("#/account", "lock", "acc.signin_btn")}
         {link("#/about", "info", "nav.about")}
+        {link("#/contact", "chat", "nav.contact")}
         {link("#/sources", "book", "nav.sources")}
         {link("#/privacy", "shield", "nav.privacy")}
         {link("#/daai", "users", daai ? "nav.daai" : "footer.daai")}
